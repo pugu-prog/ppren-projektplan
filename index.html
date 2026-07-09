@@ -179,7 +179,7 @@ function App() {
 
   const einreichen = () => senden("Eingereicht – wartet auf Freigabe");
   const freigeben = () => senden("Freigegeben & digital unterschrieben");
-  const zurueckOeffnen = () => update({ status: "Entwurf" });
+  const zurueckOeffnen = () => senden("Entwurf");
   const locked = plan.status === "Freigegeben & digital unterschrieben";
 
   return (
