@@ -1,0 +1,181 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>PPREN Lehrer-Dashboard</title>
+<script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+<script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+<script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+</head>
+<body>
+<div id="root"></div>
+<script>
+  window.addEventListener("error", function (e) {
+    document.getElementById("root").innerHTML =
+      '<div style="padding:40px;font-family:sans-serif;color:#8a2b1f;white-space:pre-wrap;">' +
+      '<h2 style="margin-top:0;">Fehler beim Laden</h2>' +
+      (e.message || "Unbekannter Fehler") +
+      (e.filename ? "\n\nDatei: " + e.filename + " Zeile " + e.lineno : "") +
+      "</div>";
+  });
+</script>
+<script type="text/babel">
+const { useState, useEffect, useMemo } = React;
+
+const WEB_APP_URL = "https://script.google.com/macros/s/AKfycbyIzVJHea9-jLzCPaiFPOjghXWCEEAShYlZXvlUkzMOInu6rtMhbcIyqOwzagkpFyro/exec";
+
+function statusMeta(status) {
+  if (!status) return { key: "draft", label: "Entwurf" };
+  if (status.startsWith("Frei")) return { key: "done", label: "Freigegeben" };
+  if (status.startsWith("Ein")) return { key: "pending", label: "Eingereicht" };
+  return { key: "draft", label: "Entwurf" };
+}
+
+function App() {
+  const [projekte, setProjekte] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+  const [filterKlasse, setFilterKlasse] = useState("alle");
+  const [filterBetreuer, setFilterBetreuer] = useState("alle");
+  const [suche, setSuche] = useState("");
+
+  const lade = () => {
+    setLoading(true);
+    setError(null);
+    fetch(WEB_APP_URL)
+      .then((res) => res.json())
+      .then((data) => setProjekte(data.projekte || []))
+      .catch(() => setError("Konnte Übersicht nicht laden."))
+      .finally(() => setLoading(false));
+  };
+
+  useEffect(() => { lade(); }, []);
+
+  const klassen = useMemo(() => ["alle", ...new Set(projekte.map((p) => p.Klasse).filter(Boolean))], [projekte]);
+  const betreuerListe = useMemo(() => ["alle", ...new Set(projekte.map((p) => p.Betreuer).filter(Boolean))], [projekte]);
+
+  const gefiltert = projekte.filter((p) => {
+    if (filterKlasse !== "alle" && p.Klasse !== filterKlasse) return false;
+    if (filterBetreuer !== "alle" && p.Betreuer !== filterBetreuer) return false;
+    if (suche && !`${p.Schüler} ${p.Titel}`.toLowerCase().includes(suche.toLowerCase())) return false;
+    return true;
+  });
+
+  const zaehler = {
+    total: projekte.length,
+    done: projekte.filter((p) => statusMeta(p.Status).key === "done").length,
+    pending: projekte.filter((p) => statusMeta(p.Status).key === "pending").length,
+    draft: projekte.filter((p) => statusMeta(p.Status).key === "draft").length,
+  };
+
+  return (
+    <div className="wrap">
+      <header className="topbar">
+        <div className="brand">
+          <span className="brand-mark">PPREN</span>
+          <span className="brand-sub">Lehrer-Dashboard · Sciences Environnementales</span>
+        </div>
+        <button className="refresh-btn" onClick={lade} disabled={loading}>{loading ? "Lädt…" : "🔄 Aktualisieren"}</button>
+      </header>
+
+      <div className="stats-row">
+        <div className="stat-card">
+          <span className="stat-num">{zaehler.total}</span>
+          <span className="stat-label">Projekte gesamt</span>
+        </div>
+        <div className="stat-card stat-done">
+          <span className="stat-num">{zaehler.done}</span>
+          <span className="stat-label">Freigegeben</span>
+        </div>
+        <div className="stat-card stat-pending">
+          <span className="stat-num">{zaehler.pending}</span>
+          <span className="stat-label">Wartet auf Freigabe</span>
+        </div>
+        <div className="stat-card stat-draft">
+          <span className="stat-num">{zaehler.draft}</span>
+          <span className="stat-label">Im Entwurf</span>
+        </div>
+      </div>
+
+      <div className="controls">
+        <input className="search" placeholder="Suche nach Schüler/-in oder Titel…" value={suche} onChange={(e) => setSuche(e.target.value)} />
+        <select className="select" value={filterKlasse} onChange={(e) => setFilterKlasse(e.target.value)}>
+          {klassen.map((k) => <option key={k} value={k}>{k === "alle" ? "Alle Klassen" : k}</option>)}
+        </select>
+        <select className="select" value={filterBetreuer} onChange={(e) => setFilterBetreuer(e.target.value)}>
+          {betreuerListe.map((b) => <option key={b} value={b}>{b === "alle" ? "Alle Betreuer/-innen" : b}</option>)}
+        </select>
+      </div>
+
+      <main className="table-wrap">
+        {loading && <div className="empty">Lädt…</div>}
+        {error && <div className="empty error">{error}</div>}
+        {!loading && !error && gefiltert.length === 0 && <div className="empty">Noch keine Projekte eingereicht.</div>}
+
+        {!loading && !error && gefiltert.length > 0 && (
+          <table className="table">
+            <thead>
+              <tr>
+                <th>Schüler/-in</th><th>Klasse</th><th>Betreuer/-in</th><th>Titel</th><th>Status</th><th>Zuletzt aktualisiert</th><th></th>
+              </tr>
+            </thead>
+            <tbody>
+              {gefiltert.map((p, i) => {
+                const meta = statusMeta(p.Status);
+                return (
+                  <tr key={i}>
+                    <td className="cell-strong">{p.Schüler}</td>
+                    <td>{p.Klasse}</td>
+                    <td>{p.Betreuer}</td>
+                    <td className="cell-muted">{p.Titel || "–"}</td>
+                    <td><span className={`pill pill-${meta.key}`}>{meta.label}</span></td>
+                    <td className="cell-muted">{p["Zuletzt aktualisiert"]}</td>
+                    <td>{p["Doc-Link"] && p["Doc-Link"] !== "#" ? <a className="link" href={p["Doc-Link"]} target="_blank" rel="noreferrer">Öffnen ↗</a> : <span className="cell-muted">–</span>}</td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        )}
+      </main>
+    </div>
+  );
+}
+
+ReactDOM.createRoot(document.getElementById("root")).render(<App />);
+</script>
+<style>
+* { box-sizing: border-box; }
+body { margin: 0; font-family: -apple-system, "Segoe UI", Inter, Arial, sans-serif; color: #1c2621; background: #f6f8f6; }
+.topbar { display: flex; align-items: center; justify-content: space-between; padding: 14px 22px; background: #1F5C3B; color: #fff; }
+.brand { display: flex; align-items: baseline; gap: 10px; }
+.brand-mark { font-weight: 800; font-size: 15px; letter-spacing: 0.06em; }
+.brand-sub { font-size: 13px; opacity: 0.85; }
+.refresh-btn { background: rgba(255,255,255,0.15); border: 1px solid rgba(255,255,255,0.3); color: #fff; font-size: 12.5px; font-weight: 700; padding: 7px 14px; border-radius: 8px; cursor: pointer; }
+.refresh-btn:hover { background: rgba(255,255,255,0.25); }
+.stats-row { display: flex; gap: 14px; padding: 20px 22px 4px; flex-wrap: wrap; }
+.stat-card { flex: 1; min-width: 140px; background: #fff; border: 1px solid #e2e8e3; border-radius: 12px; padding: 14px 16px; display: flex; flex-direction: column; gap: 2px; }
+.stat-num { font-size: 26px; font-weight: 800; color: #1F5C3B; }
+.stat-label { font-size: 12px; color: #6d7d74; font-weight: 600; }
+.stat-pending .stat-num { color: #8a5a12; }
+.stat-draft .stat-num { color: #55625a; }
+.controls { display: flex; gap: 10px; padding: 16px 22px; flex-wrap: wrap; }
+.search { flex: 1; min-width: 220px; border: 1px solid #c9d5cd; border-radius: 8px; padding: 9px 12px; font-size: 13.5px; font-family: inherit; }
+.select { border: 1px solid #c9d5cd; border-radius: 8px; padding: 9px 10px; font-size: 13.5px; font-family: inherit; background: #fff; }
+.table-wrap { padding: 0 22px 30px; }
+.table { width: 100%; border-collapse: collapse; background: #fff; border-radius: 12px; overflow: hidden; border: 1px solid #e2e8e3; }
+.table th { text-align: left; font-size: 11.5px; text-transform: uppercase; letter-spacing: 0.04em; color: #6d7d74; background: #eef3ef; padding: 10px 14px; font-weight: 700; }
+.table td { padding: 12px 14px; font-size: 13.5px; border-top: 1px solid #eef1ef; }
+.cell-strong { font-weight: 700; }
+.cell-muted { color: #6d7d74; }
+.pill { font-size: 12px; font-weight: 700; padding: 4px 10px; border-radius: 20px; }
+.pill-draft { background: #e6e9e6; color: #55625a; }
+.pill-pending { background: #fbe8c6; color: #8a5a12; }
+.pill-done { background: #d7ecdd; color: #1F5C3B; }
+.link { color: #1F5C3B; font-weight: 700; text-decoration: none; font-size: 13px; }
+.empty { padding: 40px; text-align: center; color: #6d7d74; font-size: 14px; background: #fff; border-radius: 12px; border: 1px solid #e2e8e3; margin: 0 22px; }
+.error { color: #8a2b1f; }
+</style>
+</body>
+</html>
