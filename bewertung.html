@@ -1,0 +1,213 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>PPREN Bewertung</title>
+<script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+<script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+<script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+</head>
+<body>
+<div id="root"></div>
+<script>
+  window.addEventListener("error", function (e) {
+    document.getElementById("root").innerHTML =
+      '<div style="padding:40px;font-family:sans-serif;color:#8a2b1f;white-space:pre-wrap;">' +
+      '<h2 style="margin-top:0;">Fehler beim Laden</h2>' +
+      (e.message || "Unbekannter Fehler") +
+      (e.filename ? "\n\nDatei: " + e.filename + " Zeile " + e.lineno : "") +
+      "</div>";
+  });
+</script>
+<script type="text/babel">
+const { useState } = React;
+
+const WEB_APP_URL = "https://script.google.com/macros/s/AKfycbyIzVJHea9-jLzCPaiFPOjghXWCEEAShYlZXvlUkzMOInu6rtMhbcIyqOwzagkpFyro/exec";
+
+const SCHUELER = [
+  { id: "lea_muller", name: "Léa Muller", klasse: "1GSE" },
+  { id: "ben_weber", name: "Ben Weber", klasse: "2GSE" },
+  { id: "noah_schmit", name: "Noah Schmit", klasse: "1GSE" },
+];
+
+const PERIODEN_2GSE = ["Trimester 1", "Trimester 2", "Trimester 3"];
+const PERIODEN_1GSE = ["Semester 1", "Semester 2"];
+
+const KATEGORIEN_DEFAULT = [
+  { name: "Planung & Themenfindung", max: 20 },
+  { name: "Methodologie", max: 20 },
+  { name: "Umsetzung & Dokumentation", max: 20 },
+];
+
+function uid() { return Date.now().toString(36) + Math.random().toString(36).slice(2, 6); }
+
+function App() {
+  const [schuelerId, setSchuelerId] = useState("");
+  const [periode, setPeriode] = useState("");
+  const [kategorien, setKategorien] = useState(KATEGORIEN_DEFAULT.map((k) => ({ ...k, id: uid(), punkte: "" })));
+  const [wbPunkte, setWbPunkte] = useState("");
+  const [wbMax, setWbMax] = useState("24");
+  const [kommentar, setKommentar] = useState("");
+  const [syncing, setSyncing] = useState(false);
+  const [syncError, setSyncError] = useState(null);
+  const [docUrl, setDocUrl] = useState(null);
+  const [toast, setToast] = useState(null);
+
+  const currentSchueler = SCHUELER.find((s) => s.id === schuelerId);
+  const perioden = currentSchueler?.klasse === "2GSE" ? PERIODEN_2GSE : PERIODEN_1GSE;
+
+  const updateKategorie = (id, punkte) =>
+    setKategorien((ks) => ks.map((k) => (k.id === id ? { ...k, punkte } : k)));
+
+  const gesamt = kategorien.reduce((s, k) => s + (parseFloat(k.punkte) || 0), 0) + (parseFloat(wbPunkte) || 0);
+  const gesamtMax = kategorien.reduce((s, k) => s + (parseFloat(k.max) || 0), 0) + (parseFloat(wbMax) || 0);
+  const note = gesamtMax > 0 ? Math.round((gesamt / gesamtMax) * 4 * 10) / 10 : null;
+
+  const canSubmit = schuelerId && periode && kategorien.every((k) => k.punkte !== "");
+
+  const absenden = async () => {
+    setSyncing(true);
+    setSyncError(null);
+    try {
+      const payload = {
+        typ: "bewertung",
+        schueler: currentSchueler.name,
+        periode,
+        kategorien: kategorien.map((k) => ({ name: k.name, punkte: Number(k.punkte) || 0, max: Number(k.max) })),
+        wochenberichtePunkte: wbPunkte === "" ? undefined : Number(wbPunkte),
+        wochenberichteMax: Number(wbMax),
+        kommentar,
+      };
+      const res = await fetch(WEB_APP_URL, {
+        method: "POST",
+        headers: { "Content-Type": "text/plain;charset=utf-8" },
+        body: JSON.stringify(payload),
+      });
+      const data = await res.json();
+      if (!data.ok) throw new Error(data.error || "Unbekannter Fehler");
+      setDocUrl(data.url);
+      setToast("Bewertung gespeichert und ins Suivi übernommen.");
+    } catch (e) {
+      setSyncError("Konnte nicht speichern: " + e.message);
+    } finally {
+      setSyncing(false);
+      setTimeout(() => setToast(null), 3600);
+    }
+  };
+
+  return (
+    <div className="wrap">
+      <header className="topbar">
+        <div className="brand">
+          <span className="brand-mark">PPREN</span>
+          <span className="brand-sub">Bewertung · Sciences Environnementales</span>
+        </div>
+      </header>
+
+      <main className="content">
+        <div className="notice">
+          Hinweis: Kategorien und Punktemaxima sind Platzhalter, bis das offizielle Bewertungsraster feststeht
+          (siehe Lastenheft, offene Punkte). Anpassbar direkt im Code.
+        </div>
+
+        <section className="card">
+          <h2>1. Schüler/-in & Periode</h2>
+          <div className="grid2">
+            <label className="field">
+              <span className="field-label">Schüler/-in</span>
+              <select className="select" value={schuelerId} onChange={(e) => { setSchuelerId(e.target.value); setPeriode(""); }}>
+                <option value="">– auswählen –</option>
+                {SCHUELER.map((s) => <option key={s.id} value={s.id}>{s.name} ({s.klasse})</option>)}
+              </select>
+            </label>
+            <label className="field">
+              <span className="field-label">Periode</span>
+              <select className="select" value={periode} onChange={(e) => setPeriode(e.target.value)} disabled={!schuelerId}>
+                <option value="">– auswählen –</option>
+                {perioden.map((p) => <option key={p} value={p}>{p}</option>)}
+              </select>
+            </label>
+          </div>
+        </section>
+
+        {schuelerId && periode && (
+          <>
+            <section className="card">
+              <h2>2. Bewertungskategorien</h2>
+              {kategorien.map((k) => (
+                <div className="kat-row" key={k.id}>
+                  <span className="kat-name">{k.name}</span>
+                  <input
+                    type="number" min="0" max={k.max} className="input input-points"
+                    value={k.punkte} onChange={(e) => updateKategorie(k.id, e.target.value)}
+                  />
+                  <span className="kat-max">/ {k.max}</span>
+                </div>
+              ))}
+              <div className="kat-row">
+                <span className="kat-name">Wochenberichte (automatisch, hier manuell zur Demo)</span>
+                <input type="number" min="0" max={wbMax} className="input input-points" value={wbPunkte} onChange={(e) => setWbPunkte(e.target.value)} />
+                <span className="kat-max">/ {wbMax}</span>
+              </div>
+              <div className="total-row">
+                <span>Gesamt: {gesamt} / {gesamtMax} Punkte</span>
+                {note !== null && <span className="note-pill">Note: {note} / 4</span>}
+              </div>
+            </section>
+
+            <section className="card">
+              <h2>3. Kommentar</h2>
+              <textarea className="textarea" rows={5} placeholder="Kommentar zur Bewertung dieser Periode…" value={kommentar} onChange={(e) => setKommentar(e.target.value)} />
+            </section>
+
+            <div className="actions">
+              <button className="btn btn-primary" disabled={!canSubmit || syncing} onClick={absenden}>
+                {syncing ? "Speichert…" : "Bewertung ins Suivi übernehmen"}
+              </button>
+              {docUrl && <a className="doc-link" href={docUrl} target="_blank" rel="noreferrer">📄 Suivi öffnen ↗</a>}
+            </div>
+            {syncError && <div className="sync-error">{syncError}</div>}
+          </>
+        )}
+      </main>
+      {toast && <div className="toast">{toast}</div>}
+    </div>
+  );
+}
+
+ReactDOM.createRoot(document.getElementById("root")).render(<App />);
+</script>
+<style>
+* { box-sizing: border-box; }
+body { margin: 0; font-family: -apple-system, "Segoe UI", Inter, Arial, sans-serif; color: #1c2621; background: #f6f8f6; }
+.topbar { padding: 14px 22px; background: #1F5C3B; color: #fff; }
+.brand { display: flex; align-items: baseline; gap: 10px; }
+.brand-mark { font-weight: 800; font-size: 15px; letter-spacing: 0.06em; }
+.brand-sub { font-size: 13px; opacity: 0.85; }
+.content { max-width: 640px; margin: 0 auto; padding: 24px 20px 60px; }
+.notice { background: #fbe8c6; color: #8a5a12; font-size: 12.5px; padding: 10px 14px; border-radius: 8px; margin-bottom: 18px; line-height: 1.4; }
+.card { background: #fff; border: 1px solid #e2e8e3; border-radius: 12px; padding: 18px 20px; margin-bottom: 16px; }
+.card h2 { font-size: 15px; margin: 0 0 12px; color: #1F5C3B; }
+.grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+.field { display: flex; flex-direction: column; gap: 4px; }
+.field-label { font-size: 12.5px; font-weight: 700; color: #294f3c; }
+.select, .input, .textarea { border: 1px solid #c9d5cd; border-radius: 7px; padding: 8px 10px; font-size: 13.5px; font-family: inherit; background: #fff; color: #1c2621; }
+.select:disabled { background: #f1f3f1; color: #7a847e; }
+.textarea { width: 100%; resize: vertical; }
+.kat-row { display: flex; align-items: center; gap: 10px; margin-bottom: 10px; }
+.kat-name { flex: 1; font-size: 13.5px; }
+.input-points { width: 70px; text-align: right; }
+.kat-max { font-size: 13px; color: #6d7d74; min-width: 40px; }
+.total-row { display: flex; justify-content: space-between; align-items: center; margin-top: 12px; padding-top: 12px; border-top: 1px solid #eef1ef; font-weight: 700; }
+.note-pill { background: #d7ecdd; color: #1F5C3B; padding: 4px 10px; border-radius: 20px; font-size: 13px; }
+.actions { display: flex; align-items: center; gap: 12px; padding: 4px 0 20px; }
+.btn { font-size: 13.5px; font-weight: 700; padding: 10px 16px; border-radius: 8px; border: none; cursor: pointer; }
+.btn-primary { background: #1F5C3B; color: #fff; }
+.btn-primary:disabled { background: #b7c6bd; cursor: not-allowed; }
+.doc-link { font-size: 13px; font-weight: 700; color: #1F5C3B; text-decoration: none; }
+.sync-error { color: #8a2b1f; font-size: 12.5px; background: #fbe4e1; padding: 8px 12px; border-radius: 8px; }
+.toast { position: fixed; bottom: 22px; left: 50%; transform: translateX(-50%); background: #1c2621; color: #fff; padding: 10px 18px; border-radius: 8px; font-size: 13px; }
+</style>
+</body>
+</html>
