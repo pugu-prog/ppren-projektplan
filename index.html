@@ -1,1 +1,388 @@
-PLACEHOLDER_REPLACED_BELOW
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>PPREN Projektplan</title>
+<script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+<script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+<script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+</head>
+<body>
+<div id="root"></div>
+<script type="text/babel" data-presets="react">
+const { useState, useEffect, useCallback, useRef } = React;
+
+const SCHUELER = [
+  { id: "lea_muller", name: "Léa Muller", klasse: "1GSE" },
+  { id: "ben_weber", name: "Ben Weber", klasse: "2GSE" },
+  { id: "noah_schmit", name: "Noah Schmit", klasse: "1GSE" },
+];
+
+const LEHRER = [
+  { id: "kayser", name: "Prof. Kayser" },
+  { id: "reuter", name: "Prof. Reuter" },
+  { id: "diederich", name: "Prof. Diederich" },
+  { id: "wagner", name: "Prof. Wagner" },
+];
+
+const BUDGET_MAX = 500;
+const WEB_APP_URL = "https://script.google.com/macros/s/AKfycbyIzVJHea9-jLzCPaiFPOjghXWCEEAShYlZXvlUkzMOInu6rtMhbcIyqOwzagkpFyro/exec";
+
+function uid() {
+  return Date.now().toString(36) + Math.random().toString(36).slice(2, 8);
+}
+
+async function sendeAnGoogleDrive(payload) {
+  const res = await fetch(WEB_APP_URL, {
+    method: "POST",
+    headers: { "Content-Type": "text/plain;charset=utf-8" },
+    body: JSON.stringify(payload),
+  });
+  const data = await res.json();
+  if (!data.ok) throw new Error(data.error || "Unbekannter Fehler");
+  return data.url;
+}
+
+const emptyPlan = () => ({
+  betreuer: "",
+  titel: "",
+  inhalt: "",
+  motivation: "",
+  ziele: "",
+  meilensteine: [{ id: uid(), datum: "", beschreibung: "" }],
+  gruppenarbeit: false,
+  partner: "",
+  aufgabenteilung: "",
+  kostenplanNoetig: false,
+  kosten: [{ id: uid(), bezeichnung: "", betrag: "" }],
+  status: "Entwurf",
+  zuletztGespeichert: null,
+});
+
+function useDebouncedSave(key, value, delay = 700) {
+  const timer = useRef(null);
+  const [saving, setSaving] = useState(false);
+  useEffect(() => {
+    if (!key) return;
+    setSaving(true);
+    if (timer.current) clearTimeout(timer.current);
+    timer.current = setTimeout(() => {
+      try {
+        localStorage.setItem(key, JSON.stringify({ ...value, zuletztGespeichert: new Date().toISOString() }));
+      } catch (e) {
+        console.error("Speichern fehlgeschlagen", e);
+      } finally {
+        setSaving(false);
+      }
+    }, delay);
+    return () => clearTimeout(timer.current);
+  }, [key, JSON.stringify(value)]);
+  return saving;
+}
+
+const Field = ({ label, hint, children }) => (
+  <label className="field">
+    <span className="field-label">{label}</span>
+    {hint && <span className="field-hint">{hint}</span>}
+    {children}
+  </label>
+);
+
+function App() {
+  const [schuelerId, setSchuelerId] = useState("");
+  const [plan, setPlan] = useState(emptyPlan());
+  const [loaded, setLoaded] = useState(false);
+  const [toast, setToast] = useState(null);
+  const [syncing, setSyncing] = useState(false);
+  const [syncError, setSyncError] = useState(null);
+  const [docUrl, setDocUrl] = useState(null);
+
+  const storageKey = schuelerId ? `projektplan:${schuelerId}` : null;
+  const saving = useDebouncedSave(loaded ? storageKey : null, plan);
+  const currentSchueler = SCHUELER.find((s) => s.id === schuelerId);
+
+  useEffect(() => {
+    if (!schuelerId) return;
+    setLoaded(false);
+    try {
+      const raw = localStorage.getItem(`projektplan:${schuelerId}`);
+      setPlan(raw ? JSON.parse(raw) : emptyPlan());
+    } catch {
+      setPlan(emptyPlan());
+    } finally {
+      setLoaded(true);
+    }
+  }, [schuelerId]);
+
+  const update = useCallback((patch) => setPlan((p) => ({ ...p, ...patch })), []);
+
+  const updateMeilenstein = (id, patch) =>
+    update({ meilensteine: plan.meilensteine.map((m) => (m.id === id ? { ...m, ...patch } : m)) });
+  const addMeilenstein = () =>
+    update({ meilensteine: [...plan.meilensteine, { id: uid(), datum: "", beschreibung: "" }] });
+  const removeMeilenstein = (id) =>
+    update({ meilensteine: plan.meilensteine.filter((m) => m.id !== id) });
+
+  const updateKosten = (id, patch) =>
+    update({ kosten: plan.kosten.map((k) => (k.id === id ? { ...k, ...patch } : k)) });
+  const addKosten = () =>
+    update({ kosten: [...plan.kosten, { id: uid(), bezeichnung: "", betrag: "" }] });
+  const removeKosten = (id) => update({ kosten: plan.kosten.filter((k) => k.id !== id) });
+
+  const kostenSumme = plan.kosten.reduce((s, k) => s + (parseFloat(k.betrag) || 0), 0);
+  const budgetUeberschritten = kostenSumme > BUDGET_MAX;
+  const canSubmit = plan.betreuer && plan.titel && plan.inhalt && plan.motivation && plan.ziele && !budgetUeberschritten;
+
+  const buildPayload = (status) => ({
+    schueler: currentSchueler?.name || "",
+    klasse: currentSchueler?.klasse || "",
+    betreuer: LEHRER.find((l) => l.id === plan.betreuer)?.name || "",
+    titel: plan.titel,
+    inhalt: plan.inhalt,
+    motivation: plan.motivation,
+    ziele: plan.ziele,
+    meilensteine: plan.meilensteine.filter((m) => m.beschreibung),
+    gruppenarbeit: plan.gruppenarbeit,
+    partner: plan.gruppenarbeit ? (SCHUELER.find((s) => s.id === plan.partner)?.name || "") : "",
+    aufgabenteilung: plan.aufgabenteilung,
+    kostenplanNoetig: plan.kostenplanNoetig,
+    kosten: plan.kostenplanNoetig ? plan.kosten.filter((k) => k.bezeichnung) : [],
+    status,
+  });
+
+  const senden = async (status) => {
+    update({ status });
+    setSyncing(true);
+    setSyncError(null);
+    try {
+      const url = await sendeAnGoogleDrive(buildPayload(status));
+      setDocUrl(url);
+      setToast(status.startsWith("Frei") ? "Freigegeben. Gesperrt und mit Google Drive/Suivi synchronisiert." : "Projektplan eingereicht und mit Google Drive synchronisiert.");
+    } catch (e) {
+      setSyncError("Konnte nicht mit Google Drive synchronisieren: " + e.message);
+    } finally {
+      setSyncing(false);
+      setTimeout(() => setToast(null), 3600);
+    }
+  };
+
+  const einreichen = () => senden("Eingereicht – wartet auf Freigabe");
+  const freigeben = () => senden("Freigegeben & digital unterschrieben");
+  const zurueckOeffnen = () => update({ status: "Entwurf" });
+  const locked = plan.status === "Freigegeben & digital unterschrieben";
+
+  return (
+    <div className="wrap">
+      <header className="topbar">
+        <div className="brand">
+          <span className="brand-mark">PPREN</span>
+          <span className="brand-sub">Projektplan · Sciences Environnementales</span>
+        </div>
+        <div className="save-indicator">
+          {schuelerId && (saving ? "Speichert…" : plan.zuletztGespeichert ? `Gespeichert ${new Date(plan.zuletztGespeichert).toLocaleTimeString("de-DE", { hour: "2-digit", minute: "2-digit" })}` : "")}
+        </div>
+      </header>
+
+      <div className="layout">
+        <aside className="sidebar">
+          <Field label="Schüler/-in">
+            <select value={schuelerId} onChange={(e) => setSchuelerId(e.target.value)} className="select">
+              <option value="">– auswählen –</option>
+              {SCHUELER.map((s) => <option key={s.id} value={s.id}>{s.name} ({s.klasse})</option>)}
+            </select>
+          </Field>
+
+          {schuelerId && (
+            <>
+              <div className="status-box">
+                <span className="status-label">Status</span>
+                <span className={`status-pill status-${plan.status.startsWith("Frei") ? "done" : plan.status.startsWith("Ein") ? "pending" : "draft"}`}>{plan.status}</span>
+              </div>
+              <div className="hint-box">Der Entwurf wird automatisch gespeichert. Du kannst jederzeit wiederkommen und weiterarbeiten.</div>
+            </>
+          )}
+        </aside>
+
+        <main className="content">
+          {!schuelerId && <div className="empty-state"><p>Wähl oben links deinen Namen aus, um deinen Projektplan zu öffnen oder zu erstellen.</p></div>}
+
+          {schuelerId && (
+            <>
+              <fieldset disabled={locked} className="form">
+                <section className="card">
+                  <h2>1. Grunddaten</h2>
+                  <div className="grid2">
+                    <Field label="Schüler/-in"><input className="input" value={currentSchueler?.name || ""} disabled /></Field>
+                    <Field label="Betreuer/-in">
+                      <select className="select" value={plan.betreuer} onChange={(e) => update({ betreuer: e.target.value })}>
+                        <option value="">– auswählen –</option>
+                        {LEHRER.map((l) => <option key={l.id} value={l.id}>{l.name}</option>)}
+                      </select>
+                    </Field>
+                  </div>
+                  <Field label="Projekttitel">
+                    <input className="input" placeholder="z. B. Wasserqualität der Attert" value={plan.titel} onChange={(e) => update({ titel: e.target.value })} />
+                  </Field>
+                </section>
+
+                <section className="card">
+                  <h2>2. Inhalt & Motivation</h2>
+                  <Field label="Inhalt / Beschreibung">
+                    <textarea className="textarea" rows={4} value={plan.inhalt} onChange={(e) => update({ inhalt: e.target.value })} />
+                  </Field>
+                  <Field label="Motivation">
+                    <textarea className="textarea" rows={3} value={plan.motivation} onChange={(e) => update({ motivation: e.target.value })} />
+                  </Field>
+                </section>
+
+                <section className="card">
+                  <h2>3. Ziele & Meilensteine</h2>
+                  <Field label="Ziele">
+                    <textarea className="textarea" rows={3} value={plan.ziele} onChange={(e) => update({ ziele: e.target.value })} />
+                  </Field>
+                  <div className="repeat-list">
+                    <span className="field-label">Meilensteine</span>
+                    {plan.meilensteine.map((m, i) => (
+                      <div className="repeat-row" key={m.id}>
+                        <input type="date" className="input input-date" value={m.datum} onChange={(e) => updateMeilenstein(m.id, { datum: e.target.value })} />
+                        <input className="input" placeholder={`Meilenstein ${i + 1}`} value={m.beschreibung} onChange={(e) => updateMeilenstein(m.id, { beschreibung: e.target.value })} />
+                        {plan.meilensteine.length > 1 && <button type="button" className="icon-btn" onClick={() => removeMeilenstein(m.id)}>✕</button>}
+                      </div>
+                    ))}
+                    <button type="button" className="add-btn" onClick={addMeilenstein}>+ Meilenstein hinzufügen</button>
+                  </div>
+                </section>
+
+                <section className="card">
+                  <h2>4. Aufgabenteilung</h2>
+                  <label className="toggle-row">
+                    <input type="checkbox" checked={plan.gruppenarbeit} onChange={(e) => update({ gruppenarbeit: e.target.checked })} />
+                    <span>Ich arbeite mit einem Partner / einer Partnerin zusammen</span>
+                  </label>
+                  {plan.gruppenarbeit && (
+                    <div className="indent">
+                      <Field label="Partner/-in">
+                        <select className="select" value={plan.partner} onChange={(e) => update({ partner: e.target.value })}>
+                          <option value="">– auswählen –</option>
+                          {SCHUELER.filter((s) => s.id !== schuelerId).map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
+                        </select>
+                      </Field>
+                      <Field label="Mein individueller Aufgabenbereich">
+                        <textarea className="textarea" rows={3} value={plan.aufgabenteilung} onChange={(e) => update({ aufgabenteilung: e.target.value })} />
+                      </Field>
+                    </div>
+                  )}
+                </section>
+
+                <section className="card">
+                  <h2>5. Kostenplan</h2>
+                  <label className="toggle-row">
+                    <input type="checkbox" checked={plan.kostenplanNoetig} onChange={(e) => update({ kostenplanNoetig: e.target.checked })} />
+                    <span>Mein Projekt benötigt ein Budget (max. {BUDGET_MAX} €)</span>
+                  </label>
+                  {plan.kostenplanNoetig && (
+                    <div className="indent">
+                      <div className="repeat-list">
+                        {plan.kosten.map((k) => (
+                          <div className="repeat-row repeat-row-budget" key={k.id}>
+                            <input className="input" placeholder="Position" value={k.bezeichnung} onChange={(e) => updateKosten(k.id, { bezeichnung: e.target.value })} />
+                            <input type="number" className="input input-money" placeholder="0.00" value={k.betrag} onChange={(e) => updateKosten(k.id, { betrag: e.target.value })} />
+                            <span className="currency">€</span>
+                            {plan.kosten.length > 1 && <button type="button" className="icon-btn" onClick={() => removeKosten(k.id)}>✕</button>}
+                          </div>
+                        ))}
+                        <button type="button" className="add-btn" onClick={addKosten}>+ Position hinzufügen</button>
+                      </div>
+                      <div className={`budget-summary ${budgetUeberschritten ? "over" : ""}`}>
+                        <span>Summe: {kostenSumme.toFixed(2)} €</span>
+                        <span>Restbudget: {(BUDGET_MAX - kostenSumme).toFixed(2)} €</span>
+                        {budgetUeberschritten && <span className="over-label">Budget überschritten</span>}
+                      </div>
+                    </div>
+                  )}
+                </section>
+              </fieldset>
+
+              <div className="actions">
+                {!locked && plan.status === "Entwurf" && (
+                  <button className="btn btn-primary" disabled={!canSubmit || syncing} onClick={einreichen}>
+                    {syncing ? "Sendet an Google Drive…" : "Zur Genehmigung einreichen"}
+                  </button>
+                )}
+                {!locked && plan.status.startsWith("Eingereicht") && (
+                  <>
+                    <button className="btn btn-ghost" onClick={zurueckOeffnen} disabled={syncing}>Zurück zur Bearbeitung</button>
+                    <button className="btn btn-primary" disabled={syncing} onClick={freigeben}>
+                      {syncing ? "Sendet an Google Drive…" : "(Demo) Freigeben & unterschreiben"}
+                    </button>
+                  </>
+                )}
+                {locked && <span className="locked-note">🔒 Gesperrt — freigegeben und ins Suivi übernommen.</span>}
+                {docUrl && <a className="doc-link" href={docUrl} target="_blank" rel="noreferrer">📄 Google Doc öffnen ↗</a>}
+              </div>
+              {syncError && <div className="sync-error">{syncError}</div>}
+            </>
+          )}
+        </main>
+      </div>
+      {toast && <div className="toast">{toast}</div>}
+    </div>
+  );
+}
+
+ReactDOM.createRoot(document.getElementById("root")).render(<App />);
+</script>
+<style>
+* { box-sizing: border-box; }
+body { margin: 0; font-family: -apple-system, "Segoe UI", Inter, Arial, sans-serif; color: #1c2621; background: #f6f8f6; }
+.topbar { display: flex; align-items: center; justify-content: space-between; padding: 14px 22px; background: #1F5C3B; color: #fff; }
+.brand { display: flex; align-items: baseline; gap: 10px; }
+.brand-mark { font-weight: 800; font-size: 15px; letter-spacing: 0.06em; }
+.brand-sub { font-size: 13px; opacity: 0.85; }
+.save-indicator { font-size: 12px; opacity: 0.85; min-width: 120px; text-align: right; }
+.layout { display: flex; min-height: 640px; }
+.sidebar { width: 240px; flex-shrink: 0; background: #eef3ef; padding: 18px 16px; border-right: 1px solid #dbe4de; display: flex; flex-direction: column; gap: 16px; }
+.content { flex: 1; padding: 24px 28px; }
+.field { display: flex; flex-direction: column; gap: 4px; margin-bottom: 14px; }
+.field-label { font-size: 12.5px; font-weight: 700; color: #294f3c; }
+.field-hint { font-size: 11.5px; color: #6d7d74; margin-top: -2px; }
+.select, .input, .textarea { border: 1px solid #c9d5cd; border-radius: 7px; padding: 8px 10px; font-size: 13.5px; font-family: inherit; background: #fff; color: #1c2621; }
+.input:disabled { background: #f1f3f1; color: #7a847e; }
+.textarea { resize: vertical; }
+.status-box { display: flex; flex-direction: column; gap: 6px; }
+.status-label { font-size: 11px; text-transform: uppercase; color: #6d7d74; font-weight: 700; }
+.status-pill { font-size: 12.5px; font-weight: 700; padding: 5px 10px; border-radius: 20px; width: fit-content; }
+.status-draft { background: #e6e9e6; color: #55625a; }
+.status-pending { background: #fbe8c6; color: #8a5a12; }
+.status-done { background: #d7ecdd; color: #1F5C3B; }
+.hint-box { font-size: 11.5px; color: #55625a; background: #dfe9e2; padding: 10px; border-radius: 8px; line-height: 1.4; }
+.empty-state { color: #6d7d74; font-size: 14px; padding: 40px 0; }
+.card { background: #fff; border: 1px solid #e2e8e3; border-radius: 12px; padding: 18px 20px; margin-bottom: 16px; }
+.card h2 { font-size: 15px; margin: 0 0 12px; color: #1F5C3B; }
+.grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+.repeat-list { display: flex; flex-direction: column; gap: 8px; margin-top: 6px; }
+.repeat-row { display: flex; gap: 8px; align-items: center; }
+.repeat-row .input { flex: 1; }
+.input-date { max-width: 150px; flex: none; }
+.repeat-row-budget .input:first-child { flex: 2; }
+.input-money { max-width: 100px; flex: none; }
+.currency { font-size: 13px; color: #6d7d74; }
+.icon-btn { border: none; background: transparent; color: #99392f; cursor: pointer; font-size: 14px; width: 26px; height: 26px; border-radius: 6px; }
+.add-btn { align-self: flex-start; border: 1px dashed #9db6a7; background: transparent; color: #1F5C3B; font-size: 12.5px; font-weight: 600; padding: 6px 10px; border-radius: 7px; cursor: pointer; }
+.toggle-row { display: flex; align-items: center; gap: 8px; font-size: 13.5px; cursor: pointer; }
+.indent { margin-top: 12px; padding-left: 14px; border-left: 2px solid #dfe9e2; }
+.budget-summary { display: flex; gap: 18px; font-size: 13px; font-weight: 600; background: #eef3ef; padding: 10px 12px; border-radius: 8px; margin-top: 8px; color: #294f3c; }
+.budget-summary.over { background: #fbe4e1; color: #8a2b1f; }
+.actions { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; padding: 4px 0 30px; }
+.btn { font-size: 13.5px; font-weight: 700; padding: 10px 16px; border-radius: 8px; border: 1px solid transparent; cursor: pointer; }
+.btn-primary { background: #1F5C3B; color: #fff; }
+.btn-primary:disabled { background: #b7c6bd; cursor: not-allowed; }
+.btn-ghost { background: transparent; color: #294f3c; border-color: #c9d5cd; }
+.locked-note { font-size: 13px; color: #294f3c; font-weight: 600; }
+.doc-link { font-size: 13px; font-weight: 700; color: #1F5C3B; text-decoration: none; }
+.sync-error { color: #8a2b1f; font-size: 12.5px; background: #fbe4e1; padding: 8px 12px; border-radius: 8px; margin: -6px 22px 20px; }
+.toast { position: fixed; bottom: 22px; left: 50%; transform: translateX(-50%); background: #1c2621; color: #fff; padding: 10px 18px; border-radius: 8px; font-size: 13px; }
+</style>
+</body>
+</html>
