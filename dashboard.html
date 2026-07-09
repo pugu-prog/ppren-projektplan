@@ -23,7 +23,7 @@
 <script type="text/babel">
 const { useState, useEffect, useMemo } = React;
 
-const WEB_APP_URL = "https://script.google.com/macros/s/AKfycbyIzVJHea9-jLzCPaiFPOjghXWCEEAShYlZXvlUkzMOInu6rtMhbcIyqOwzagkpFyro/exec";
+const WEB_APP_URL = "https://script.google.com/macros/s/AKfycbzfyThho8MevoyfSz7NsQ1YxZJO4E-f61GYYzqZyHACIHzxR3bm7SHCwVUkCBJrAEvJ/exec";
 
 function statusMeta(status) {
   if (!status) return { key: "draft", label: "Entwurf" };
@@ -117,7 +117,7 @@ function App() {
           <table className="table">
             <thead>
               <tr>
-                <th>Schüler/-in</th><th>Klasse</th><th>Betreuer/-in</th><th>Titel</th><th>Status</th><th>Zuletzt aktualisiert</th><th></th>
+                <th>Schüler/-in</th><th>Klasse</th><th>Betreuer/-in</th><th>Titel</th><th>Status</th><th>Zuletzt aktualisiert</th><th>Projektplan</th><th>Suivi</th>
               </tr>
             </thead>
             <tbody>
@@ -131,7 +131,8 @@ function App() {
                     <td className="cell-muted">{p.Titel || "–"}</td>
                     <td><span className={`pill pill-${meta.key}`}>{meta.label}</span></td>
                     <td className="cell-muted">{p["Zuletzt aktualisiert"]}</td>
-                    <td>{p["Doc-Link"] && p["Doc-Link"] !== "#" ? <a className="link" href={p["Doc-Link"]} target="_blank" rel="noreferrer">Öffnen ↗</a> : <span className="cell-muted">–</span>}</td>
+                    <td>{p["Projektplan-Link"] ? <a className="link" href={p["Projektplan-Link"]} target="_blank" rel="noreferrer">Öffnen ↗</a> : <span className="cell-muted">–</span>}</td>
+                    <td>{p["Suivi-Link"] ? <a className="link" href={p["Suivi-Link"]} target="_blank" rel="noreferrer">Öffnen ↗</a> : <span className="cell-muted">–</span>}</td>
                   </tr>
                 );
               })}
