@@ -37,6 +37,43 @@ const PERIODEN_2GSE = ["Trimester 1", "Trimester 2", "Trimester 3"];
 const PERIODEN_1GSE = ["Semester 1", "Semester 2"];
 
 /* Positiv-/Negativ-Remarquen, wiederverwendbar je Kategorie-Typ */
+const ALLGEMEINE_REMARKEN = {
+  positiv: [
+    "Sehr engagierte und motivierte Mitarbeit während des gesamten Projekts",
+    "Termine und Fristen durchgehend zuverlässig eingehalten",
+    "Deutliche Weiterentwicklung im Projektverlauf erkennbar",
+    "Eigenständige und verantwortungsvolle Arbeitsweise",
+    "Konstruktiver Umgang mit Feedback und Verbesserungsvorschlägen",
+    "Sehr gute Kommunikation mit der Betreuer/-in",
+    "Kreative und durchdachte Lösungsansätze",
+    "Hohe Qualität der abgelieferten Arbeiten",
+    "Gute Selbstorganisation über das gesamte Projekt hinweg",
+    "Überdurchschnittliches Engagement für das Thema erkennbar",
+    "Klare Verbesserung im Vergleich zur letzten Periode",
+    "Sehr positive Entwicklung der fachlichen Kompetenzen",
+    "Vorbildliche Zusammenarbeit im Team",
+    "Bemerkenswerte Eigeninitiative bei der Themenvertiefung",
+    "Rundum überzeugende Gesamtleistung in dieser Periode",
+  ],
+  negativ: [
+    "Engagement und Motivation ließen im Projektverlauf spürbar nach",
+    "Wiederholt Termine/Fristen nicht eingehalten",
+    "Kaum erkennbare Weiterentwicklung seit der letzten Periode",
+    "Selbstständigkeit und Eigeninitiative noch ausbaufähig",
+    "Feedback wurde nur unzureichend umgesetzt",
+    "Kommunikation mit der Betreuer/-in verbesserungswürdig",
+    "Arbeitsweise wirkte häufig wenig strukturiert",
+    "Qualität der abgelieferten Arbeiten schwankend",
+    "Selbstorganisation über das Projekt hinweg unzureichend",
+    "Engagement für das Thema insgesamt eher gering",
+    "Rückschritt im Vergleich zur letzten Periode erkennbar",
+    "Fachliche Kompetenzen entwickelten sich langsamer als erwartet",
+    "Zusammenarbeit im Team verbesserungswürdig",
+    "Wenig Eigeninitiative bei der Themenvertiefung erkennbar",
+    "Gesamtleistung in dieser Periode unter den Erwartungen",
+  ],
+};
+
 const REMARKEN_VORLAGEN = {
   planung: {
     positiv: ["Klar strukturierter, realistischer Projektplan", "Motivation überzeugend dargestellt", "Ziele präzise formuliert", "Aufgabenteilung sinnvoll und ausgewogen"],
@@ -234,6 +271,8 @@ function App() {
   const [gruppenState, setGruppenState] = useState({});
   const [wbPunkte, setWbPunkte] = useState("");
   const [kommentar, setKommentar] = useState("");
+  const [allgemeinPositiv, setAllgemeinPositiv] = useState([]);
+  const [allgemeinNegativ, setAllgemeinNegativ] = useState([]);
   const [syncing, setSyncing] = useState(false);
   const [syncError, setSyncError] = useState(null);
   const [docUrl, setDocUrl] = useState(null);
@@ -252,6 +291,9 @@ function App() {
     setGruppenState({});
     setWbPunkte("");
     setDocUrl(null);
+    setAllgemeinPositiv([]);
+    setAllgemeinNegativ([]);
+    setKommentar("");
   };
 
   const periodeWaehlen = (p) => {
@@ -261,6 +303,9 @@ function App() {
     setGruppenState(initGruppenState(s, p));
     setWbPunkte("");
     setDocUrl(null);
+    setAllgemeinPositiv([]);
+    setAllgemeinNegativ([]);
+    setKommentar("");
   };
 
   const begrenzeAufMax = (wert, max) => {
@@ -284,6 +329,11 @@ function App() {
       const neueListe = liste.includes(text) ? liste.filter((t) => t !== text) : [...liste, text];
       return { ...gs, [gruppe]: { ...bestehend, [art]: neueListe } };
     });
+  };
+
+  const toggleAllgemeinRemarque = (art, text) => {
+    const setter = art === "positiv" ? setAllgemeinPositiv : setAllgemeinNegativ;
+    setter((liste) => (liste.includes(text) ? liste.filter((t) => t !== text) : [...liste, text]));
   };
 
   const setGruppenKommentar = (gruppe, text) => {
@@ -328,6 +378,8 @@ function App() {
         periode,
         kategorien: kategorien.map((k) => ({ name: `${k.gruppe} — ${k.name}`, punkte: Number(k.punkte) || 0, max: k.max })),
         gruppenBemerkungen,
+        allgemeinPositiv,
+        allgemeinNegativ,
         wochenberichtePunkte: Number(wbPunkte) || 0,
         wochenberichteMax: wbMax,
         wochenberichteLabel: def?.wochenberichte?.label,
@@ -469,7 +521,27 @@ function App() {
 
             <section className="card">
               <h2>Allgemeiner Kommentar (Zusammenfassung)</h2>
-              <textarea className="textarea" rows={4} placeholder="Zusammenfassender Kommentar zur Bewertung dieser Periode…" value={kommentar} onChange={(e) => setKommentar(e.target.value)} />
+              <div className="remarken-block">
+                <div className="remarken-col">
+                  <span className="remarken-label remarken-label-pos">✓ Positive Remarquen</span>
+                  {ALLGEMEINE_REMARKEN.positiv.map((r) => (
+                    <label className="remarque-check" key={r}>
+                      <input type="checkbox" checked={allgemeinPositiv.includes(r)} onChange={() => toggleAllgemeinRemarque("positiv", r)} />
+                      <span>{r}</span>
+                    </label>
+                  ))}
+                </div>
+                <div className="remarken-col">
+                  <span className="remarken-label remarken-label-neg">✗ Negative Remarquen</span>
+                  {ALLGEMEINE_REMARKEN.negativ.map((r) => (
+                    <label className="remarque-check" key={r}>
+                      <input type="checkbox" checked={allgemeinNegativ.includes(r)} onChange={() => toggleAllgemeinRemarque("negativ", r)} />
+                      <span>{r}</span>
+                    </label>
+                  ))}
+                </div>
+              </div>
+              <textarea className="textarea gruppen-kommentar" rows={4} placeholder="Zusätzlicher freier Kommentar (optional)…" value={kommentar} onChange={(e) => setKommentar(e.target.value)} />
             </section>
 
             <div className="actions">
