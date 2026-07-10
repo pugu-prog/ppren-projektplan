@@ -217,25 +217,76 @@ const STRUKTUR_2GSE = {
 
 const STRUKTUR_1GSE = {
   "Semester 1": {
-    offizielleSkala: 60,
-    wochenberichte: { max: 24, label: "Wochenberichte" },
+    offizielleSkala: 210,
+    wochenberichte: { max: 60, label: "Wochenberichte (12 × 5P)" },
     gruppen: [
-      { titel: "Bewertung (Platzhalter)", typ: "umsetzung", items: [
-        { name: "Planung & Themenfindung", max: 20, indikatoren: "Noch kein offizielles Raster hinterlegt." },
-        { name: "Methodologie", max: 20, indikatoren: "Noch kein offizielles Raster hinterlegt." },
-        { name: "Umsetzung & Dokumentation", max: 20, indikatoren: "Noch kein offizielles Raster hinterlegt." },
-      ]},
+      {
+        titel: "Planung / Themenfindung", typ: "planung",
+        items: [{ name: "Projektplan", max: 30, indikatoren: "Beschreibung des Projektes (15P); Motivation/Bezug zu Umweltwissenschaften (3P); Ziele (6P); Meilensteine bis Ende 1. Semester; Aufgabenteilung bei Gruppenarbeit (6P); Kostenplan falls erforderlich" }],
+      },
+      {
+        titel: "Methodologie", typ: "methodologie",
+        items: [
+          { name: "Reflexion", max: 15, indikatoren: "Zeitplanung; Kostenplanung; Eigene Entwicklung (Initiative, Autonomie, Gelerntes); Qualität des Projektergebnisses; Teamwork" },
+          { name: "Zusammenfassen", max: 15, indikatoren: "Bedeutung des Themas; Stand der Wissenschaft/Technik; Fragestellung; Methodisches Vorgehen; wichtigste Resultate/Erkenntnisse/Argumente" },
+          { name: "Zitieren", max: 15, indikatoren: "Zitate und Quellenangabe nach APA (Bücher, Artikel, PDF-Dokumente, Internetseiten, Video)" },
+          { name: "Überprüfung der erledigten Arbeiten", max: 15, indikatoren: "Methodische, gezielte Kontrolle; Nutzung von Korrekturressourcen; Fehler erkannt und korrigiert" },
+        ],
+      },
+      {
+        titel: "Umsetzung des Projektes und Dokumentation", typ: "umsetzung",
+        items: [
+          { name: "Bewältigung des Themas", max: 30, indikatoren: "Arbeit an vereinbarten Zielsetzungen; Zielüberprüfung an 2 Terminen (je 11P); Autonomie (8P)" },
+          { name: "Dokumentation", max: 30, indikatoren: "Einleitung, Vorwort, Titelseite, Inhaltsverzeichnis, Verzeichnisse; Recherche/Theorie (20P)" },
+        ],
+      },
     ],
   },
   "Semester 2": {
-    offizielleSkala: 60,
-    wochenberichte: { max: 24, label: "Wochenberichte" },
+    offizielleSkala: 330,
+    wochenberichte: { max: 60, label: "Meilensteine / Wochenberichte (12 × 5P)" },
     gruppen: [
-      { titel: "Bewertung (Platzhalter)", typ: "umsetzung", items: [
-        { name: "Planung & Themenfindung", max: 20, indikatoren: "Noch kein offizielles Raster hinterlegt." },
-        { name: "Methodologie", max: 20, indikatoren: "Noch kein offizielles Raster hinterlegt." },
-        { name: "Umsetzung & Dokumentation", max: 20, indikatoren: "Noch kein offizielles Raster hinterlegt." },
-      ]},
+      {
+        titel: "Fachgespräch", typ: "fachgespraech",
+        items: [{ name: "Fachwissen", max: 30, indikatoren: "4 Fragen mit Skizze oder 5 Fragen kompetent & fachlich korrekt beantwortet, Fachbegriffe benutzt" }],
+      },
+      {
+        titel: "Schriftliche Prüfung", typ: "dokumentation",
+        items: [{ name: "Schriftliche Prüfung", max: 30, indikatoren: "Vorbereitung auf das schriftliche Examen; Analyse und Reflexion des Projekts" }],
+      },
+      {
+        titel: "Vorgehensweise bei der Umsetzung des Projektes", typ: "umsetzung",
+        items: [
+          { name: "Bewältigung des Themas", max: 30, indikatoren: "Zielsetzungen (10P); 1–2 Prüftermine (2×6P); Autonomie (8P)" },
+          { name: "Sachliche Qualität", max: 60, indikatoren: "Komponenten/Produkt funktionieren wie geplant (30P); Qualität inkl. Film überzeugt (30P)" },
+        ],
+      },
+      {
+        titel: "Schriftliche Arbeit / Dokumentation", typ: "dokumentation",
+        items: [
+          { name: "Darstellung", max: 8, indikatoren: "Übersichtlich strukturiert & gegliedert; sorgfältiges, kompaktes Layout" },
+          { name: "Sprache", max: 7, indikatoren: "Verständlich, flüssig, prägnant; korrekte Grammatik/Satzbau/Rechtschreibung/Zeichensetzung" },
+          { name: "Zitate, Quellen, Verzeichnisse", max: 5, indikatoren: "Vollständige Quellenangaben & Verzeichnisse" },
+          { name: "Sachliche Qualität", max: 40, indikatoren: "Vollständig, fachlich begründet und korrekt" },
+        ],
+      },
+      {
+        titel: "Präsentation", typ: "praesentation",
+        items: [
+          { name: "Struktur", max: 6, indikatoren: "Durchdacht und ansprechend gestaltet" },
+          { name: "Inhalt", max: 12, indikatoren: "Repräsentativ, mit Einblick in Ergebnisse und Produkt" },
+          { name: "Sprache", max: 3, indikatoren: "Flüssig, verständlich, korrekt" },
+          { name: "Interaktion", max: 3, indikatoren: "Interesse geweckt, Publikum angemessen einbezogen" },
+          { name: "Fragen", max: 6, indikatoren: "Kompetent beantwortet" },
+        ],
+      },
+      {
+        titel: "Methodologie", typ: "methodologie",
+        items: [
+          { name: "Umfragen, Interview", max: 15, indikatoren: "Planung, Durchführung und Auswertung" },
+          { name: "Film", max: 15, indikatoren: "Erstellen eines Storyboards (Drehbuch)" },
+        ],
+      },
     ],
   },
 };
@@ -431,9 +482,6 @@ function App() {
               </select>
             </label>
           </div>
-          {schuelerId && !istGSE2 && (
-            <p className="notice">1GSE: Noch kein offizielles Bewertungsraster hinterlegt — Platzhalter-Kategorien.</p>
-          )}
         </section>
 
         {def && (
