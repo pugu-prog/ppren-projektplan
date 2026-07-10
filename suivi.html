@@ -26,22 +26,41 @@ const { useState, useEffect } = React;
 const WEB_APP_URL = "https://script.google.com/macros/s/AKfycbzfyThho8MevoyfSz7NsQ1YxZJO4E-f61GYYzqZyHACIHzxR3bm7SHCwVUkCBJrAEvJ/exec";
 
 const SCHUELER = [
-  { id: "lea_muller", name: "Léa Muller" },
-  { id: "ben_weber", name: "Ben Weber" },
-  { id: "noah_schmit", name: "Noah Schmit" },
-  { id: "mia_reuter", name: "Mia Reuter" },
-  { id: "tom_klein", name: "Tom Klein" },
+  { id: "lea_muller", name: "Léa Muller", klasse: "1GSE" },
+  { id: "ben_weber", name: "Ben Weber", klasse: "2GSE" },
+  { id: "noah_schmit", name: "Noah Schmit", klasse: "1GSE" },
+  { id: "mia_reuter", name: "Mia Reuter", klasse: "2GSE" },
+  { id: "tom_klein", name: "Tom Klein", klasse: "2GSE" },
 ];
+
+const PERIODEN_2GSE = ["Trimester 1", "Trimester 2", "Trimester 3"];
+const PERIODEN_1GSE = ["Semester 1", "Semester 2"];
+
+function sicherJson(text, fallback) {
+  if (!text) return fallback;
+  try { return JSON.parse(text); } catch { return fallback; }
+}
+
+function Fortschrittsbar({ prozent, farbe }) {
+  return (
+    <div className="bar-track">
+      <div className="bar-fill" style={{ width: `${Math.min(100, Math.max(0, prozent))}%`, background: farbe }} />
+    </div>
+  );
+}
 
 function App() {
   const [schuelerId, setSchuelerId] = useState("");
-  const [projekte, setProjekte] = useState([]);
+  const [projekt, setProjekt] = useState(null);
   const [bewertungen, setBewertungen] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [geladen, setGeladen] = useState(false);
+  const [offenePeriode, setOffenePeriode] = useState(null);
 
   const currentSchueler = SCHUELER.find((s) => s.id === schuelerId);
+  const istGSE2 = currentSchueler?.klasse === "2GSE";
+  const perioden = istGSE2 ? PERIODEN_2GSE : PERIODEN_1GSE;
 
   useEffect(() => {
     if (!schuelerId) return;
@@ -52,13 +71,16 @@ function App() {
       .then((res) => res.json())
       .then((data) => {
         const alleProjekte = data.projekte || [];
-        setProjekte(alleProjekte.filter((p) => p.Schüler === currentSchueler.name));
+        const meins = alleProjekte.find((p) => p.Schüler === currentSchueler.name);
+        setProjekt(meins || null);
+        const meineBewertungen = (data.bewertungen || []).filter((b) => b.Schüler === currentSchueler.name);
+        setBewertungen(meineBewertungen);
       })
       .catch(() => setError("Konnte Daten nicht laden."))
       .finally(() => { setLoading(false); setGeladen(true); });
   }, [schuelerId]);
 
-  const eigenesProjekt = projekte[0];
+  const bewertungFuer = (periode) => bewertungen.find((b) => b.Periode === periode);
 
   return (
     <div className="wrap">
@@ -73,7 +95,7 @@ function App() {
         <section className="card">
           <label className="field">
             <span className="field-label">Wie bass du?</span>
-            <select className="select" value={schuelerId} onChange={(e) => setSchuelerId(e.target.value)}>
+            <select className="select" value={schuelerId} onChange={(e) => { setSchuelerId(e.target.value); setOffenePeriode(null); }}>
               <option value="">– auswählen –</option>
               {SCHUELER.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
             </select>
@@ -84,32 +106,100 @@ function App() {
         {error && <div className="empty error">{error}</div>}
 
         {geladen && !loading && !error && (
-          <section className="card">
-            {!eigenesProjekt && (
-              <p className="notice">Für dich wurde noch kein Projektplan eingereicht.</p>
+          <>
+            {!projekt && (
+              <div className="card"><p className="notice">Für dich wurde noch kein Projektplan eingereicht.</p></div>
             )}
-            {eigenesProjekt && (
-              <>
-                <h2>{eigenesProjekt.Titel || "(noch kein Titel)"}</h2>
-                <p className="status-line">Status: <strong>{eigenesProjekt.Status}</strong></p>
 
-                {eigenesProjekt["Suivi-PDF-Link (Schüler)"] ? (
-                  <a
-                    className="btn btn-primary"
-                    href={eigenesProjekt["Suivi-PDF-Link (Schüler)"]}
-                    target="_blank" rel="noreferrer"
-                  >
-                    📄 Mäin Suivi ukucken (PDF)
-                  </a>
-                ) : (
-                  <p className="notice">
-                    Däin Suivi ass nach net verëffentlecht. Dat gëtt vun der Lehrpersoun um Enn vum
-                    Trimester/Semester fräigi ginn.
-                  </p>
-                )}
+            {projekt && (
+              <>
+                <section className="card">
+                  <h2>{projekt.Titel || "(noch kein Titel)"}</h2>
+                  <p className="status-line">Status Projektplan: <strong>{projekt.Status}</strong></p>
+                  <div className="link-row">
+                    {projekt["Projektplan-Link"] && (
+                      <a className="btn btn-ghost" href={projekt["Projektplan-Link"]} target="_blank" rel="noreferrer">📝 Projektplan</a>
+                    )}
+                  </div>
+                </section>
+
+                {perioden.map((periode) => {
+                  const b = bewertungFuer(periode);
+                  const prozent = b ? Math.round((Number(b.Note) / 60) * 100) : 0;
+                  const kategorien = b ? sicherJson(b["Kategorien (JSON)"], []) : [];
+                  const gruppenBemerkungen = b ? sicherJson(b["Gruppenbemerkungen (JSON)"], []) : [];
+                  const offen = offenePeriode === periode;
+
+                  const gruppiert = {};
+                  kategorien.forEach((k) => {
+                    const teile = (k.name || "").split(" — ");
+                    const gruppe = teile[0];
+                    const pos = teile.slice(1).join(" — ") || k.name;
+                    if (!gruppiert[gruppe]) gruppiert[gruppe] = [];
+                    gruppiert[gruppe].push({ name: pos, punkte: k.punkte, max: k.max });
+                  });
+
+                  return (
+                    <section className="card" key={periode}>
+                      <div className="periode-head" onClick={() => b && setOffenePeriode(offen ? null : periode)}>
+                        <div className="periode-titel">
+                          <span className="periode-name">{periode}</span>
+                          {!b && <span className="pill pill-offen">Nach net bewäert</span>}
+                          {b && <span className="pill pill-fertig">Note {b.Note} / 60</span>}
+                        </div>
+                        {b && <span className="chevron">{offen ? "▲" : "▼"}</span>}
+                      </div>
+
+                      {b && <Fortschrittsbar prozent={prozent} farbe={prozent >= 50 ? "#1F5C3B" : "#c0392b"} />}
+
+                      {b && offen && (
+                        <div className="details">
+                          <p className="punkte-summe">Gesamt: {b.Punkte} / {b.Max} Punkte</p>
+
+                          {Object.keys(gruppiert).map((gruppe) => {
+                            const items = gruppiert[gruppe];
+                            const gSumme = items.reduce((s, i) => s + (Number(i.punkte) || 0), 0);
+                            const gMax = items.reduce((s, i) => s + (Number(i.max) || 0), 0);
+                            const gProzent = gMax > 0 ? Math.round((gSumme / gMax) * 100) : 0;
+                            const gBem = gruppenBemerkungen.find((g) => g.titel === gruppe);
+                            return (
+                              <div className="gruppe-block" key={gruppe}>
+                                <div className="gruppe-head">
+                                  <span className="gruppe-name">{gruppe}</span>
+                                  <span className="gruppe-punkte">{gSumme} / {gMax}</span>
+                                </div>
+                                <Fortschrittsbar prozent={gProzent} farbe="#3A6EA5" />
+                                {gBem && (gBem.positiv || []).map((r) => (
+                                  <div className="remarque remarque-pos" key={r}>✓ {r}</div>
+                                ))}
+                                {gBem && (gBem.negativ || []).map((r) => (
+                                  <div className="remarque remarque-neg" key={r}>✗ {r}</div>
+                                ))}
+                                {gBem && gBem.kommentar && <div className="remarque-kommentar">{gBem.kommentar}</div>}
+                              </div>
+                            );
+                          })}
+
+                          {b.Kommentar && (
+                            <div className="allgemeiner-kommentar">
+                              <span className="ak-label">Kommentar der Lehrperson</span>
+                              <p>{b.Kommentar}</p>
+                            </div>
+                          )}
+
+                          {b["Suivi-PDF-Link (Schüler)"] && (
+                            <a className="btn btn-primary" href={b["Suivi-PDF-Link (Schüler)"]} target="_blank" rel="noreferrer">
+                              📄 Ganzen Suivi als PDF opmaachen
+                            </a>
+                          )}
+                        </div>
+                      )}
+                    </section>
+                  );
+                })}
               </>
             )}
-          </section>
+          </>
         )}
       </main>
     </div>
@@ -125,18 +215,49 @@ body { margin: 0; font-family: -apple-system, "Segoe UI", Inter, Arial, sans-ser
 .brand { display: flex; align-items: baseline; gap: 10px; }
 .brand-mark { font-weight: 800; font-size: 15px; letter-spacing: 0.06em; }
 .brand-sub { font-size: 13px; opacity: 0.85; }
-.content { max-width: 480px; margin: 0 auto; padding: 24px 20px 60px; }
-.card { background: #fff; border: 1px solid #e2e8e3; border-radius: 12px; padding: 20px 22px; margin-bottom: 14px; }
+.content { max-width: 600px; margin: 0 auto; padding: 24px 20px 60px; }
+.card { background: #fff; border: 1px solid #e2e8e3; border-radius: 12px; padding: 18px 20px; margin-bottom: 14px; }
 .card h2 { font-size: 17px; margin: 0 0 6px; color: #1F5C3B; }
 .field { display: flex; flex-direction: column; gap: 4px; }
 .field-label { font-size: 12.5px; font-weight: 700; color: #294f3c; }
-.select { border: 1px solid #c9d5cd; border-radius: 7px; padding: 9px 10px; font-size: 14px; font-family: inherit; background: #fff; }
-.status-line { font-size: 13.5px; color: #55625a; margin: 0 0 16px; }
-.btn { display: inline-block; font-size: 14px; font-weight: 700; padding: 12px 18px; border-radius: 8px; border: none; cursor: pointer; text-decoration: none; }
-.btn-primary { background: #1F5C3B; color: #fff; }
-.notice { background: #fbe8c6; color: #8a5a12; font-size: 13px; padding: 12px 14px; border-radius: 8px; line-height: 1.5; }
+.select { border: 1px solid #c9d5cd; border-radius: 7px; padding: 9px 10px; font-size: 14px; font-family: inherit; background: #fff; width: 100%; }
+.status-line { font-size: 13.5px; color: #55625a; margin: 0 0 12px; }
+.link-row { display: flex; gap: 10px; }
+.btn { display: inline-block; font-size: 13.5px; font-weight: 700; padding: 10px 16px; border-radius: 8px; border: none; cursor: pointer; text-decoration: none; }
+.btn-primary { background: #1F5C3B; color: #fff; margin-top: 14px; }
+.btn-ghost { background: #eef3ef; color: #1F5C3B; }
+.notice { background: #fbe8c6; color: #8a5a12; font-size: 13px; padding: 12px 14px; border-radius: 8px; line-height: 1.5; margin: 0; }
 .empty { padding: 30px; text-align: center; color: #6d7d74; font-size: 14px; background: #fff; border-radius: 12px; border: 1px solid #e2e8e3; }
 .error { color: #8a2b1f; }
+
+.periode-head { display: flex; align-items: center; justify-content: space-between; cursor: pointer; }
+.periode-titel { display: flex; align-items: center; gap: 10px; }
+.periode-name { font-size: 15px; font-weight: 700; color: #1c2621; }
+.pill { font-size: 11.5px; font-weight: 700; padding: 3px 10px; border-radius: 20px; }
+.pill-offen { background: #e6e9e6; color: #55625a; }
+.pill-fertig { background: #d7ecdd; color: #1F5C3B; }
+.chevron { color: #6d7d74; font-size: 12px; }
+
+.bar-track { height: 8px; background: #eef1ef; border-radius: 4px; overflow: hidden; margin-top: 10px; }
+.bar-fill { height: 100%; border-radius: 4px; transition: width 0.3s; }
+
+.details { margin-top: 16px; padding-top: 14px; border-top: 1px solid #eef1ef; }
+.punkte-summe { font-size: 13.5px; font-weight: 700; color: #294f3c; margin: 0 0 14px; }
+
+.gruppe-block { margin-bottom: 16px; padding-bottom: 14px; border-bottom: 1px dashed #eef1ef; }
+.gruppe-block:last-of-type { border-bottom: none; }
+.gruppe-head { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 2px; }
+.gruppe-name { font-size: 13px; font-weight: 700; color: #1c2621; }
+.gruppe-punkte { font-size: 12.5px; color: #6d7d74; }
+
+.remarque { font-size: 12px; margin-top: 8px; line-height: 1.4; }
+.remarque-pos { color: #1F5C3B; }
+.remarque-neg { color: #99392f; }
+.remarque-kommentar { font-size: 12px; font-style: italic; color: #55625a; margin-top: 8px; }
+
+.allgemeiner-kommentar { background: #eef3ef; padding: 12px 14px; border-radius: 8px; margin-top: 4px; }
+.ak-label { font-size: 11px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.03em; color: #294f3c; }
+.allgemeiner-kommentar p { font-size: 13px; margin: 6px 0 0; line-height: 1.5; }
 </style>
 </body>
 </html>
