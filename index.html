@@ -180,6 +180,13 @@ function App() {
   const einreichen = () => senden("Eingereicht – wartet auf Freigabe");
   const freigeben = () => senden("Freigegeben & digital unterschrieben");
   const zurueckOeffnen = () => senden("Entwurf");
+
+  const entwurfZuruecksetzen = () => {
+    if (!confirm("Lokalen Entwurf für " + (currentSchueler?.name || "diesen Schüler") + " wirklich löschen? Das kann nicht rückgängig gemacht werden.")) return;
+    localStorage.removeItem(`projektplan:${schuelerId}`);
+    setPlan(emptyPlan());
+    setDocUrl(null);
+  };
   const locked = plan.status === "Freigegeben & digital unterschrieben";
 
   return (
@@ -210,6 +217,9 @@ function App() {
                 <span className={`status-pill status-${plan.status.startsWith("Frei") ? "done" : plan.status.startsWith("Ein") ? "pending" : "draft"}`}>{plan.status}</span>
               </div>
               <div className="hint-box">Der Entwurf wird automatisch gespeichert. Du kannst jederzeit wiederkommen und weiterarbeiten.</div>
+              {!locked && (
+                <button type="button" className="reset-btn" onClick={entwurfZuruecksetzen}>Lokalen Entwurf zurücksetzen</button>
+              )}
             </>
           )}
         </aside>
@@ -367,6 +377,7 @@ body { margin: 0; font-family: -apple-system, "Segoe UI", Inter, Arial, sans-ser
 .status-pending { background: #fbe8c6; color: #8a5a12; }
 .status-done { background: #d7ecdd; color: #1F5C3B; }
 .hint-box { font-size: 11.5px; color: #55625a; background: #dfe9e2; padding: 10px; border-radius: 8px; line-height: 1.4; }
+.reset-btn { font-size: 11.5px; color: #99392f; background: transparent; border: none; text-decoration: underline; cursor: pointer; padding: 0; text-align: left; }
 .empty-state { color: #6d7d74; font-size: 14px; padding: 40px 0; }
 .card { background: #fff; border: 1px solid #e2e8e3; border-radius: 12px; padding: 18px 20px; margin-bottom: 16px; }
 .card h2 { font-size: 15px; margin: 0 0 12px; color: #1F5C3B; }
