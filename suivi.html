@@ -238,6 +238,21 @@ function App() {
                             );
                           })}
 
+                          {(() => {
+                            const allgemein = sicherJson(b["Allgemeine Remarquen (JSON)"], { positiv: [], negativ: [] });
+                            const hatAllgemein = (allgemein.positiv || []).length > 0 || (allgemein.negativ || []).length > 0;
+                            return hatAllgemein ? (
+                              <div className="allgemeine-remarquen">
+                                {(allgemein.positiv || []).map((r) => (
+                                  <div className="remarque remarque-pos" key={r}>✓ {r}</div>
+                                ))}
+                                {(allgemein.negativ || []).map((r) => (
+                                  <div className="remarque remarque-neg" key={r}>✗ {r}</div>
+                                ))}
+                              </div>
+                            ) : null;
+                          })()}
+
                           {b.Kommentar && (
                             <div className="allgemeiner-kommentar">
                               <span className="ak-label">Kommentar der Lehrperson</span>
@@ -317,6 +332,7 @@ body { margin: 0; font-family: -apple-system, "Segoe UI", Inter, Arial, sans-ser
 .remarque-neg { color: #99392f; }
 .remarque-kommentar { font-size: 12px; font-style: italic; color: #55625a; margin-top: 8px; }
 
+.allgemeine-remarquen { margin-bottom: 12px; padding-top: 10px; border-top: 1px solid #eef1ef; }
 .allgemeiner-kommentar { background: #eef3ef; padding: 12px 14px; border-radius: 8px; margin-top: 4px; }
 .ak-label { font-size: 11px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.03em; color: #294f3c; }
 .allgemeiner-kommentar p { font-size: 13px; margin: 6px 0 0; line-height: 1.5; }
