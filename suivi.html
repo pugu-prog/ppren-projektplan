@@ -1,0 +1,142 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>PPREN Mäin Suivi</title>
+<script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+<script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+<script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+</head>
+<body>
+<div id="root"></div>
+<script>
+  window.addEventListener("error", function (e) {
+    document.getElementById("root").innerHTML =
+      '<div style="padding:40px;font-family:sans-serif;color:#8a2b1f;white-space:pre-wrap;">' +
+      '<h2 style="margin-top:0;">Fehler beim Laden</h2>' +
+      (e.message || "Unbekannter Fehler") +
+      (e.filename ? "\n\nDatei: " + e.filename + " Zeile " + e.lineno : "") +
+      "</div>";
+  });
+</script>
+<script type="text/babel">
+const { useState, useEffect } = React;
+
+const WEB_APP_URL = "https://script.google.com/macros/s/AKfycbzfyThho8MevoyfSz7NsQ1YxZJO4E-f61GYYzqZyHACIHzxR3bm7SHCwVUkCBJrAEvJ/exec";
+
+const SCHUELER = [
+  { id: "lea_muller", name: "Léa Muller" },
+  { id: "ben_weber", name: "Ben Weber" },
+  { id: "noah_schmit", name: "Noah Schmit" },
+  { id: "mia_reuter", name: "Mia Reuter" },
+  { id: "tom_klein", name: "Tom Klein" },
+];
+
+function App() {
+  const [schuelerId, setSchuelerId] = useState("");
+  const [projekte, setProjekte] = useState([]);
+  const [bewertungen, setBewertungen] = useState([]);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState(null);
+  const [geladen, setGeladen] = useState(false);
+
+  const currentSchueler = SCHUELER.find((s) => s.id === schuelerId);
+
+  useEffect(() => {
+    if (!schuelerId) return;
+    setLoading(true);
+    setError(null);
+    setGeladen(false);
+    fetch(WEB_APP_URL)
+      .then((res) => res.json())
+      .then((data) => {
+        const alleProjekte = data.projekte || [];
+        setProjekte(alleProjekte.filter((p) => p.Schüler === currentSchueler.name));
+      })
+      .catch(() => setError("Konnte Daten nicht laden."))
+      .finally(() => { setLoading(false); setGeladen(true); });
+  }, [schuelerId]);
+
+  const eigenesProjekt = projekte[0];
+
+  return (
+    <div className="wrap">
+      <header className="topbar">
+        <div className="brand">
+          <span className="brand-mark">PPREN</span>
+          <span className="brand-sub">Mäin Suivi · Sciences Environnementales</span>
+        </div>
+      </header>
+
+      <main className="content">
+        <section className="card">
+          <label className="field">
+            <span className="field-label">Wie bass du?</span>
+            <select className="select" value={schuelerId} onChange={(e) => setSchuelerId(e.target.value)}>
+              <option value="">– auswählen –</option>
+              {SCHUELER.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
+            </select>
+          </label>
+        </section>
+
+        {loading && <div className="empty">Lädt…</div>}
+        {error && <div className="empty error">{error}</div>}
+
+        {geladen && !loading && !error && (
+          <section className="card">
+            {!eigenesProjekt && (
+              <p className="notice">Für dich wurde noch kein Projektplan eingereicht.</p>
+            )}
+            {eigenesProjekt && (
+              <>
+                <h2>{eigenesProjekt.Titel || "(noch kein Titel)"}</h2>
+                <p className="status-line">Status: <strong>{eigenesProjekt.Status}</strong></p>
+
+                {eigenesProjekt["Suivi-PDF-Link (Schüler)"] ? (
+                  <a
+                    className="btn btn-primary"
+                    href={eigenesProjekt["Suivi-PDF-Link (Schüler)"]}
+                    target="_blank" rel="noreferrer"
+                  >
+                    📄 Mäin Suivi ukucken (PDF)
+                  </a>
+                ) : (
+                  <p className="notice">
+                    Däin Suivi ass nach net verëffentlecht. Dat gëtt vun der Lehrpersoun um Enn vum
+                    Trimester/Semester fräigi ginn.
+                  </p>
+                )}
+              </>
+            )}
+          </section>
+        )}
+      </main>
+    </div>
+  );
+}
+
+ReactDOM.createRoot(document.getElementById("root")).render(<App />);
+</script>
+<style>
+* { box-sizing: border-box; }
+body { margin: 0; font-family: -apple-system, "Segoe UI", Inter, Arial, sans-serif; color: #1c2621; background: #f6f8f6; }
+.topbar { padding: 14px 22px; background: #1F5C3B; color: #fff; }
+.brand { display: flex; align-items: baseline; gap: 10px; }
+.brand-mark { font-weight: 800; font-size: 15px; letter-spacing: 0.06em; }
+.brand-sub { font-size: 13px; opacity: 0.85; }
+.content { max-width: 480px; margin: 0 auto; padding: 24px 20px 60px; }
+.card { background: #fff; border: 1px solid #e2e8e3; border-radius: 12px; padding: 20px 22px; margin-bottom: 14px; }
+.card h2 { font-size: 17px; margin: 0 0 6px; color: #1F5C3B; }
+.field { display: flex; flex-direction: column; gap: 4px; }
+.field-label { font-size: 12.5px; font-weight: 700; color: #294f3c; }
+.select { border: 1px solid #c9d5cd; border-radius: 7px; padding: 9px 10px; font-size: 14px; font-family: inherit; background: #fff; }
+.status-line { font-size: 13.5px; color: #55625a; margin: 0 0 16px; }
+.btn { display: inline-block; font-size: 14px; font-weight: 700; padding: 12px 18px; border-radius: 8px; border: none; cursor: pointer; text-decoration: none; }
+.btn-primary { background: #1F5C3B; color: #fff; }
+.notice { background: #fbe8c6; color: #8a5a12; font-size: 13px; padding: 12px 14px; border-radius: 8px; line-height: 1.5; }
+.empty { padding: 30px; text-align: center; color: #6d7d74; font-size: 14px; background: #fff; border-radius: 12px; border: 1px solid #e2e8e3; }
+.error { color: #8a2b1f; }
+</style>
+</body>
+</html>
