@@ -21,7 +21,7 @@
   });
 </script>
 <script type="text/babel">
-const { useState } = React;
+const { useState, useMemo } = React;
 
 const WEB_APP_URL = "https://script.google.com/macros/s/AKfycbzfyThho8MevoyfSz7NsQ1YxZJO4E-f61GYYzqZyHACIHzxR3bm7SHCwVUkCBJrAEvJ/exec";
 
@@ -34,20 +34,154 @@ const SCHUELER = [
 const PERIODEN_2GSE = ["Trimester 1", "Trimester 2", "Trimester 3"];
 const PERIODEN_1GSE = ["Semester 1", "Semester 2"];
 
-const KATEGORIEN_DEFAULT = [
-  { name: "Planung & Themenfindung", max: 20 },
-  { name: "Methodologie", max: 20 },
-  { name: "Umsetzung & Dokumentation", max: 20 },
-];
+const STRUKTUR_2GSE = {
+  "Trimester 1": {
+    offizielleSkala: 240,
+    wochenberichte: { max: 60, label: "Wochenberichte (12 × 5P)" },
+    gruppen: [
+      {
+        titel: "Planung / Themenfindung",
+        items: [{ name: "Projektplan (Beschreibung, Motivation, Ziele, Aufgabenteilung, Kostenplan)", max: 30 }],
+      },
+      {
+        titel: "Umsetzung des Projektes und Dokumentation",
+        items: [
+          { name: "Bewältigung des Themas", max: 30 },
+          { name: "Dokumentation", max: 30 },
+        ],
+      },
+      {
+        titel: "Methodologie 1 — Bewerbungsmappe & Praktikumssuche",
+        items: [
+          { name: "Bewerbungsmappe (FR/DE/EN)", max: 30 },
+          { name: "Überprüfung der erledigten Arbeiten", max: 10 },
+          { name: "Praktikumsplatzsuche", max: 20 },
+        ],
+      },
+      {
+        titel: "Methodologie 2 — Kommunikation & Recherche",
+        items: [
+          { name: "Schriftliche Kommunikation per E-Mail", max: 40 },
+          { name: "Elektronische Kommunikationsmittel", max: 10 },
+          { name: "Effiziente Nutzung verschiedener Quellen", max: 10 },
+        ],
+      },
+    ],
+  },
+  "Trimester 2": {
+    offizielleSkala: 150,
+    wochenberichte: { max: 40, label: "Meilensteine / Wochenberichte (8 × 5P)" },
+    gruppen: [
+      {
+        titel: "Umsetzung des Projektes und Dokumentation",
+        items: [
+          { name: "Bewältigung des Themas", max: 30 },
+          { name: "Dokumentation (Theoretische Grundlagen, Quellenverzeichnis)", max: 30 },
+        ],
+      },
+      { titel: "Fachgespräch", items: [{ name: "Fachwissen", max: 30 }] },
+      { titel: "Schriftliche Prüfung", items: [{ name: "Schriftliche Prüfung", max: 30 }] },
+      {
+        titel: "Methodologie",
+        items: [
+          { name: "Digitale Kompetenzen", max: 15 },
+          { name: "Recherche, Analyse und Dokumentation", max: 15 },
+        ],
+      },
+    ],
+  },
+  "Trimester 3": {
+    offizielleSkala: 300,
+    wochenberichte: { max: 60, label: "Meilensteine / Wochenberichte (8–12 × 5P)" },
+    gruppen: [
+      {
+        titel: "Vorgehensweise bei der Umsetzung des Projektes",
+        items: [
+          { name: "Bewältigung des Themas", max: 30 },
+          { name: "Sachliche Qualität (Produkt & Film)", max: 60 },
+        ],
+      },
+      {
+        titel: "Schriftliche Arbeit / Dokumentation",
+        items: [
+          { name: "Darstellung", max: 8 },
+          { name: "Sprache", max: 7 },
+          { name: "Zitate, Quellen, Verzeichnisse", max: 5 },
+          { name: "Sachliche Qualität", max: 40 },
+        ],
+      },
+      {
+        titel: "Präsentation",
+        items: [
+          { name: "Struktur", max: 6 },
+          { name: "Inhalt", max: 12 },
+          { name: "Sprache", max: 3 },
+          { name: "Interaktion", max: 3 },
+          { name: "Fragen", max: 6 },
+        ],
+      },
+      {
+        titel: "Fachgespräch",
+        items: [
+          { name: "Fachwissen", max: 20 },
+          { name: "Eigenbewertung / Reflexion", max: 10 },
+        ],
+      },
+      {
+        titel: "Methodologie",
+        items: [
+          { name: "Vorbereitung und Verwaltung des Projekts", max: 20 },
+          { name: "Teamarbeit (PowerPoint-Präsentation)", max: 10 },
+        ],
+      },
+    ],
+  },
+};
+
+const STRUKTUR_1GSE = {
+  "Semester 1": {
+    offizielleSkala: 60,
+    wochenberichte: { max: 24, label: "Wochenberichte" },
+    gruppen: [
+      { titel: "Bewertung (Platzhalter)", items: [
+        { name: "Planung & Themenfindung", max: 20 },
+        { name: "Methodologie", max: 20 },
+        { name: "Umsetzung & Dokumentation", max: 20 },
+      ]},
+    ],
+  },
+  "Semester 2": {
+    offizielleSkala: 60,
+    wochenberichte: { max: 24, label: "Wochenberichte" },
+    gruppen: [
+      { titel: "Bewertung (Platzhalter)", items: [
+        { name: "Planung & Themenfindung", max: 20 },
+        { name: "Methodologie", max: 20 },
+        { name: "Umsetzung & Dokumentation", max: 20 },
+      ]},
+    ],
+  },
+};
 
 function uid() { return Date.now().toString(36) + Math.random().toString(36).slice(2, 6); }
+
+function initKategorien(struktur, periode) {
+  const def = struktur[periode];
+  if (!def) return [];
+  const flat = [];
+  def.gruppen.forEach((g) => {
+    g.items.forEach((item) => {
+      flat.push({ id: uid(), gruppe: g.titel, name: item.name, max: item.max, punkte: "" });
+    });
+  });
+  return flat;
+}
 
 function App() {
   const [schuelerId, setSchuelerId] = useState("");
   const [periode, setPeriode] = useState("");
-  const [kategorien, setKategorien] = useState(KATEGORIEN_DEFAULT.map((k) => ({ ...k, id: uid(), punkte: "" })));
+  const [kategorien, setKategorien] = useState([]);
   const [wbPunkte, setWbPunkte] = useState("");
-  const [wbMax, setWbMax] = useState("24");
   const [kommentar, setKommentar] = useState("");
   const [syncing, setSyncing] = useState(false);
   const [syncError, setSyncError] = useState(null);
@@ -55,16 +189,48 @@ function App() {
   const [toast, setToast] = useState(null);
 
   const currentSchueler = SCHUELER.find((s) => s.id === schuelerId);
-  const perioden = currentSchueler?.klasse === "2GSE" ? PERIODEN_2GSE : PERIODEN_1GSE;
+  const istGSE2 = currentSchueler?.klasse === "2GSE";
+  const struktur = istGSE2 ? STRUKTUR_2GSE : STRUKTUR_1GSE;
+  const perioden = istGSE2 ? PERIODEN_2GSE : PERIODEN_1GSE;
+  const def = periode ? struktur[periode] : null;
+
+  const schuelerWaehlen = (id) => {
+    setSchuelerId(id);
+    setPeriode("");
+    setKategorien([]);
+    setWbPunkte("");
+    setDocUrl(null);
+  };
+
+  const periodeWaehlen = (p) => {
+    setPeriode(p);
+    setKategorien(initKategorien(istGSE2 ? STRUKTUR_2GSE : STRUKTUR_1GSE, p));
+    setWbPunkte("");
+    setDocUrl(null);
+  };
 
   const updateKategorie = (id, punkte) =>
     setKategorien((ks) => ks.map((k) => (k.id === id ? { ...k, punkte } : k)));
 
-  const gesamt = kategorien.reduce((s, k) => s + (parseFloat(k.punkte) || 0), 0) + (parseFloat(wbPunkte) || 0);
-  const gesamtMax = kategorien.reduce((s, k) => s + (parseFloat(k.max) || 0), 0) + (parseFloat(wbMax) || 0);
-  const note = gesamtMax > 0 ? Math.round((gesamt / gesamtMax) * 4 * 10) / 10 : null;
+  const gruppiert = useMemo(() => {
+    const map = {};
+    kategorien.forEach((k) => {
+      if (!map[k.gruppe]) map[k.gruppe] = [];
+      map[k.gruppe].push(k);
+    });
+    return map;
+  }, [kategorien]);
 
-  const canSubmit = schuelerId && periode && kategorien.every((k) => k.punkte !== "");
+  const kategorienSumme = kategorien.reduce((s, k) => s + (parseFloat(k.punkte) || 0), 0);
+  const kategorienMax = kategorien.reduce((s, k) => s + k.max, 0);
+  const wbMax = def?.wochenberichte?.max || 0;
+  const gesamt = kategorienSumme + (parseFloat(wbPunkte) || 0);
+  const gesamtMax = kategorienMax + wbMax;
+  const offizielleSkala = def?.offizielleSkala || gesamtMax;
+  const note = offizielleSkala > 0 ? Math.round((gesamt * 60 / offizielleSkala) * 10) / 10 : null;
+  const abweichung = gesamtMax !== offizielleSkala;
+
+  const canSubmit = schuelerId && periode && kategorien.every((k) => k.punkte !== "") && wbPunkte !== "";
 
   const absenden = async () => {
     setSyncing(true);
@@ -73,10 +239,13 @@ function App() {
       const payload = {
         typ: "bewertung",
         schueler: currentSchueler.name,
+        klasse: currentSchueler.klasse,
         periode,
-        kategorien: kategorien.map((k) => ({ name: k.name, punkte: Number(k.punkte) || 0, max: Number(k.max) })),
-        wochenberichtePunkte: wbPunkte === "" ? undefined : Number(wbPunkte),
-        wochenberichteMax: Number(wbMax),
+        kategorien: kategorien.map((k) => ({ name: `${k.gruppe} — ${k.name}`, punkte: Number(k.punkte) || 0, max: k.max })),
+        wochenberichtePunkte: Number(wbPunkte) || 0,
+        wochenberichteMax: wbMax,
+        wochenberichteLabel: def?.wochenberichte?.label,
+        noteBerechnet: note,
         kommentar,
       };
       const res = await fetch(WEB_APP_URL, {
@@ -106,58 +275,78 @@ function App() {
       </header>
 
       <main className="content">
-        <div className="notice">
-          Hinweis: Kategorien und Punktemaxima sind Platzhalter, bis das offizielle Bewertungsraster feststeht
-          (siehe Lastenheft, offene Punkte). Anpassbar direkt im Code.
-        </div>
-
         <section className="card">
           <h2>1. Schüler/-in & Periode</h2>
           <div className="grid2">
             <label className="field">
               <span className="field-label">Schüler/-in</span>
-              <select className="select" value={schuelerId} onChange={(e) => { setSchuelerId(e.target.value); setPeriode(""); }}>
+              <select className="select" value={schuelerId} onChange={(e) => schuelerWaehlen(e.target.value)}>
                 <option value="">– auswählen –</option>
                 {SCHUELER.map((s) => <option key={s.id} value={s.id}>{s.name} ({s.klasse})</option>)}
               </select>
             </label>
             <label className="field">
               <span className="field-label">Periode</span>
-              <select className="select" value={periode} onChange={(e) => setPeriode(e.target.value)} disabled={!schuelerId}>
+              <select className="select" value={periode} onChange={(e) => periodeWaehlen(e.target.value)} disabled={!schuelerId}>
                 <option value="">– auswählen –</option>
                 {perioden.map((p) => <option key={p} value={p}>{p}</option>)}
               </select>
             </label>
           </div>
+          {schuelerId && !istGSE2 && (
+            <p className="notice">1GSE: Noch kein offizielles Bewertungsraster hinterlegt — Platzhalter-Kategorien.</p>
+          )}
         </section>
 
-        {schuelerId && periode && (
+        {def && (
           <>
+            {def.gruppen.map((g) => (
+              <section className="card" key={g.titel}>
+                <h2>{g.titel}</h2>
+                {(gruppiert[g.titel] || []).map((k) => (
+                  <div className="kat-row" key={k.id}>
+                    <span className="kat-name">{k.name}</span>
+                    <input
+                      type="number" min="0" max={k.max} className="input input-points"
+                      value={k.punkte} onChange={(e) => updateKategorie(k.id, e.target.value)}
+                    />
+                    <span className="kat-max">/ {k.max}</span>
+                  </div>
+                ))}
+              </section>
+            ))}
+
             <section className="card">
-              <h2>2. Bewertungskategorien</h2>
-              {kategorien.map((k) => (
-                <div className="kat-row" key={k.id}>
-                  <span className="kat-name">{k.name}</span>
-                  <input
-                    type="number" min="0" max={k.max} className="input input-points"
-                    value={k.punkte} onChange={(e) => updateKategorie(k.id, e.target.value)}
-                  />
-                  <span className="kat-max">/ {k.max}</span>
-                </div>
-              ))}
+              <h2>{def.wochenberichte.label}</h2>
               <div className="kat-row">
-                <span className="kat-name">Wochenberichte (automatisch, hier manuell zur Demo)</span>
-                <input type="number" min="0" max={wbMax} className="input input-points" value={wbPunkte} onChange={(e) => setWbPunkte(e.target.value)} />
-                <span className="kat-max">/ {wbMax}</span>
-              </div>
-              <div className="total-row">
-                <span>Gesamt: {gesamt} / {gesamtMax} Punkte</span>
-                {note !== null && <span className="note-pill">Note: {note} / 4</span>}
+                <span className="kat-name">Punkte (automatisch aus M5, hier zur Demo manuell)</span>
+                <input type="number" min="0" max={def.wochenberichte.max} className="input input-points" value={wbPunkte} onChange={(e) => setWbPunkte(e.target.value)} />
+                <span className="kat-max">/ {def.wochenberichte.max}</span>
               </div>
             </section>
 
+            <section className="card summary-card">
+              <div className="total-row">
+                <span>Summe eingegeben: {gesamt} / {gesamtMax} Punkte</span>
+              </div>
+              {abweichung && (
+                <p className="notice">
+                  Hinweis: Die Summe der Einzelpositionen ({gesamtMax}P) weicht von der im Originaldokument
+                  angegebenen Gesamtskala ({offizielleSkala}P) ab — das ist eine Unstimmigkeit im offiziellen
+                  Bewertungsbogen selbst (siehe Lastenheft, offene Punkte). Die Note wird trotzdem auf Basis
+                  der offiziellen Skala ({offizielleSkala}P → 60P) berechnet.
+                </p>
+              )}
+              {note !== null && (
+                <div className="note-row">
+                  <span className="note-pill">Note: {note} / 60</span>
+                  <span className="note-hint">berechnet aus {gesamt} / {offizielleSkala} (offizielle Skala)</span>
+                </div>
+              )}
+            </section>
+
             <section className="card">
-              <h2>3. Kommentar</h2>
+              <h2>Kommentar</h2>
               <textarea className="textarea" rows={5} placeholder="Kommentar zur Bewertung dieser Periode…" value={kommentar} onChange={(e) => setKommentar(e.target.value)} />
             </section>
 
@@ -185,22 +374,25 @@ body { margin: 0; font-family: -apple-system, "Segoe UI", Inter, Arial, sans-ser
 .brand { display: flex; align-items: baseline; gap: 10px; }
 .brand-mark { font-weight: 800; font-size: 15px; letter-spacing: 0.06em; }
 .brand-sub { font-size: 13px; opacity: 0.85; }
-.content { max-width: 640px; margin: 0 auto; padding: 24px 20px 60px; }
-.notice { background: #fbe8c6; color: #8a5a12; font-size: 12.5px; padding: 10px 14px; border-radius: 8px; margin-bottom: 18px; line-height: 1.4; }
-.card { background: #fff; border: 1px solid #e2e8e3; border-radius: 12px; padding: 18px 20px; margin-bottom: 16px; }
-.card h2 { font-size: 15px; margin: 0 0 12px; color: #1F5C3B; }
+.content { max-width: 700px; margin: 0 auto; padding: 24px 20px 60px; }
+.notice { background: #fbe8c6; color: #8a5a12; font-size: 12px; padding: 10px 14px; border-radius: 8px; margin: 10px 0 0; line-height: 1.45; }
+.card { background: #fff; border: 1px solid #e2e8e3; border-radius: 12px; padding: 18px 20px; margin-bottom: 14px; }
+.card h2 { font-size: 14px; margin: 0 0 12px; color: #1F5C3B; }
 .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
 .field { display: flex; flex-direction: column; gap: 4px; }
 .field-label { font-size: 12.5px; font-weight: 700; color: #294f3c; }
 .select, .input, .textarea { border: 1px solid #c9d5cd; border-radius: 7px; padding: 8px 10px; font-size: 13.5px; font-family: inherit; background: #fff; color: #1c2621; }
 .select:disabled { background: #f1f3f1; color: #7a847e; }
 .textarea { width: 100%; resize: vertical; }
-.kat-row { display: flex; align-items: center; gap: 10px; margin-bottom: 10px; }
-.kat-name { flex: 1; font-size: 13.5px; }
-.input-points { width: 70px; text-align: right; }
-.kat-max { font-size: 13px; color: #6d7d74; min-width: 40px; }
-.total-row { display: flex; justify-content: space-between; align-items: center; margin-top: 12px; padding-top: 12px; border-top: 1px solid #eef1ef; font-weight: 700; }
-.note-pill { background: #d7ecdd; color: #1F5C3B; padding: 4px 10px; border-radius: 20px; font-size: 13px; }
+.kat-row { display: flex; align-items: center; gap: 10px; margin-bottom: 9px; }
+.kat-name { flex: 1; font-size: 13px; line-height: 1.35; }
+.input-points { width: 64px; text-align: right; flex-shrink: 0; }
+.kat-max { font-size: 12.5px; color: #6d7d74; min-width: 36px; flex-shrink: 0; }
+.summary-card { background: #eef3ef; }
+.total-row { font-size: 13.5px; font-weight: 700; color: #294f3c; }
+.note-row { display: flex; align-items: center; gap: 10px; margin-top: 10px; }
+.note-pill { background: #1F5C3B; color: #fff; padding: 6px 14px; border-radius: 20px; font-size: 14px; font-weight: 800; }
+.note-hint { font-size: 11.5px; color: #6d7d74; }
 .actions { display: flex; align-items: center; gap: 12px; padding: 4px 0 20px; }
 .btn { font-size: 13.5px; font-weight: 700; padding: 10px 16px; border-radius: 8px; border: none; cursor: pointer; }
 .btn-primary { background: #1F5C3B; color: #fff; }
