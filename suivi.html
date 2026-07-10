@@ -56,7 +56,6 @@ function App() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [geladen, setGeladen] = useState(false);
-  const [offenePeriode, setOffenePeriode] = useState(null);
 
   const currentSchueler = SCHUELER.find((s) => s.id === schuelerId);
   const istGSE2 = currentSchueler?.klasse === "2GSE";
@@ -81,6 +80,7 @@ function App() {
   }, [schuelerId]);
 
   const bewertungFuer = (periode) => bewertungen.find((b) => b.Periode === periode);
+  const planDetails = projekt ? sicherJson(projekt["Projektplan-Details (JSON)"], null) : null;
 
   return (
     <div className="wrap">
@@ -95,7 +95,7 @@ function App() {
         <section className="card">
           <label className="field">
             <span className="field-label">Wie bass du?</span>
-            <select className="select" value={schuelerId} onChange={(e) => { setSchuelerId(e.target.value); setOffenePeriode(null); }}>
+            <select className="select" value={schuelerId} onChange={(e) => setSchuelerId(e.target.value)}>
               <option value="">– auswählen –</option>
               {SCHUELER.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
             </select>
@@ -113,22 +113,76 @@ function App() {
 
             {projekt && (
               <>
+                {/* ===== Kapitel 1: Projektplan ===== */}
                 <section className="card">
+                  <span className="kapitel-label">Kapitel 1</span>
                   <h2>{projekt.Titel || "(noch kein Titel)"}</h2>
-                  <p className="status-line">Status Projektplan: <strong>{projekt.Status}</strong></p>
+                  <p className="status-line">
+                    Status: <strong>{projekt.Status}</strong>
+                    {" · "}Betreuer/-in: <strong>{projekt.Betreuer}</strong>
+                  </p>
+
+                  {planDetails ? (
+                    <>
+                      <div className="feld-block">
+                        <span className="feld-label">Inhalt / Beschreibung</span>
+                        <p className="feld-text">{planDetails.inhalt || "–"}</p>
+                      </div>
+                      <div className="feld-block">
+                        <span className="feld-label">Motivation</span>
+                        <p className="feld-text">{planDetails.motivation || "–"}</p>
+                      </div>
+                      <div className="feld-block">
+                        <span className="feld-label">Ziele</span>
+                        <p className="feld-text">{planDetails.ziele || "–"}</p>
+                      </div>
+                      <div className="feld-block">
+                        <span className="feld-label">Meilensteine</span>
+                        {(planDetails.meilensteine || []).length > 0 ? (
+                          <ul className="meilenstein-liste">
+                            {planDetails.meilensteine.map((m, i) => (
+                              <li key={i}><strong>{m.datum || "–"}</strong> — {m.beschreibung}</li>
+                            ))}
+                          </ul>
+                        ) : <p className="feld-text">–</p>}
+                      </div>
+                      <div className="feld-block">
+                        <span className="feld-label">Gruppenarbeit</span>
+                        <p className="feld-text">
+                          {planDetails.gruppenarbeit ? `Ja, mit ${planDetails.partner || "–"}` : "Nein, Einzelarbeit"}
+                        </p>
+                        {planDetails.gruppenarbeit && planDetails.aufgabenteilung && (
+                          <p className="feld-text feld-text-sub">{planDetails.aufgabenteilung}</p>
+                        )}
+                      </div>
+                      <div className="feld-block">
+                        <span className="feld-label">Kostenplan (max. 500 €)</span>
+                        {planDetails.kostenplanNoetig && (planDetails.kosten || []).length > 0 ? (
+                          <ul className="kosten-liste">
+                            {planDetails.kosten.map((k, i) => (
+                              <li key={i}>{k.bezeichnung}: <strong>{k.betrag} €</strong></li>
+                            ))}
+                          </ul>
+                        ) : <p className="feld-text">nicht erforderlich</p>}
+                      </div>
+                    </>
+                  ) : (
+                    <p className="notice">Details werden geladen, sobald der Projektplan komplett eingereicht ist.</p>
+                  )}
+
                   <div className="link-row">
                     {projekt["Projektplan-Link"] && (
-                      <a className="btn btn-ghost" href={projekt["Projektplan-Link"]} target="_blank" rel="noreferrer">📝 Projektplan</a>
+                      <a className="btn btn-ghost" href={projekt["Projektplan-Link"]} target="_blank" rel="noreferrer">📝 Projektplan als Word öffnen</a>
                     )}
                   </div>
                 </section>
 
+                {/* ===== Bewertungsperioden ===== */}
                 {perioden.map((periode) => {
                   const b = bewertungFuer(periode);
                   const prozent = b ? Math.round((Number(b.Note) / 60) * 100) : 0;
                   const kategorien = b ? sicherJson(b["Kategorien (JSON)"], []) : [];
                   const gruppenBemerkungen = b ? sicherJson(b["Gruppenbemerkungen (JSON)"], []) : [];
-                  const offen = offenePeriode === periode;
 
                   const gruppiert = {};
                   kategorien.forEach((k) => {
@@ -141,19 +195,18 @@ function App() {
 
                   return (
                     <section className="card" key={periode}>
-                      <div className="periode-head" onClick={() => b && setOffenePeriode(offen ? null : periode)}>
-                        <div className="periode-titel">
-                          <span className="periode-name">{periode}</span>
-                          {!b && <span className="pill pill-offen">Nach net bewäert</span>}
-                          {b && <span className="pill pill-fertig">Note {b.Note} / 60</span>}
-                        </div>
-                        {b && <span className="chevron">{offen ? "▲" : "▼"}</span>}
+                      <span className="kapitel-label">{periode}</span>
+                      <div className="periode-head">
+                        <h2 className="periode-h2">Bewertung &amp; Kommentar</h2>
+                        {!b && <span className="pill pill-offen">Nach net bewäert</span>}
+                        {b && <span className="pill pill-fertig">Note {b.Note} / 60</span>}
                       </div>
 
-                      {b && <Fortschrittsbar prozent={prozent} farbe={prozent >= 50 ? "#1F5C3B" : "#c0392b"} />}
+                      {!b && <p className="notice">Fir dës Period läit nach keng Bewertung vir.</p>}
 
-                      {b && offen && (
-                        <div className="details">
+                      {b && (
+                        <>
+                          <Fortschrittsbar prozent={prozent} farbe={prozent >= 50 ? "#1F5C3B" : "#c0392b"} />
                           <p className="punkte-summe">Gesamt: {b.Punkte} / {b.Max} Punkte</p>
 
                           {Object.keys(gruppiert).map((gruppe) => {
@@ -169,6 +222,11 @@ function App() {
                                   <span className="gruppe-punkte">{gSumme} / {gMax}</span>
                                 </div>
                                 <Fortschrittsbar prozent={gProzent} farbe="#3A6EA5" />
+                                <ul className="positionen-liste">
+                                  {items.map((i, idx) => (
+                                    <li key={idx}>{i.name}: <strong>{i.punkte} / {i.max}</strong></li>
+                                  ))}
+                                </ul>
                                 {gBem && (gBem.positiv || []).map((r) => (
                                   <div className="remarque remarque-pos" key={r}>✓ {r}</div>
                                 ))}
@@ -192,7 +250,7 @@ function App() {
                               📄 Ganzen Suivi als PDF opmaachen
                             </a>
                           )}
-                        </div>
+                        </>
                       )}
                     </section>
                   );
@@ -215,14 +273,15 @@ body { margin: 0; font-family: -apple-system, "Segoe UI", Inter, Arial, sans-ser
 .brand { display: flex; align-items: baseline; gap: 10px; }
 .brand-mark { font-weight: 800; font-size: 15px; letter-spacing: 0.06em; }
 .brand-sub { font-size: 13px; opacity: 0.85; }
-.content { max-width: 600px; margin: 0 auto; padding: 24px 20px 60px; }
-.card { background: #fff; border: 1px solid #e2e8e3; border-radius: 12px; padding: 18px 20px; margin-bottom: 14px; }
-.card h2 { font-size: 17px; margin: 0 0 6px; color: #1F5C3B; }
+.content { max-width: 640px; margin: 0 auto; padding: 24px 20px 60px; }
+.card { background: #fff; border: 1px solid #e2e8e3; border-radius: 12px; padding: 20px 22px; margin-bottom: 16px; }
+.card h2 { font-size: 18px; margin: 2px 0 6px; color: #1F5C3B; }
+.kapitel-label { font-size: 11px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.05em; color: #6d7d74; }
 .field { display: flex; flex-direction: column; gap: 4px; }
 .field-label { font-size: 12.5px; font-weight: 700; color: #294f3c; }
 .select { border: 1px solid #c9d5cd; border-radius: 7px; padding: 9px 10px; font-size: 14px; font-family: inherit; background: #fff; width: 100%; }
-.status-line { font-size: 13.5px; color: #55625a; margin: 0 0 12px; }
-.link-row { display: flex; gap: 10px; }
+.status-line { font-size: 13.5px; color: #55625a; margin: 0 0 16px; }
+.link-row { display: flex; gap: 10px; margin-top: 16px; }
 .btn { display: inline-block; font-size: 13.5px; font-weight: 700; padding: 10px 16px; border-radius: 8px; border: none; cursor: pointer; text-decoration: none; }
 .btn-primary { background: #1F5C3B; color: #fff; margin-top: 14px; }
 .btn-ghost { background: #eef3ef; color: #1F5C3B; }
@@ -230,24 +289,27 @@ body { margin: 0; font-family: -apple-system, "Segoe UI", Inter, Arial, sans-ser
 .empty { padding: 30px; text-align: center; color: #6d7d74; font-size: 14px; background: #fff; border-radius: 12px; border: 1px solid #e2e8e3; }
 .error { color: #8a2b1f; }
 
-.periode-head { display: flex; align-items: center; justify-content: space-between; cursor: pointer; }
-.periode-titel { display: flex; align-items: center; gap: 10px; }
-.periode-name { font-size: 15px; font-weight: 700; color: #1c2621; }
-.pill { font-size: 11.5px; font-weight: 700; padding: 3px 10px; border-radius: 20px; }
+.feld-block { margin-bottom: 14px; }
+.feld-label { display: block; font-size: 11px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.03em; color: #294f3c; margin-bottom: 4px; }
+.feld-text { font-size: 13.5px; line-height: 1.5; margin: 0; white-space: pre-wrap; }
+.feld-text-sub { color: #55625a; margin-top: 4px; }
+.meilenstein-liste, .kosten-liste, .positionen-liste { margin: 4px 0 0; padding-left: 18px; font-size: 13px; line-height: 1.6; }
+
+.periode-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px; }
+.periode-h2 { margin: 0 !important; }
+.pill { font-size: 11.5px; font-weight: 700; padding: 3px 10px; border-radius: 20px; flex-shrink: 0; }
 .pill-offen { background: #e6e9e6; color: #55625a; }
 .pill-fertig { background: #d7ecdd; color: #1F5C3B; }
-.chevron { color: #6d7d74; font-size: 12px; }
 
-.bar-track { height: 8px; background: #eef1ef; border-radius: 4px; overflow: hidden; margin-top: 10px; }
+.bar-track { height: 8px; background: #eef1ef; border-radius: 4px; overflow: hidden; margin: 4px 0 10px; }
 .bar-fill { height: 100%; border-radius: 4px; transition: width 0.3s; }
 
-.details { margin-top: 16px; padding-top: 14px; border-top: 1px solid #eef1ef; }
-.punkte-summe { font-size: 13.5px; font-weight: 700; color: #294f3c; margin: 0 0 14px; }
+.punkte-summe { font-size: 13.5px; font-weight: 700; color: #294f3c; margin: 0 0 16px; }
 
-.gruppe-block { margin-bottom: 16px; padding-bottom: 14px; border-bottom: 1px dashed #eef1ef; }
+.gruppe-block { margin-bottom: 18px; padding-bottom: 16px; border-bottom: 1px dashed #eef1ef; }
 .gruppe-block:last-of-type { border-bottom: none; }
 .gruppe-head { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 2px; }
-.gruppe-name { font-size: 13px; font-weight: 700; color: #1c2621; }
+.gruppe-name { font-size: 13.5px; font-weight: 700; color: #1c2621; }
 .gruppe-punkte { font-size: 12.5px; color: #6d7d74; }
 
 .remarque { font-size: 12px; margin-top: 8px; line-height: 1.4; }
