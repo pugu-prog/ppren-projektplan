@@ -1,0 +1,190 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>PPREN Notentabelle</title>
+<script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+<script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+<script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+</head>
+<body>
+<div id="root"></div>
+<script>
+  window.addEventListener("error", function (e) {
+    document.getElementById("root").innerHTML =
+      '<div style="padding:40px;font-family:sans-serif;color:#8a2b1f;white-space:pre-wrap;">' +
+      '<h2 style="margin-top:0;">Fehler beim Laden</h2>' +
+      (e.message || "Unbekannter Fehler") +
+      (e.filename ? "\n\nDatei: " + e.filename + " Zeile " + e.lineno : "") +
+      "</div>";
+  });
+</script>
+<script type="text/babel">
+const { useState, useEffect, useMemo } = React;
+
+const WEB_APP_URL = "https://script.google.com/macros/s/AKfycbzfyThho8MevoyfSz7NsQ1YxZJO4E-f61GYYzqZyHACIHzxR3bm7SHCwVUkCBJrAEvJ/exec";
+
+function App() {
+  const [projekte, setProjekte] = useState([]);
+  const [bewertungen, setBewertungen] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+  const [filterKlasse, setFilterKlasse] = useState("alle");
+
+  const lade = () => {
+    setLoading(true);
+    setError(null);
+    fetch(WEB_APP_URL)
+      .then((res) => res.json())
+      .then((data) => {
+        setProjekte(data.projekte || []);
+        setBewertungen(data.bewertungen || []);
+      })
+      .catch(() => setError("Konnte Daten nicht laden."))
+      .finally(() => setLoading(false));
+  };
+
+  useEffect(() => { lade(); }, []);
+
+  const klassen = useMemo(() => ["alle", ...new Set(projekte.map((p) => p.Klasse).filter(Boolean))], [projekte]);
+
+  // Alle Perioden, die irgendwo vorkommen, in sinnvoller Reihenfolge
+  const alleReihenfolge = ["Semester 1", "Semester 2", "Trimester 1", "Trimester 2", "Trimester 3"];
+  const vorhandenePerioden = useMemo(() => {
+    const set = new Set(bewertungen.map((b) => b.Periode));
+    return alleReihenfolge.filter((p) => set.has(p));
+  }, [bewertungen]);
+
+  const gefilterteSchueler = useMemo(() => {
+    return projekte
+      .filter((p) => filterKlasse === "alle" || p.Klasse === filterKlasse)
+      .sort((a, b) => (a.Schüler || "").localeCompare(b.Schüler || ""));
+  }, [projekte, filterKlasse]);
+
+  const noteFuer = (schueler, periode) => {
+    const b = bewertungen.find((x) => x.Schüler === schueler && x.Periode === periode);
+    return b ? b.Note : null;
+  };
+
+  const csvExport = () => {
+    const kopf = ["Schüler", "Klasse", "Betreuer", ...vorhandenePerioden, "Durchschnitt"];
+    const zeilen = gefilterteSchueler.map((s) => {
+      const noten = vorhandenePerioden.map((p) => noteFuer(s.Schüler, p));
+      const gueltig = noten.filter((n) => n !== null && n !== "");
+      const schnitt = gueltig.length > 0 ? (gueltig.reduce((a, b) => a + Number(b), 0) / gueltig.length).toFixed(2) : "";
+      return [s.Schüler, s.Klasse, s.Betreuer, ...noten.map((n) => n ?? ""), schnitt];
+    });
+    const csv = [kopf, ...zeilen].map((r) => r.map((c) => `"${String(c).replace(/"/g, '""')}"`).join(";")).join("\n");
+    const blob = new Blob(["\ufeff" + csv], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = "PPREN_Notenuebersicht.csv";
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+
+  return (
+    <div className="wrap">
+      <header className="topbar">
+        <div className="brand">
+          <span className="brand-mark">PPREN</span>
+          <span className="brand-sub">Notentabelle · Sciences Environnementales</span>
+        </div>
+        <div className="topbar-actions">
+          <button className="refresh-btn" onClick={lade} disabled={loading}>{loading ? "Lädt…" : "🔄 Aktualisieren"}</button>
+        </div>
+      </header>
+
+      <main className="content">
+        <div className="controls">
+          <select className="select" value={filterKlasse} onChange={(e) => setFilterKlasse(e.target.value)}>
+            {klassen.map((k) => <option key={k} value={k}>{k === "alle" ? "Alle Klassen" : k}</option>)}
+          </select>
+          <button className="btn btn-primary" onClick={csvExport}>⬇️ Als Excel/CSV exportieren</button>
+        </div>
+
+        {loading && <div className="empty">Lädt…</div>}
+        {error && <div className="empty error">{error}</div>}
+
+        {!loading && !error && (
+          <div className="table-wrap">
+            <table className="table">
+              <thead>
+                <tr>
+                  <th>Schüler/-in</th>
+                  <th>Klasse</th>
+                  <th>Betreuer/-in</th>
+                  {vorhandenePerioden.map((p) => <th key={p} className="th-note">{p}</th>)}
+                  <th className="th-note">Ø</th>
+                </tr>
+              </thead>
+              <tbody>
+                {gefilterteSchueler.map((s, i) => {
+                  const noten = vorhandenePerioden.map((p) => noteFuer(s.Schüler, p));
+                  const gueltig = noten.filter((n) => n !== null && n !== "");
+                  const schnitt = gueltig.length > 0 ? (gueltig.reduce((a, b) => a + Number(b), 0) / gueltig.length).toFixed(1) : "–";
+                  return (
+                    <tr key={i}>
+                      <td className="cell-strong">{s.Schüler}</td>
+                      <td>{s.Klasse}</td>
+                      <td>{s.Betreuer}</td>
+                      {noten.map((n, idx) => (
+                        <td key={idx} className="td-note">
+                          {n !== null && n !== "" ? (
+                            <span className={`note-chip ${Number(n) >= 30 ? "note-gut" : "note-schlecht"}`}>{n}</span>
+                          ) : <span className="cell-muted">–</span>}
+                        </td>
+                      ))}
+                      <td className="td-note"><strong>{schnitt}</strong></td>
+                    </tr>
+                  );
+                })}
+                {gefilterteSchueler.length === 0 && (
+                  <tr><td colSpan={4 + vorhandenePerioden.length} className="empty-row">Keine Schüler gefunden.</td></tr>
+                )}
+              </tbody>
+            </table>
+          </div>
+        )}
+
+        <p className="hinweis">Noten auf Skala /60. Grün = ≥ 30 (50 %), Rot = &lt; 30.</p>
+      </main>
+    </div>
+  );
+}
+
+ReactDOM.createRoot(document.getElementById("root")).render(<App />);
+</script>
+<style>
+* { box-sizing: border-box; }
+body { margin: 0; font-family: -apple-system, "Segoe UI", Inter, Arial, sans-serif; color: #1c2621; background: #f6f8f6; }
+.topbar { display: flex; align-items: center; justify-content: space-between; padding: 14px 22px; background: #1F5C3B; color: #fff; }
+.brand { display: flex; align-items: baseline; gap: 10px; }
+.brand-mark { font-weight: 800; font-size: 15px; letter-spacing: 0.06em; }
+.brand-sub { font-size: 13px; opacity: 0.85; }
+.refresh-btn { background: rgba(255,255,255,0.15); border: 1px solid rgba(255,255,255,0.3); color: #fff; font-size: 12.5px; font-weight: 700; padding: 7px 14px; border-radius: 8px; cursor: pointer; }
+.content { padding: 20px 22px 60px; max-width: 1000px; margin: 0 auto; }
+.controls { display: flex; justify-content: space-between; align-items: center; gap: 10px; margin-bottom: 16px; flex-wrap: wrap; }
+.select { border: 1px solid #c9d5cd; border-radius: 8px; padding: 9px 12px; font-size: 13.5px; font-family: inherit; background: #fff; }
+.btn { font-size: 13px; font-weight: 700; padding: 9px 16px; border-radius: 8px; border: none; cursor: pointer; }
+.btn-primary { background: #1F5C3B; color: #fff; }
+.table-wrap { overflow-x: auto; background: #fff; border-radius: 12px; border: 1px solid #e2e8e3; }
+.table { width: 100%; border-collapse: collapse; }
+.table th { text-align: left; font-size: 11.5px; text-transform: uppercase; letter-spacing: 0.04em; color: #6d7d74; background: #eef3ef; padding: 10px 14px; font-weight: 700; white-space: nowrap; }
+.th-note { text-align: center !important; }
+.table td { padding: 10px 14px; font-size: 13.5px; border-top: 1px solid #eef1ef; }
+.td-note { text-align: center; }
+.cell-strong { font-weight: 700; }
+.cell-muted { color: #ccc; }
+.note-chip { display: inline-block; min-width: 34px; padding: 3px 8px; border-radius: 14px; font-weight: 700; font-size: 12.5px; }
+.note-gut { background: #d7ecdd; color: #1F5C3B; }
+.note-schlecht { background: #fbe4e1; color: #8a2b1f; }
+.empty { padding: 40px; text-align: center; color: #6d7d74; font-size: 14px; }
+.empty-row { text-align: center; color: #6d7d74; padding: 30px; }
+.error { color: #8a2b1f; }
+.hinweis { font-size: 11.5px; color: #6d7d74; margin-top: 12px; }
+</style>
+</body>
+</html>
