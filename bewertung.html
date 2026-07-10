@@ -263,8 +263,19 @@ function App() {
     setDocUrl(null);
   };
 
-  const updateKategorie = (id, punkte) =>
-    setKategorien((ks) => ks.map((k) => (k.id === id ? { ...k, punkte } : k)));
+  const begrenzeAufMax = (wert, max) => {
+    if (wert === "") return "";
+    const zahl = parseFloat(wert);
+    if (isNaN(zahl)) return "";
+    if (zahl < 0) return "0";
+    if (zahl > max) return String(max);
+    return wert;
+  };
+
+  const updateKategorie = (id, punkte, max) =>
+    setKategorien((ks) => ks.map((k) => (k.id === id ? { ...k, punkte: begrenzeAufMax(punkte, max) } : k)));
+
+  const updateWbPunkte = (punkte) => setWbPunkte(begrenzeAufMax(punkte, wbMax));
 
   const toggleRemarque = (gruppe, art, text) => {
     setGruppenState((gs) => {
@@ -388,7 +399,7 @@ function App() {
                         <span className="kat-name">{k.name}</span>
                         <input
                           type="number" min="0" max={k.max} className="input input-points"
-                          value={k.punkte} onChange={(e) => updateKategorie(k.id, e.target.value)}
+                          value={k.punkte} onChange={(e) => updateKategorie(k.id, e.target.value, k.max)}
                         />
                         <span className="kat-max">/ {k.max}</span>
                       </div>
@@ -432,7 +443,7 @@ function App() {
               <h2>{def.wochenberichte.label}</h2>
               <div className="kat-row">
                 <span className="kat-name">Punkte (automatisch aus M5, hier zur Demo manuell)</span>
-                <input type="number" min="0" max={def.wochenberichte.max} className="input input-points" value={wbPunkte} onChange={(e) => setWbPunkte(e.target.value)} />
+                <input type="number" min="0" max={def.wochenberichte.max} className="input input-points" value={wbPunkte} onChange={(e) => updateWbPunkte(e.target.value)} />
                 <span className="kat-max">/ {def.wochenberichte.max}</span>
               </div>
             </section>
