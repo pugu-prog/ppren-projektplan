@@ -27,6 +27,8 @@ const SCHUELER = [
   { id: "lea_muller", name: "Léa Muller", klasse: "1GSE" },
   { id: "ben_weber", name: "Ben Weber", klasse: "2GSE" },
   { id: "noah_schmit", name: "Noah Schmit", klasse: "1GSE" },
+  { id: "mia_reuter", name: "Mia Reuter", klasse: "2GSE" },
+  { id: "tom_klein", name: "Tom Klein", klasse: "2GSE" },
 ];
 
 const LEHRER = [
@@ -87,6 +89,7 @@ function useDebouncedSave(key, value, delay = 700) {
       }
     }, delay);
     return () => clearTimeout(timer.current);
+    // eslint-disable-next-line
   }, [key, JSON.stringify(value)]);
   return saving;
 }
@@ -103,6 +106,7 @@ function App() {
   const [schuelerId, setSchuelerId] = useState("");
   const [plan, setPlan] = useState(emptyPlan());
   const [loaded, setLoaded] = useState(false);
+  const [exportOpen, setExportOpen] = useState(false);
   const [toast, setToast] = useState(null);
   const [syncing, setSyncing] = useState(false);
   const [syncError, setSyncError] = useState(null);
