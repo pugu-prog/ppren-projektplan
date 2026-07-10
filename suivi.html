@@ -139,10 +139,18 @@ function App() {
                       <div className="feld-block">
                         <span className="feld-label">Meilensteine</span>
                         {(planDetails.meilensteine || []).length > 0 ? (
-                          <ul className="meilenstein-liste">
-                            {planDetails.meilensteine.map((m, i) => (
-                              <li key={i}><strong>{m.datum || "–"}</strong> — {m.beschreibung}</li>
-                            ))}
+                          <ul className="meilenstein-liste meilenstein-liste-status">
+                            {planDetails.meilensteine.map((m, i) => {
+                              const heute = new Date().toISOString().slice(0, 10);
+                              const status = !m.datum ? null : (m.datum < heute ? "erreicht" : "ukommend");
+                              return (
+                                <li key={i}>
+                                  <span className={`ms-punkt ${status === "erreicht" ? "ms-erreicht" : status === "ukommend" ? "ms-ukommend" : ""}`} />
+                                  <strong>{m.datum || "–"}</strong> — {m.beschreibung}
+                                  {status && <span className={`ms-tag ms-tag-${status}`}>{status === "erreicht" ? "Erreecht" : "Ukommend"}</span>}
+                                </li>
+                              );
+                            })}
                           </ul>
                         ) : <p className="feld-text">–</p>}
                       </div>
@@ -158,11 +166,23 @@ function App() {
                       <div className="feld-block">
                         <span className="feld-label">Kostenplan (max. 500 €)</span>
                         {planDetails.kostenplanNoetig && (planDetails.kosten || []).length > 0 ? (
-                          <ul className="kosten-liste">
-                            {planDetails.kosten.map((k, i) => (
-                              <li key={i}>{k.bezeichnung}: <strong>{k.betrag} €</strong></li>
-                            ))}
-                          </ul>
+                          <>
+                            <ul className="kosten-liste">
+                              {planDetails.kosten.map((k, i) => (
+                                <li key={i}>{k.bezeichnung}: <strong>{k.betrag} €</strong></li>
+                              ))}
+                            </ul>
+                            {(() => {
+                              const summe = planDetails.kosten.reduce((s, k) => s + (parseFloat(k.betrag) || 0), 0);
+                              const prozent = Math.round((summe / 500) * 100);
+                              return (
+                                <div className="budget-block">
+                                  <Fortschrittsbar prozent={prozent} farbe={prozent > 100 ? "#c0392b" : "#3A6EA5"} />
+                                  <p className="budget-text">{summe.toFixed(2)} € von 500 € verwendet ({prozent}%)</p>
+                                </div>
+                              );
+                            })()}
+                          </>
                         ) : <p className="feld-text">nicht erforderlich</p>}
                       </div>
                     </>
@@ -309,6 +329,16 @@ body { margin: 0; font-family: -apple-system, "Segoe UI", Inter, Arial, sans-ser
 .feld-text { font-size: 13.5px; line-height: 1.5; margin: 0; white-space: pre-wrap; }
 .feld-text-sub { color: #55625a; margin-top: 4px; }
 .meilenstein-liste, .kosten-liste, .positionen-liste { margin: 4px 0 0; padding-left: 18px; font-size: 13px; line-height: 1.6; }
+.meilenstein-liste-status { list-style: none; padding-left: 0; }
+.meilenstein-liste-status li { display: flex; align-items: center; gap: 8px; margin-bottom: 4px; }
+.ms-punkt { width: 8px; height: 8px; border-radius: 50%; background: #ccc; flex-shrink: 0; }
+.ms-punkt.ms-erreicht { background: #1F5C3B; }
+.ms-punkt.ms-ukommend { background: #d4922a; }
+.ms-tag { font-size: 10.5px; font-weight: 700; padding: 2px 8px; border-radius: 10px; margin-left: auto; flex-shrink: 0; }
+.ms-tag-erreicht { background: #d7ecdd; color: #1F5C3B; }
+.ms-tag-ukommend { background: #f9e6c8; color: #8a5a12; }
+.budget-block { margin-top: 8px; }
+.budget-text { font-size: 12px; color: #55625a; margin: 4px 0 0; }
 
 .periode-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px; }
 .periode-h2 { margin: 0 !important; }
