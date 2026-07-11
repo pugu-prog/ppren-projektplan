@@ -445,7 +445,13 @@ function App() {
   };
 
   const generiereAllgemeinKommentar = () => {
-    const text = formuliereAusRemarquen(vornameSchueler(), allgemeinPositiv, allgemeinNegativ);
+    const allePositiv = [...allgemeinPositiv];
+    const alleNegativ = [...allgemeinNegativ];
+    Object.values(gruppenState).forEach((g) => {
+      if (g?.positiv) allePositiv.push(...g.positiv);
+      if (g?.negativ) alleNegativ.push(...g.negativ);
+    });
+    const text = formuliereAusRemarquen(vornameSchueler(), allePositiv, alleNegativ);
     setKommentar(text);
   };
 
@@ -674,7 +680,7 @@ function App() {
               </div>
               <div className="kommentar-gen-row">
                 <button type="button" className="btn-gen" onClick={generiereAllgemeinKommentar}>
-                  🖊️ Kommentar aus Remarquen generéieren
+                  🖊️ Gesamtkommentar aus allen Remarquen generéieren
                 </button>
               </div>
               <textarea className="textarea gruppen-kommentar" rows={4} placeholder="Zusätzlicher freier Kommentar (optional)…" value={kommentar} onChange={(e) => setKommentar(e.target.value)} />
