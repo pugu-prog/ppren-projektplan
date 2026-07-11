@@ -37,72 +37,66 @@ const PERIODEN_2GSE = ["Trimester 1", "Trimester 2", "Trimester 3"];
 const PERIODEN_1GSE = ["Semester 1", "Semester 2"];
 
 /* Positiv-/Negativ-Remarquen, wiederverwendbar je Kategorie-Typ */
-const ALLGEMEINE_REMARKEN = {
-  positiv: [
-    "Sehr engagierte und motivierte Mitarbeit während des gesamten Projekts",
-    "Termine und Fristen durchgehend zuverlässig eingehalten",
-    "Deutliche Weiterentwicklung im Projektverlauf erkennbar",
-    "Eigenständige und verantwortungsvolle Arbeitsweise",
-    "Konstruktiver Umgang mit Feedback und Verbesserungsvorschlägen",
-    "Sehr gute Kommunikation mit der Betreuer/-in",
-    "Kreative und durchdachte Lösungsansätze",
-    "Hohe Qualität der abgelieferten Arbeiten",
-    "Gute Selbstorganisation über das gesamte Projekt hinweg",
-    "Überdurchschnittliches Engagement für das Thema erkennbar",
-    "Klare Verbesserung im Vergleich zur letzten Periode",
-    "Sehr positive Entwicklung der fachlichen Kompetenzen",
-    "Vorbildliche Zusammenarbeit im Team",
-    "Bemerkenswerte Eigeninitiative bei der Themenvertiefung",
-    "Rundum überzeugende Gesamtleistung in dieser Periode",
-  ],
-  negativ: [
-    "Engagement und Motivation ließen im Projektverlauf spürbar nach",
-    "Wiederholt Termine/Fristen nicht eingehalten",
-    "Kaum erkennbare Weiterentwicklung seit der letzten Periode",
-    "Selbstständigkeit und Eigeninitiative noch ausbaufähig",
-    "Feedback wurde nur unzureichend umgesetzt",
-    "Kommunikation mit der Betreuer/-in verbesserungswürdig",
-    "Arbeitsweise wirkte häufig wenig strukturiert",
-    "Qualität der abgelieferten Arbeiten schwankend",
-    "Selbstorganisation über das Projekt hinweg unzureichend",
-    "Engagement für das Thema insgesamt eher gering",
-    "Rückschritt im Vergleich zur letzten Periode erkennbar",
-    "Fachliche Kompetenzen entwickelten sich langsamer als erwartet",
-    "Zusammenarbeit im Team verbesserungswürdig",
-    "Wenig Eigeninitiative bei der Themenvertiefung erkennbar",
-    "Gesamtleistung in dieser Periode unter den Erwartungen",
-  ],
-};
+const ALLGEMEINE_REMARKEN = [
+  { thema: "Engagement", positiv: "Sehr engagierte und motivierte Mitarbeit während des gesamten Projekts", negativ: "Engagement und Motivation ließen im Projektverlauf spürbar nach" },
+  { thema: "Termintreue", positiv: "Termine und Fristen durchgehend zuverlässig eingehalten", negativ: "Wiederholt Termine/Fristen nicht eingehalten" },
+  { thema: "Weiterentwicklung", positiv: "Deutliche Weiterentwicklung im Projektverlauf erkennbar", negativ: "Kaum erkennbare Weiterentwicklung seit der letzten Periode" },
+  { thema: "Eigenständigkeit", positiv: "Eigenständige und verantwortungsvolle Arbeitsweise", negativ: "Selbstständigkeit und Eigeninitiative noch ausbaufähig" },
+  { thema: "Feedback", positiv: "Konstruktiver Umgang mit Feedback und Verbesserungsvorschlägen", negativ: "Feedback wurde nur unzureichend umgesetzt" },
+  { thema: "Kommunikation", positiv: "Sehr gute Kommunikation mit der Betreuer/-in", negativ: "Kommunikation mit der Betreuer/-in verbesserungswürdig" },
+  { thema: "Arbeitsweise", positiv: "Kreative und durchdachte Lösungsansätze", negativ: "Arbeitsweise wirkte häufig wenig strukturiert" },
+  { thema: "Qualität", positiv: "Hohe Qualität der abgelieferten Arbeiten", negativ: "Qualität der abgelieferten Arbeiten schwankend" },
+  { thema: "Selbstorganisation", positiv: "Gute Selbstorganisation über das gesamte Projekt hinweg", negativ: "Selbstorganisation über das Projekt hinweg unzureichend" },
+  { thema: "Themen-Engagement", positiv: "Überdurchschnittliches Engagement für das Thema erkennbar", negativ: "Engagement für das Thema insgesamt eher gering" },
+  { thema: "Entwicklung im Vergleich", positiv: "Klare Verbesserung im Vergleich zur letzten Periode", negativ: "Rückschritt im Vergleich zur letzten Periode erkennbar" },
+  { thema: "Fachkompetenzen", positiv: "Sehr positive Entwicklung der fachlichen Kompetenzen", negativ: "Fachliche Kompetenzen entwickelten sich langsamer als erwartet" },
+  { thema: "Teamarbeit", positiv: "Vorbildliche Zusammenarbeit im Team", negativ: "Zusammenarbeit im Team verbesserungswürdig" },
+  { thema: "Eigeninitiative", positiv: "Bemerkenswerte Eigeninitiative bei der Themenvertiefung", negativ: "Wenig Eigeninitiative bei der Themenvertiefung erkennbar" },
+  { thema: "Gesamtleistung", positiv: "Rundum überzeugende Gesamtleistung in dieser Periode", negativ: "Gesamtleistung in dieser Periode unter den Erwartungen" },
+];
 
 const REMARKEN_VORLAGEN = {
-  planung: {
-    positiv: ["Klar strukturierter, realistischer Projektplan", "Motivation überzeugend dargestellt", "Ziele präzise formuliert", "Aufgabenteilung sinnvoll und ausgewogen"],
-    negativ: ["Projektplan unklar/unvollständig", "Motivation wenig überzeugend", "Ziele zu vage formuliert", "Kostenplan fehlt oder unvollständig"],
-  },
-  umsetzung: {
-    positiv: ["Zielsetzungen konsequent verfolgt", "Hohe Autonomie erkennbar", "Guter Fortschritt bei den Prüfterminen gezeigt", "Dokumentation vollständig und gut gegliedert"],
-    negativ: ["Zielsetzungen nur teilweise erreicht", "Wenig Eigeninitiative erkennbar", "Fortschritt bei Prüfterminen unzureichend", "Dokumentation lückenhaft"],
-  },
-  dokumentation: {
-    positiv: ["Klare, übersichtliche Struktur", "Sprachlich sehr gelungen", "Quellenangaben vorbildlich vollständig", "Inhaltlich fundiert und korrekt"],
-    negativ: ["Struktur unübersichtlich", "Zahlreiche Sprachfehler", "Quellenangaben unvollständig", "Fachliche Fehler vorhanden"],
-  },
-  methodologie: {
-    positiv: ["Sicherer Umgang mit digitalen Werkzeugen", "Sorgfältige, methodische Arbeitsweise", "Recherche vielfältig und relevant", "Termine zuverlässig eingehalten"],
-    negativ: ["Unsicherer Umgang mit Software", "Arbeitsweise wenig methodisch", "Recherche einseitig oder wenig relevant", "Termine nicht eingehalten"],
-  },
-  fachgespraech: {
-    positiv: ["Fachbegriffe sicher und korrekt verwendet", "Überzeugende, kompetente Antworten", "Gute Reflexion über eigenes Projekt"],
-    negativ: ["Fachbegriffe unsicher verwendet", "Antworten oberflächlich", "Reflexion wenig kritisch/differenziert"],
-  },
-  praesentation: {
-    positiv: ["Präsentation klar strukturiert", "Sicherer, überzeugender Vortrag", "Publikum gut einbezogen", "Fragen souverän beantwortet"],
-    negativ: ["Präsentation unstrukturiert", "Vortrag unsicher/monoton", "Publikum kaum einbezogen", "Fragen unsicher beantwortet"],
-  },
-  sachliche_qualitaet: {
-    positiv: ["Produkt funktioniert einwandfrei wie geplant", "Handwerkliche Umsetzung überzeugend", "Film gut umgesetzt"],
-    negativ: ["Produkt funktioniert nicht wie geplant", "Handwerkliche Mängel erkennbar", "Film unzureichend umgesetzt"],
-  },
+  planung: [
+    { thema: "Projektplan", positiv: "Klar strukturierter, realistischer Projektplan", negativ: "Projektplan unklar/unvollständig" },
+    { thema: "Motivation", positiv: "Motivation überzeugend dargestellt", negativ: "Motivation wenig überzeugend" },
+    { thema: "Ziele", positiv: "Ziele präzise formuliert", negativ: "Ziele zu vage formuliert" },
+    { thema: "Kostenplan", positiv: "Kostenplan vollständig und nachvollziehbar", negativ: "Kostenplan fehlt oder unvollständig" },
+    { thema: "Aufgabenteilung", positiv: "Aufgabenteilung sinnvoll und ausgewogen", negativ: "Aufgabenteilung unausgewogen oder unklar" },
+  ],
+  umsetzung: [
+    { thema: "Zielverfolgung", positiv: "Zielsetzungen konsequent verfolgt", negativ: "Zielsetzungen nur teilweise erreicht" },
+    { thema: "Autonomie", positiv: "Hohe Autonomie erkennbar", negativ: "Wenig Eigeninitiative erkennbar" },
+    { thema: "Prüftermine", positiv: "Guter Fortschritt bei den Prüfterminen gezeigt", negativ: "Fortschritt bei Prüfterminen unzureichend" },
+    { thema: "Dokumentation", positiv: "Dokumentation vollständig und gut gegliedert", negativ: "Dokumentation lückenhaft" },
+  ],
+  dokumentation: [
+    { thema: "Struktur", positiv: "Klare, übersichtliche Struktur", negativ: "Struktur unübersichtlich" },
+    { thema: "Sprache", positiv: "Sprachlich sehr gelungen", negativ: "Zahlreiche Sprachfehler" },
+    { thema: "Quellenangaben", positiv: "Quellenangaben vorbildlich vollständig", negativ: "Quellenangaben unvollständig" },
+    { thema: "Fachliche Korrektheit", positiv: "Inhaltlich fundiert und korrekt", negativ: "Fachliche Fehler vorhanden" },
+  ],
+  methodologie: [
+    { thema: "Digitale Werkzeuge", positiv: "Sicherer Umgang mit digitalen Werkzeugen", negativ: "Unsicherer Umgang mit Software" },
+    { thema: "Arbeitsweise", positiv: "Sorgfältige, methodische Arbeitsweise", negativ: "Arbeitsweise wenig methodisch" },
+    { thema: "Recherche", positiv: "Recherche vielfältig und relevant", negativ: "Recherche einseitig oder wenig relevant" },
+    { thema: "Termine", positiv: "Termine zuverlässig eingehalten", negativ: "Termine nicht eingehalten" },
+  ],
+  fachgespraech: [
+    { thema: "Fachbegriffe", positiv: "Fachbegriffe sicher und korrekt verwendet", negativ: "Fachbegriffe unsicher verwendet" },
+    { thema: "Antworten", positiv: "Überzeugende, kompetente Antworten", negativ: "Antworten oberflächlich" },
+    { thema: "Reflexion", positiv: "Gute Reflexion über eigenes Projekt", negativ: "Reflexion wenig kritisch/differenziert" },
+  ],
+  praesentation: [
+    { thema: "Struktur", positiv: "Präsentation klar strukturiert", negativ: "Präsentation unstrukturiert" },
+    { thema: "Vortrag", positiv: "Sicherer, überzeugender Vortrag", negativ: "Vortrag unsicher/monoton" },
+    { thema: "Publikum", positiv: "Publikum gut einbezogen", negativ: "Publikum kaum einbezogen" },
+    { thema: "Fragen", positiv: "Fragen souverän beantwortet", negativ: "Fragen unsicher beantwortet" },
+  ],
+  sachliche_qualitaet: [
+    { thema: "Funktion", positiv: "Produkt funktioniert einwandfrei wie geplant", negativ: "Produkt funktioniert nicht wie geplant" },
+    { thema: "Handwerk", positiv: "Handwerkliche Umsetzung überzeugend", negativ: "Handwerkliche Mängel erkennbar" },
+    { thema: "Film", positiv: "Film gut umgesetzt", negativ: "Film unzureichend umgesetzt" },
+  ],
 };
 
 const STRUKTUR_2GSE = {
@@ -310,9 +304,22 @@ function initGruppenState(struktur, periode) {
   if (!def) return {};
   const state = {};
   def.gruppen.forEach((g) => {
-    state[g.titel] = { positiv: [], negativ: [], kommentar: "" };
+    state[g.titel] = { auswahl: {}, kommentar: "" };
   });
   return state;
+}
+
+/* Wandelt eine Themen-Auswahl { thema: "pos"|"neg" } anhand der Vorlage
+   in zwei Textlisten (positiv/negativ) um. */
+function auswahlZuListen(vorlage, auswahl) {
+  const positiv = [];
+  const negativ = [];
+  (vorlage || []).forEach((item) => {
+    const wert = auswahl[item.thema];
+    if (wert === "pos") positiv.push(item.positiv);
+    else if (wert === "neg") negativ.push(item.negativ);
+  });
+  return { positiv, negativ };
 }
 
 function App() {
@@ -322,8 +329,7 @@ function App() {
   const [gruppenState, setGruppenState] = useState({});
   const [wbPunkte, setWbPunkte] = useState("");
   const [kommentar, setKommentar] = useState("");
-  const [allgemeinPositiv, setAllgemeinPositiv] = useState([]);
-  const [allgemeinNegativ, setAllgemeinNegativ] = useState([]);
+  const [allgemeinAuswahl, setAllgemeinAuswahl] = useState({});
   const [syncing, setSyncing] = useState(false);
   const [syncError, setSyncError] = useState(null);
   const [docUrl, setDocUrl] = useState(null);
@@ -344,8 +350,7 @@ function App() {
     setGruppenState({});
     setWbPunkte("");
     setDocUrl(null);
-    setAllgemeinPositiv([]);
-    setAllgemeinNegativ([]);
+    setAllgemeinAuswahl({});
     setKommentar("");
     setFinalisiert(false);
   };
@@ -357,8 +362,7 @@ function App() {
     setGruppenState(initGruppenState(s, p));
     setWbPunkte("");
     setDocUrl(null);
-    setAllgemeinPositiv([]);
-    setAllgemeinNegativ([]);
+    setAllgemeinAuswahl({});
     setKommentar("");
     setFinalisiert(false);
 
@@ -393,36 +397,34 @@ function App() {
 
   const updateWbPunkte = (punkte) => setWbPunkte(begrenzeAufMax(punkte, wbMax));
 
-  const toggleGruppenPositiv = (gruppe, text) => {
+  const toggleGruppenAuswahl = (gruppe, thema, wert) => {
     setGruppenState((gs) => {
-      const bestehend = gs[gruppe] || { positiv: [], negativ: [], kommentar: "" };
-      const neuePositiv = bestehend.positiv.includes(text)
-        ? bestehend.positiv.filter((t) => t !== text)
-        : [...bestehend.positiv, text];
-      return { ...gs, [gruppe]: { ...bestehend, positiv: neuePositiv } };
+      const bestehend = gs[gruppe] || { auswahl: {}, kommentar: "" };
+      const aktuell = bestehend.auswahl[thema];
+      const neueAuswahl = { ...bestehend.auswahl };
+      if (aktuell === wert) {
+        delete neueAuswahl[thema];
+      } else {
+        neueAuswahl[thema] = wert;
+      }
+      return { ...gs, [gruppe]: { ...bestehend, auswahl: neueAuswahl } };
     });
   };
 
-  const toggleGruppenNegativ = (gruppe, text) => {
-    setGruppenState((gs) => {
-      const bestehend = gs[gruppe] || { positiv: [], negativ: [], kommentar: "" };
-      const neueNegativ = bestehend.negativ.includes(text)
-        ? bestehend.negativ.filter((t) => t !== text)
-        : [...bestehend.negativ, text];
-      return { ...gs, [gruppe]: { ...bestehend, negativ: neueNegativ } };
+  const toggleAllgemeinAuswahl = (thema, wert) => {
+    setAllgemeinAuswahl((auswahl) => {
+      const neueAuswahl = { ...auswahl };
+      if (auswahl[thema] === wert) {
+        delete neueAuswahl[thema];
+      } else {
+        neueAuswahl[thema] = wert;
+      }
+      return neueAuswahl;
     });
-  };
-
-  const toggleAllgemeinPositiv = (text) => {
-    setAllgemeinPositiv((liste) => (liste.includes(text) ? liste.filter((t) => t !== text) : [...liste, text]));
-  };
-
-  const toggleAllgemeinNegativ = (text) => {
-    setAllgemeinNegativ((liste) => (liste.includes(text) ? liste.filter((t) => t !== text) : [...liste, text]));
   };
 
   const setGruppenKommentar = (gruppe, text) => {
-    setGruppenState((gs) => ({ ...gs, [gruppe]: { ...(gs[gruppe] || { positiv: [], negativ: [] }), kommentar: text } }));
+    setGruppenState((gs) => ({ ...gs, [gruppe]: { ...(gs[gruppe] || { auswahl: {} }), kommentar: text } }));
   };
 
   const vornameSchueler = () => (currentSchueler?.name || "").split(" ")[0] || "";
@@ -438,18 +440,22 @@ function App() {
     return teile.join(" ");
   };
 
-  const generiereGruppenKommentar = (gruppe) => {
-    const gState = gruppenState[gruppe] || { positiv: [], negativ: [] };
-    const text = formuliereAusRemarquen(vornameSchueler(), gState.positiv, gState.negativ);
+  const generiereGruppenKommentar = (gruppe, typ) => {
+    const vorlage = REMARKEN_VORLAGEN[typ] || [];
+    const gState = gruppenState[gruppe] || { auswahl: {} };
+    const { positiv, negativ } = auswahlZuListen(vorlage, gState.auswahl || {});
+    const text = formuliereAusRemarquen(vornameSchueler(), positiv, negativ);
     setGruppenKommentar(gruppe, text);
   };
 
   const generiereAllgemeinKommentar = () => {
-    const allePositiv = [...allgemeinPositiv];
-    const alleNegativ = [...allgemeinNegativ];
-    Object.values(gruppenState).forEach((g) => {
-      if (g?.positiv) allePositiv.push(...g.positiv);
-      if (g?.negativ) alleNegativ.push(...g.negativ);
+    const { positiv: allePositiv, negativ: alleNegativ } = auswahlZuListen(ALLGEMEINE_REMARKEN, allgemeinAuswahl);
+    (def?.gruppen || []).forEach((g) => {
+      const vorlage = REMARKEN_VORLAGEN[g.typ] || [];
+      const gState = gruppenState[g.titel] || { auswahl: {} };
+      const { positiv, negativ } = auswahlZuListen(vorlage, gState.auswahl || {});
+      allePositiv.push(...positiv);
+      alleNegativ.push(...negativ);
     });
     const text = formuliereAusRemarquen(vornameSchueler(), allePositiv, alleNegativ);
     setKommentar(text);
@@ -479,12 +485,17 @@ function App() {
     setSyncing(true);
     setSyncError(null);
     try {
-      const gruppenBemerkungen = (def?.gruppen || []).map((g) => ({
-        titel: g.titel,
-        positiv: gruppenState[g.titel]?.positiv || [],
-        negativ: gruppenState[g.titel]?.negativ || [],
-        kommentar: gruppenState[g.titel]?.kommentar || "",
-      }));
+      const gruppenBemerkungen = (def?.gruppen || []).map((g) => {
+        const vorlage = REMARKEN_VORLAGEN[g.typ] || [];
+        const { positiv, negativ } = auswahlZuListen(vorlage, gruppenState[g.titel]?.auswahl || {});
+        return {
+          titel: g.titel,
+          positiv,
+          negativ,
+          kommentar: gruppenState[g.titel]?.kommentar || "",
+        };
+      });
+      const { positiv: allgemeinPositivListe, negativ: allgemeinNegativListe } = auswahlZuListen(ALLGEMEINE_REMARKEN, allgemeinAuswahl);
 
       const payload = {
         typ: "bewertung",
@@ -493,8 +504,8 @@ function App() {
         periode,
         kategorien: kategorien.map((k) => ({ name: `${k.gruppe} — ${k.name}`, punkte: Number(k.punkte) || 0, max: k.max })),
         gruppenBemerkungen,
-        allgemeinPositiv,
-        allgemeinNegativ,
+        allgemeinPositiv: allgemeinPositivListe,
+        allgemeinNegativ: allgemeinNegativListe,
         wochenberichtePunkte: Number(wbPunkte) || 0,
         wochenberichteMax: wbMax,
         wochenberichteLabel: def?.wochenberichte?.label,
@@ -571,8 +582,8 @@ function App() {
         {def && !finalisiert && !pruefeLaden && (
           <>
             {def.gruppen.map((g) => {
-              const vorlage = REMARKEN_VORLAGEN[g.typ] || { positiv: [], negativ: [] };
-              const gState = gruppenState[g.titel] || { positiv: [], negativ: [], kommentar: "" };
+              const vorlage = REMARKEN_VORLAGEN[g.typ] || [];
+              const gState = gruppenState[g.titel] || { auswahl: {}, kommentar: "" };
               return (
                 <section className="card" key={g.titel}>
                   <h2>{g.titel}</h2>
@@ -591,29 +602,32 @@ function App() {
                     </div>
                   ))}
 
-                  <div className="remarken-block">
-                    <div className="remarken-col">
-                      <span className="remarken-label remarken-label-pos">✓ Positive Remarquen</span>
-                      {(vorlage.positiv || []).map((r) => (
-                        <label className="remarque-check" key={r}>
-                          <input type="checkbox" checked={gState.positiv.includes(r)} onChange={() => toggleGruppenPositiv(g.titel, r)} />
-                          <span>{r}</span>
-                        </label>
-                      ))}
-                    </div>
-                    <div className="remarken-col">
-                      <span className="remarken-label remarken-label-neg">✗ Negative Remarquen</span>
-                      {(vorlage.negativ || []).map((r) => (
-                        <label className="remarque-check" key={r}>
-                          <input type="checkbox" checked={gState.negativ.includes(r)} onChange={() => toggleGruppenNegativ(g.titel, r)} />
-                          <span>{r}</span>
-                        </label>
-                      ))}
-                    </div>
+                  <div className="remarken-themen">
+                    {vorlage.map((item) => {
+                      const gewaehlt = gState.auswahl[item.thema];
+                      return (
+                        <div className="remarque-row" key={item.thema}>
+                          <button
+                            type="button"
+                            className={`remarque-btn remarque-btn-pos ${gewaehlt === "pos" ? "active" : ""}`}
+                            onClick={() => toggleGruppenAuswahl(g.titel, item.thema, "pos")}
+                          >
+                            ✓ {item.positiv}
+                          </button>
+                          <button
+                            type="button"
+                            className={`remarque-btn remarque-btn-neg ${gewaehlt === "neg" ? "active" : ""}`}
+                            onClick={() => toggleGruppenAuswahl(g.titel, item.thema, "neg")}
+                          >
+                            ✗ {item.negativ}
+                          </button>
+                        </div>
+                      );
+                    })}
                   </div>
 
                   <div className="kommentar-gen-row">
-                    <button type="button" className="btn-gen" onClick={() => generiereGruppenKommentar(g.titel)}>
+                    <button type="button" className="btn-gen" onClick={() => generiereGruppenKommentar(g.titel, g.typ)}>
                       🖊️ Kommentar aus Remarquen generéieren
                     </button>
                   </div>
@@ -658,25 +672,28 @@ function App() {
 
             <section className="card">
               <h2>Allgemeiner Kommentar (Zusammenfassung)</h2>
-              <div className="remarken-block">
-                <div className="remarken-col">
-                  <span className="remarken-label remarken-label-pos">✓ Positive Remarquen</span>
-                  {ALLGEMEINE_REMARKEN.positiv.map((r) => (
-                    <label className="remarque-check" key={r}>
-                      <input type="checkbox" checked={allgemeinPositiv.includes(r)} onChange={() => toggleAllgemeinPositiv(r)} />
-                      <span>{r}</span>
-                    </label>
-                  ))}
-                </div>
-                <div className="remarken-col">
-                  <span className="remarken-label remarken-label-neg">✗ Negative Remarquen</span>
-                  {ALLGEMEINE_REMARKEN.negativ.map((r) => (
-                    <label className="remarque-check" key={r}>
-                      <input type="checkbox" checked={allgemeinNegativ.includes(r)} onChange={() => toggleAllgemeinNegativ(r)} />
-                      <span>{r}</span>
-                    </label>
-                  ))}
-                </div>
+              <div className="remarken-themen">
+                {ALLGEMEINE_REMARKEN.map((item) => {
+                  const gewaehlt = allgemeinAuswahl[item.thema];
+                  return (
+                    <div className="remarque-row" key={item.thema}>
+                      <button
+                        type="button"
+                        className={`remarque-btn remarque-btn-pos ${gewaehlt === "pos" ? "active" : ""}`}
+                        onClick={() => toggleAllgemeinAuswahl(item.thema, "pos")}
+                      >
+                        ✓ {item.positiv}
+                      </button>
+                      <button
+                        type="button"
+                        className={`remarque-btn remarque-btn-neg ${gewaehlt === "neg" ? "active" : ""}`}
+                        onClick={() => toggleAllgemeinAuswahl(item.thema, "neg")}
+                      >
+                        ✗ {item.negativ}
+                      </button>
+                    </div>
+                  );
+                })}
               </div>
               <div className="kommentar-gen-row">
                 <button type="button" className="btn-gen" onClick={generiereAllgemeinKommentar}>
@@ -730,13 +747,12 @@ body { margin: 0; font-family: -apple-system, "Segoe UI", Inter, Arial, sans-ser
 .indikatoren { font-size: 11.5px; color: #6d7d74; line-height: 1.4; padding-right: 100px; }
 .input-points { width: 64px; text-align: right; flex-shrink: 0; }
 .kat-max { font-size: 12.5px; color: #6d7d74; min-width: 36px; flex-shrink: 0; }
-.remarken-block { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-top: 12px; padding-top: 12px; border-top: 1px solid #eef1ef; }
-.remarken-col { display: flex; flex-direction: column; gap: 6px; }
-.remarken-label { font-size: 11px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.03em; margin-bottom: 2px; }
-.remarken-label-pos { color: #1F5C3B; }
-.remarken-label-neg { color: #99392f; }
-.remarque-check { display: flex; align-items: flex-start; gap: 7px; font-size: 12.5px; line-height: 1.35; cursor: pointer; }
-.remarque-check input { margin-top: 2px; flex-shrink: 0; }
+.remarken-themen { display: flex; flex-direction: column; gap: 6px; margin-top: 12px; padding-top: 12px; border-top: 1px solid #eef1ef; }
+.remarque-row { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.remarque-btn { text-align: left; font-size: 12.5px; line-height: 1.35; padding: 8px 10px; border-radius: 7px; border: 1px solid #dde4de; background: #fff; color: #55625a; cursor: pointer; }
+.remarque-btn-pos.active { background: #d7ecdd; border-color: #1F5C3B; color: #1F5C3B; font-weight: 600; }
+.remarque-btn-neg.active { background: #fbe4e1; border-color: #99392f; color: #99392f; font-weight: 600; }
+.remarque-btn:hover:not(.active) { border-color: #b7c6bd; }
 .gruppen-kommentar { margin-top: 10px; font-size: 12.5px; }
 .kommentar-gen-row { margin-top: 12px; }
 .btn-gen { font-size: 11.5px; font-weight: 700; color: #1F5C3B; background: #eef3ef; border: 1px solid #c9d5cd; padding: 6px 12px; border-radius: 7px; cursor: pointer; }
