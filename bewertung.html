@@ -328,6 +328,8 @@ function App() {
   const [syncError, setSyncError] = useState(null);
   const [docUrl, setDocUrl] = useState(null);
   const [toast, setToast] = useState(null);
+  const [finalisiert, setFinalisiert] = useState(false);
+  const [pruefeLaden, setPruefeLaden] = useState(false);
 
   const currentSchueler = SCHUELER.find((s) => s.id === schuelerId);
   const istGSE2 = currentSchueler?.klasse === "2GSE";
@@ -345,9 +347,10 @@ function App() {
     setAllgemeinPositiv([]);
     setAllgemeinNegativ([]);
     setKommentar("");
+    setFinalisiert(false);
   };
 
-  const periodeWaehlen = (p) => {
+  const periodeWaehlen = async (p) => {
     const s = istGSE2 ? STRUKTUR_2GSE : STRUKTUR_1GSE;
     setPeriode(p);
     setKategorien(initKategorien(s, p));
@@ -357,6 +360,23 @@ function App() {
     setAllgemeinPositiv([]);
     setAllgemeinNegativ([]);
     setKommentar("");
+    setFinalisiert(false);
+
+    const schuelerName = SCHUELER.find((x) => x.id === schuelerId)?.name;
+    if (!schuelerName || !p) return;
+    setPruefeLaden(true);
+    try {
+      const res = await fetch(WEB_APP_URL);
+      const data = await res.json();
+      const bestehend = (data.bewertungen || []).find((b) => b.Schüler === schuelerName && b.Periode === p);
+      if (bestehend && bestehend.Status === "Finalisiert") {
+        setFinalisiert(true);
+      }
+    } catch (e) {
+      // Prüfung fehlgeschlagen: im Zweifel nicht sperren, Formulaire bleibt normal nutzbar
+    } finally {
+      setPruefeLaden(false);
+    }
   };
 
   const begrenzeAufMax = (wert, max) => {
@@ -373,22 +393,60 @@ function App() {
 
   const updateWbPunkte = (punkte) => setWbPunkte(begrenzeAufMax(punkte, wbMax));
 
-  const toggleRemarque = (gruppe, art, text) => {
+  const toggleGruppenPositiv = (gruppe, text) => {
     setGruppenState((gs) => {
       const bestehend = gs[gruppe] || { positiv: [], negativ: [], kommentar: "" };
-      const liste = bestehend[art];
-      const neueListe = liste.includes(text) ? liste.filter((t) => t !== text) : [...liste, text];
-      return { ...gs, [gruppe]: { ...bestehend, [art]: neueListe } };
+      const neuePositiv = bestehend.positiv.includes(text)
+        ? bestehend.positiv.filter((t) => t !== text)
+        : [...bestehend.positiv, text];
+      return { ...gs, [gruppe]: { ...bestehend, positiv: neuePositiv } };
     });
   };
 
-  const toggleAllgemeinRemarque = (art, text) => {
-    const setter = art === "positiv" ? setAllgemeinPositiv : setAllgemeinNegativ;
-    setter((liste) => (liste.includes(text) ? liste.filter((t) => t !== text) : [...liste, text]));
+  const toggleGruppenNegativ = (gruppe, text) => {
+    setGruppenState((gs) => {
+      const bestehend = gs[gruppe] || { positiv: [], negativ: [], kommentar: "" };
+      const neueNegativ = bestehend.negativ.includes(text)
+        ? bestehend.negativ.filter((t) => t !== text)
+        : [...bestehend.negativ, text];
+      return { ...gs, [gruppe]: { ...bestehend, negativ: neueNegativ } };
+    });
+  };
+
+  const toggleAllgemeinPositiv = (text) => {
+    setAllgemeinPositiv((liste) => (liste.includes(text) ? liste.filter((t) => t !== text) : [...liste, text]));
+  };
+
+  const toggleAllgemeinNegativ = (text) => {
+    setAllgemeinNegativ((liste) => (liste.includes(text) ? liste.filter((t) => t !== text) : [...liste, text]));
   };
 
   const setGruppenKommentar = (gruppe, text) => {
     setGruppenState((gs) => ({ ...gs, [gruppe]: { ...(gs[gruppe] || { positiv: [], negativ: [] }), kommentar: text } }));
+  };
+
+  const vornameSchueler = () => (currentSchueler?.name || "").split(" ")[0] || "";
+
+  const formuliereAusRemarquen = (vorname, positiv, negativ) => {
+    const teile = [];
+    if (positiv.length > 0) {
+      teile.push(`${vorname} zeigte: ${positiv.join("; ")}.`);
+    }
+    if (negativ.length > 0) {
+      teile.push(`Verbesserungspotenzial: ${negativ.join("; ")}.`);
+    }
+    return teile.join(" ");
+  };
+
+  const generiereGruppenKommentar = (gruppe) => {
+    const gState = gruppenState[gruppe] || { positiv: [], negativ: [] };
+    const text = formuliereAusRemarquen(vornameSchueler(), gState.positiv, gState.negativ);
+    setGruppenKommentar(gruppe, text);
+  };
+
+  const generiereAllgemeinKommentar = () => {
+    const text = formuliereAusRemarquen(vornameSchueler(), allgemeinPositiv, allgemeinNegativ);
+    setKommentar(text);
   };
 
   const gruppiert = useMemo(() => {
@@ -411,7 +469,7 @@ function App() {
 
   const canSubmit = schuelerId && periode && kategorien.every((k) => k.punkte !== "") && wbPunkte !== "";
 
-  const absenden = async () => {
+  const absenden = async (finalisieren) => {
     setSyncing(true);
     setSyncError(null);
     try {
@@ -436,6 +494,7 @@ function App() {
         wochenberichteLabel: def?.wochenberichte?.label,
         noteBerechnet: note,
         kommentar,
+        finalisiert: !!finalisieren,
       };
       const res = await fetch(WEB_APP_URL, {
         method: "POST",
@@ -445,7 +504,12 @@ function App() {
       const data = await res.json();
       if (!data.ok) throw new Error(data.error || "Unbekannter Fehler");
       setDocUrl(data.url);
-      setToast("Bewertung gespeichert und ins Suivi übernommen.");
+      if (finalisieren) {
+        setFinalisiert(true);
+        setToast("Bewertung finalisiert und gesperrt.");
+      } else {
+        setToast("Bewertung gespeichert und ins Suivi übernommen.");
+      }
     } catch (e) {
       setSyncError("Konnte nicht speichern: " + e.message);
     } finally {
@@ -484,7 +548,21 @@ function App() {
           </div>
         </section>
 
-        {def && (
+        {periode && pruefeLaden && (
+          <div className="card"><p className="notice">Prüfe, ob diese Bewertung bereits finalisiert ist…</p></div>
+        )}
+
+        {def && finalisiert && !pruefeLaden && (
+          <div className="card">
+            <p className="notice">
+              🔒 Diese Bewertung ({periode}) ist bereits <strong>finalisiert</strong> und gesperrt — sie kann hier nicht
+              mehr geändert werden. Zum erneuten Öffnen muss die Betreuer/-in in der Übersicht-Sheet (Tab „Bewertungen“)
+              die Status-Spalte für diese Zeile von „Finalisiert“ auf „Entwurf“ ändern.
+            </p>
+          </div>
+        )}
+
+        {def && !finalisiert && !pruefeLaden && (
           <>
             {def.gruppen.map((g) => {
               const vorlage = REMARKEN_VORLAGEN[g.typ] || { positiv: [], negativ: [] };
@@ -512,7 +590,7 @@ function App() {
                       <span className="remarken-label remarken-label-pos">✓ Positive Remarquen</span>
                       {(vorlage.positiv || []).map((r) => (
                         <label className="remarque-check" key={r}>
-                          <input type="checkbox" checked={gState.positiv.includes(r)} onChange={() => toggleRemarque(g.titel, "positiv", r)} />
+                          <input type="checkbox" checked={gState.positiv.includes(r)} onChange={() => toggleGruppenPositiv(g.titel, r)} />
                           <span>{r}</span>
                         </label>
                       ))}
@@ -521,13 +599,18 @@ function App() {
                       <span className="remarken-label remarken-label-neg">✗ Negative Remarquen</span>
                       {(vorlage.negativ || []).map((r) => (
                         <label className="remarque-check" key={r}>
-                          <input type="checkbox" checked={gState.negativ.includes(r)} onChange={() => toggleRemarque(g.titel, "negativ", r)} />
+                          <input type="checkbox" checked={gState.negativ.includes(r)} onChange={() => toggleGruppenNegativ(g.titel, r)} />
                           <span>{r}</span>
                         </label>
                       ))}
                     </div>
                   </div>
 
+                  <div className="kommentar-gen-row">
+                    <button type="button" className="btn-gen" onClick={() => generiereGruppenKommentar(g.titel)}>
+                      🖊️ Kommentar aus Remarquen generéieren
+                    </button>
+                  </div>
                   <textarea
                     className="textarea gruppen-kommentar"
                     rows={2}
@@ -574,7 +657,7 @@ function App() {
                   <span className="remarken-label remarken-label-pos">✓ Positive Remarquen</span>
                   {ALLGEMEINE_REMARKEN.positiv.map((r) => (
                     <label className="remarque-check" key={r}>
-                      <input type="checkbox" checked={allgemeinPositiv.includes(r)} onChange={() => toggleAllgemeinRemarque("positiv", r)} />
+                      <input type="checkbox" checked={allgemeinPositiv.includes(r)} onChange={() => toggleAllgemeinPositiv(r)} />
                       <span>{r}</span>
                     </label>
                   ))}
@@ -583,18 +666,26 @@ function App() {
                   <span className="remarken-label remarken-label-neg">✗ Negative Remarquen</span>
                   {ALLGEMEINE_REMARKEN.negativ.map((r) => (
                     <label className="remarque-check" key={r}>
-                      <input type="checkbox" checked={allgemeinNegativ.includes(r)} onChange={() => toggleAllgemeinRemarque("negativ", r)} />
+                      <input type="checkbox" checked={allgemeinNegativ.includes(r)} onChange={() => toggleAllgemeinNegativ(r)} />
                       <span>{r}</span>
                     </label>
                   ))}
                 </div>
               </div>
+              <div className="kommentar-gen-row">
+                <button type="button" className="btn-gen" onClick={generiereAllgemeinKommentar}>
+                  🖊️ Kommentar aus Remarquen generéieren
+                </button>
+              </div>
               <textarea className="textarea gruppen-kommentar" rows={4} placeholder="Zusätzlicher freier Kommentar (optional)…" value={kommentar} onChange={(e) => setKommentar(e.target.value)} />
             </section>
 
             <div className="actions">
-              <button className="btn btn-primary" disabled={!canSubmit || syncing} onClick={absenden}>
-                {syncing ? "Speichert…" : "Bewertung ins Suivi übernehmen"}
+              <button className="btn btn-ghost" disabled={!canSubmit || syncing} onClick={() => absenden(false)}>
+                {syncing ? "Speichert…" : "💾 Speichern (Entwurf)"}
+              </button>
+              <button className="btn btn-primary" disabled={!canSubmit || syncing} onClick={() => absenden(true)}>
+                {syncing ? "Speichert…" : "✅ Finaliséieren"}
               </button>
               {docUrl && <a className="doc-link" href={docUrl} target="_blank" rel="noreferrer">📄 Suivi öffnen ↗</a>}
             </div>
@@ -641,6 +732,9 @@ body { margin: 0; font-family: -apple-system, "Segoe UI", Inter, Arial, sans-ser
 .remarque-check { display: flex; align-items: flex-start; gap: 7px; font-size: 12.5px; line-height: 1.35; cursor: pointer; }
 .remarque-check input { margin-top: 2px; flex-shrink: 0; }
 .gruppen-kommentar { margin-top: 10px; font-size: 12.5px; }
+.kommentar-gen-row { margin-top: 12px; }
+.btn-gen { font-size: 11.5px; font-weight: 700; color: #1F5C3B; background: #eef3ef; border: 1px solid #c9d5cd; padding: 6px 12px; border-radius: 7px; cursor: pointer; }
+.btn-gen:hover { background: #e3ece5; }
 .summary-card { background: #eef3ef; }
 .total-row { font-size: 13.5px; font-weight: 700; color: #294f3c; }
 .note-row { display: flex; align-items: center; gap: 10px; margin-top: 10px; }
@@ -649,6 +743,7 @@ body { margin: 0; font-family: -apple-system, "Segoe UI", Inter, Arial, sans-ser
 .actions { display: flex; align-items: center; gap: 12px; padding: 4px 0 20px; }
 .btn { font-size: 13.5px; font-weight: 700; padding: 10px 16px; border-radius: 8px; border: none; cursor: pointer; }
 .btn-primary { background: #1F5C3B; color: #fff; }
+.btn-ghost { background: #eef3ef; color: #294f3c; border: 1px solid #c9d5cd; }
 .btn-primary:disabled { background: #b7c6bd; cursor: not-allowed; }
 .doc-link { font-size: 13px; font-weight: 700; color: #1F5C3B; text-decoration: none; }
 .sync-error { color: #8a2b1f; font-size: 12.5px; background: #fbe4e1; padding: 8px 12px; border-radius: 8px; }
