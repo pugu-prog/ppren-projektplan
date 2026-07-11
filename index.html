@@ -58,6 +58,7 @@ async function sendeAnGoogleDrive(payload) {
 
 const emptyPlan = () => ({
   betreuer: "",
+  betreuer2: "",
   titel: "",
   inhalt: "",
   motivation: "",
@@ -152,6 +153,7 @@ function App() {
     schueler: currentSchueler?.name || "",
     klasse: currentSchueler?.klasse || "",
     betreuer: LEHRER.find((l) => l.id === plan.betreuer)?.name || "",
+    betreuer2: LEHRER.find((l) => l.id === plan.betreuer2)?.name || "",
     titel: plan.titel,
     inhalt: plan.inhalt,
     motivation: plan.motivation,
@@ -245,6 +247,12 @@ function App() {
                       </select>
                     </Field>
                   </div>
+                  <Field label="Zweete Betreier/-in (optional)">
+                    <select className="select" value={plan.betreuer2} onChange={(e) => update({ betreuer2: e.target.value })}>
+                      <option value="">– keen zweeten Betreier –</option>
+                      {LEHRER.filter((l) => l.id !== plan.betreuer).map((l) => <option key={l.id} value={l.id}>{l.name}</option>)}
+                    </select>
+                  </Field>
                   <Field label="Projekttitel">
                     <input className="input" placeholder="z. B. Wasserqualität der Attert" value={plan.titel} onChange={(e) => update({ titel: e.target.value })} />
                   </Field>
