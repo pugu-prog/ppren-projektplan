@@ -34,23 +34,47 @@ function statusMeta(status) {
 
 function App() {
   const [projekte, setProjekte] = useState([]);
+  const [bewertungen, setBewertungen] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [filterKlasse, setFilterKlasse] = useState("alle");
   const [filterBetreuer, setFilterBetreuer] = useState("alle");
   const [suche, setSuche] = useState("");
+  const [aendernId, setAendernId] = useState(null);
 
   const lade = () => {
     setLoading(true);
     setError(null);
     fetch(WEB_APP_URL)
       .then((res) => res.json())
-      .then((data) => setProjekte(data.projekte || []))
+      .then((data) => {
+        setProjekte(data.projekte || []);
+        setBewertungen(data.bewertungen || []);
+      })
       .catch(() => setError("Konnte Übersicht nicht laden."))
       .finally(() => setLoading(false));
   };
 
   useEffect(() => { lade(); }, []);
+
+  const statusAendern = async (schueler, periode, neuerStatus) => {
+    const id = `${schueler}__${periode}`;
+    setAendernId(id);
+    try {
+      const res = await fetch(WEB_APP_URL, {
+        method: "POST",
+        headers: { "Content-Type": "text/plain;charset=utf-8" },
+        body: JSON.stringify({ typ: "statusAendern", schueler, periode, neuerStatus }),
+      });
+      const data = await res.json();
+      if (!data.ok) throw new Error(data.error || "Unbekannter Fehler");
+      setBewertungen((bs) => bs.map((b) => (b.Schüler === schueler && b.Periode === periode ? { ...b, Status: neuerStatus } : b)));
+    } catch (e) {
+      alert("Konnte Status nicht ändern: " + e.message);
+    } finally {
+      setAendernId(null);
+    }
+  };
 
   const klassen = useMemo(() => ["alle", ...new Set(projekte.map((p) => p.Klasse).filter(Boolean))], [projekte]);
   const betreuerListe = useMemo(() => ["alle", ...new Set(projekte.map((p) => p.Betreuer).filter(Boolean))], [projekte]);
@@ -140,6 +164,45 @@ function App() {
           </table>
         )}
       </main>
+
+      <h2 className="section-titel">Bewertungen — Status</h2>
+      <main className="table-wrap">
+        {!loading && !error && bewertungen.length === 0 && <div className="empty">Noch keine Bewertungen abgegeben.</div>}
+        {!loading && !error && bewertungen.length > 0 && (
+          <table className="table">
+            <thead>
+              <tr>
+                <th>Schüler/-in</th><th>Periode</th><th>Note</th><th>Status</th><th>Suivi</th>
+              </tr>
+            </thead>
+            <tbody>
+              {bewertungen.map((b, i) => {
+                const id = `${b.Schüler}__${b.Periode}`;
+                const finalisiert = b.Status === "Finalisiert";
+                return (
+                  <tr key={i}>
+                    <td className="cell-strong">{b.Schüler}</td>
+                    <td>{b.Periode}</td>
+                    <td>{b.Note} / 60</td>
+                    <td>
+                      <select
+                        className={`status-select ${finalisiert ? "status-select-final" : "status-select-draft"}`}
+                        value={b.Status || "Entwurf"}
+                        disabled={aendernId === id}
+                        onChange={(e) => statusAendern(b.Schüler, b.Periode, e.target.value)}
+                      >
+                        <option value="Entwurf">Entwurf</option>
+                        <option value="Finalisiert">Finalisiert</option>
+                      </select>
+                    </td>
+                    <td>{b["Suivi-Link"] ? <a className="link" href={b["Suivi-Link"]} target="_blank" rel="noreferrer">Öffnen ↗</a> : <span className="cell-muted">–</span>}</td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        )}
+      </main>
     </div>
   );
 }
@@ -174,6 +237,11 @@ body { margin: 0; font-family: -apple-system, "Segoe UI", Inter, Arial, sans-ser
 .pill-draft { background: #e6e9e6; color: #55625a; }
 .pill-pending { background: #fbe8c6; color: #8a5a12; }
 .pill-done { background: #d7ecdd; color: #1F5C3B; }
+.section-titel { font-size: 15px; font-weight: 800; color: #1F5C3B; padding: 8px 22px 0; margin: 0; }
+.status-select { font-size: 12.5px; font-weight: 700; padding: 5px 10px; border-radius: 20px; border: 1px solid transparent; cursor: pointer; }
+.status-select-draft { background: #e6e9e6; color: #55625a; }
+.status-select-final { background: #d7ecdd; color: #1F5C3B; }
+.status-select:disabled { opacity: 0.5; cursor: wait; }
 .link { color: #1F5C3B; font-weight: 700; text-decoration: none; font-size: 13px; }
 .empty { padding: 40px; text-align: center; color: #6d7d74; font-size: 14px; background: #fff; border-radius: 12px; border: 1px solid #e2e8e3; margin: 0 22px; }
 .error { color: #8a2b1f; }
