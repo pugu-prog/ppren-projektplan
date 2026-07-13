@@ -104,6 +104,16 @@ const Field = ({ label, hint, children }) => (
 );
 
 function App() {
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    if (params.get("reset") === "all") {
+      const keys = Object.keys(localStorage).filter((k) => k.startsWith("projektplan:"));
+      keys.forEach((k) => localStorage.removeItem(k));
+      alert(`${keys.length} lokale Projektplang-Entwërf geläscht.`);
+      window.location.href = window.location.pathname;
+    }
+  }, []);
+
   const [schuelerId, setSchuelerId] = useState("");
   const [plan, setPlan] = useState(emptyPlan());
   const [loaded, setLoaded] = useState(false);
