@@ -177,7 +177,7 @@ function App() {
                               const prozent = Math.round((summe / 500) * 100);
                               return (
                                 <div className="budget-block">
-                                  <Fortschrittsbar prozent={prozent} farbe={prozent > 100 ? "#c0392b" : "#3A6EA5"} />
+                                  <Fortschrittsbar prozent={prozent} farbe={prozent > 100 ? "#c0392b" : "#4576B5"} />
                                   <p className="budget-text">{summe.toFixed(2)} € von 500 € verwendet ({prozent}%)</p>
                                 </div>
                               );
@@ -226,7 +226,7 @@ function App() {
 
                       {b && (
                         <>
-                          <Fortschrittsbar prozent={prozent} farbe={prozent >= 50 ? "#1F5C3B" : "#c0392b"} />
+                          <Fortschrittsbar prozent={prozent} farbe={prozent >= 50 ? "#00A94F" : "#c0392b"} />
                           <p className="punkte-summe">Gesamt: {b.Punkte} / {b.Max} Punkte</p>
 
                           {Object.keys(gruppiert).map((gruppe) => {
@@ -241,7 +241,7 @@ function App() {
                                   <span className="gruppe-name">{gruppe}</span>
                                   <span className="gruppe-punkte">{gSumme} / {gMax}</span>
                                 </div>
-                                <Fortschrittsbar prozent={gProzent} farbe="#3A6EA5" />
+                                <Fortschrittsbar prozent={gProzent} farbe="#4576B5" />
                                 <ul className="positionen-liste">
                                   {items.map((i, idx) => (
                                     <li key={idx}>{i.name}: <strong>{i.punkte} / {i.max}</strong></li>
@@ -304,13 +304,13 @@ ReactDOM.createRoot(document.getElementById("root")).render(<App />);
 <style>
 * { box-sizing: border-box; }
 body { margin: 0; font-family: -apple-system, "Segoe UI", Inter, Arial, sans-serif; color: #1c2621; background: #f6f8f6; }
-.topbar { padding: 14px 22px; background: #1F5C3B; color: #fff; }
+.topbar { padding: 14px 22px; background: #00A94F; color: #fff; }
 .brand { display: flex; align-items: baseline; gap: 10px; }
 .brand-mark { font-weight: 800; font-size: 15px; letter-spacing: 0.06em; }
 .brand-sub { font-size: 13px; opacity: 0.85; }
 .content { max-width: 640px; margin: 0 auto; padding: 24px 20px 60px; }
 .card { background: #fff; border: 1px solid #e2e8e3; border-radius: 12px; padding: 20px 22px; margin-bottom: 16px; }
-.card h2 { font-size: 18px; margin: 2px 0 6px; color: #1F5C3B; }
+.card h2 { font-size: 18px; margin: 2px 0 6px; color: #00A94F; }
 .kapitel-label { font-size: 11px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.05em; color: #6d7d74; }
 .field { display: flex; flex-direction: column; gap: 4px; }
 .field-label { font-size: 12.5px; font-weight: 700; color: #294f3c; }
@@ -318,8 +318,8 @@ body { margin: 0; font-family: -apple-system, "Segoe UI", Inter, Arial, sans-ser
 .status-line { font-size: 13.5px; color: #55625a; margin: 0 0 16px; }
 .link-row { display: flex; gap: 10px; margin-top: 16px; }
 .btn { display: inline-block; font-size: 13.5px; font-weight: 700; padding: 10px 16px; border-radius: 8px; border: none; cursor: pointer; text-decoration: none; }
-.btn-primary { background: #1F5C3B; color: #fff; margin-top: 14px; }
-.btn-ghost { background: #eef3ef; color: #1F5C3B; }
+.btn-primary { background: #00A94F; color: #fff; margin-top: 14px; }
+.btn-ghost { background: #eef3ef; color: #00A94F; }
 .notice { background: #fbe8c6; color: #8a5a12; font-size: 13px; padding: 12px 14px; border-radius: 8px; line-height: 1.5; margin: 0; }
 .empty { padding: 30px; text-align: center; color: #6d7d74; font-size: 14px; background: #fff; border-radius: 12px; border: 1px solid #e2e8e3; }
 .error { color: #8a2b1f; }
@@ -332,10 +332,10 @@ body { margin: 0; font-family: -apple-system, "Segoe UI", Inter, Arial, sans-ser
 .meilenstein-liste-status { list-style: none; padding-left: 0; }
 .meilenstein-liste-status li { display: flex; align-items: center; gap: 8px; margin-bottom: 4px; }
 .ms-punkt { width: 8px; height: 8px; border-radius: 50%; background: #ccc; flex-shrink: 0; }
-.ms-punkt.ms-erreicht { background: #1F5C3B; }
+.ms-punkt.ms-erreicht { background: #00A94F; }
 .ms-punkt.ms-ukommend { background: #d4922a; }
 .ms-tag { font-size: 10.5px; font-weight: 700; padding: 2px 8px; border-radius: 10px; margin-left: auto; flex-shrink: 0; }
-.ms-tag-erreicht { background: #d7ecdd; color: #1F5C3B; }
+.ms-tag-erreicht { background: #d7ecdd; color: #00A94F; }
 .ms-tag-ukommend { background: #f9e6c8; color: #8a5a12; }
 .budget-block { margin-top: 8px; }
 .budget-text { font-size: 12px; color: #55625a; margin: 4px 0 0; }
@@ -344,7 +344,7 @@ body { margin: 0; font-family: -apple-system, "Segoe UI", Inter, Arial, sans-ser
 .periode-h2 { margin: 0 !important; }
 .pill { font-size: 11.5px; font-weight: 700; padding: 3px 10px; border-radius: 20px; flex-shrink: 0; }
 .pill-offen { background: #e6e9e6; color: #55625a; }
-.pill-fertig { background: #d7ecdd; color: #1F5C3B; }
+.pill-fertig { background: #d7ecdd; color: #00A94F; }
 
 .bar-track { height: 8px; background: #eef1ef; border-radius: 4px; overflow: hidden; margin: 4px 0 10px; }
 .bar-fill { height: 100%; border-radius: 4px; transition: width 0.3s; }
@@ -358,7 +358,7 @@ body { margin: 0; font-family: -apple-system, "Segoe UI", Inter, Arial, sans-ser
 .gruppe-punkte { font-size: 12.5px; color: #6d7d74; }
 
 .remarque { font-size: 12px; margin-top: 8px; line-height: 1.4; }
-.remarque-pos { color: #1F5C3B; }
+.remarque-pos { color: #00A94F; }
 .remarque-neg { color: #99392f; }
 .remarque-kommentar { font-size: 12px; font-style: italic; color: #55625a; margin-top: 8px; }
 
