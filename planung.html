@@ -65,8 +65,10 @@ const OFFIZIELL_2GSE = [
 ];
 
 const STATUS_OPTIONEN = ["Ausstoend", "Erreecht", "Verspéit"];
-const STATUS_FARWEN = { "Ausstoend": "#e6e9e6", "Erreecht": "#d7ecdd", "Verspéit": "#fbe4e1" };
-const STATUS_TEXT = { "Ausstoend": "#55625a", "Erreecht": "#00A94F", "Verspéit": "#99392f" };
+// Selwecht Faarfpalette wéi zeitplang.html: gelb=event/ausstoend, teal=erreecht, rout=verspéit
+const STATUS_FARWEN = { "Ausstoend": "#f0ec3a", "Erreecht": "#1ecdc4", "Verspéit": "#e8483a" };
+const STATUS_TEXT = { "Ausstoend": "#7a7500", "Erreecht": "#04342c", "Verspéit": "#4a1006" };
+const STATUS_BAR_TEXT = { "Ausstoend": "#1c2621", "Erreecht": "#ffffff", "Verspéit": "#ffffff" };
 
 function uid() { return Date.now().toString(36) + Math.random().toString(36).slice(2, 8); }
 
@@ -216,7 +218,7 @@ function App() {
                       <div className="gantt-track">
                         <div
                           className="gantt-bar"
-                          style={{ left: `${prozentFuer(m.datum)}%`, background: STATUS_TEXT[m.status] || "#888" }}
+                          style={{ left: `${prozentFuer(m.datum)}%`, background: STATUS_FARWEN[m.status] || "#888", color: STATUS_BAR_TEXT[m.status] || "#fff" }}
                         >
                           <span className="gantt-bar-label">{m.titel}</span>
                         </div>
@@ -243,7 +245,7 @@ function App() {
                         <td><input type="date" className="input input-date" value={m.datum} onChange={(e) => updateZeil(m.id, { datum: e.target.value })} /></td>
                         <td><input className="input" placeholder="Titel vum Meilensteng" value={m.titel} onChange={(e) => updateZeil(m.id, { titel: e.target.value })} /></td>
                         <td>
-                          <select className="select status-select" style={{ background: STATUS_FARWEN[m.status], color: STATUS_TEXT[m.status] }} value={m.status} onChange={(e) => updateZeil(m.id, { status: e.target.value })}>
+                          <select className="select status-select" style={{ background: STATUS_FARWEN[m.status], color: STATUS_BAR_TEXT[m.status] }} value={m.status} onChange={(e) => updateZeil(m.id, { status: e.target.value })}>
                             {STATUS_OPTIONEN.map((s) => <option key={s} value={s}>{s}</option>)}
                           </select>
                         </td>
