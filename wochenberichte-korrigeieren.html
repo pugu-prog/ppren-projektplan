@@ -60,6 +60,29 @@ function App() {
     setPunkte({ zusammenfassung: "2", fortschritt: "1.5", anhaenge: "1", grammatik: "0.5" });
   };
 
+  const entschellegen = async () => {
+    const grond = prompt("Grond fir d'Entschëllegung (z.B. Krankheet, Attest):");
+    if (grond === null) return;
+    setSyncing(true);
+    try {
+      const res = await fetch(WEB_APP_URL, {
+        method: "POST",
+        headers: { "Content-Type": "text/plain;charset=utf-8" },
+        body: JSON.stringify({ typ: "wochenberichtEntschellegen", id: offen.ID, grond }),
+      });
+      const data = await res.json();
+      if (!data.ok) throw new Error(data.error || "Onbekannte Feeler");
+      setToast("Entschëllegt.");
+      setOffen(null);
+      lade();
+    } catch (e) {
+      alert("Konnte net späicheren: " + e.message);
+    } finally {
+      setSyncing(false);
+      setTimeout(() => setToast(null), 3000);
+    }
+  };
+
   const speicherePunkte = async () => {
     setSyncing(true);
     try {
@@ -104,6 +127,8 @@ function App() {
           </select>
           <select className="select" value={filterStatus} onChange={(e) => setFilterStatus(e.target.value)}>
             <option value="Agereecht">Nach ze korrigéieren</option>
+            <option value="Verpasst">Verpasst (automatesch 0)</option>
+            <option value="Entschëllegt">Entschëllegt</option>
             <option value="Bewäert">Scho bewäert</option>
             <option value="alle">All</option>
           </select>
@@ -125,8 +150,8 @@ function App() {
                   <td>{w.Klasse}</td>
                   <td>{w.Periode}</td>
                   <td>{w.Woche}</td>
-                  <td><span className={`pill ${w.Status === "Bewäert" ? "pill-done" : "pill-pending"}`}>{w.Status}</span></td>
-                  <td><button className="btn-gen" onClick={() => oeffnen(w)}>{w.Status === "Bewäert" ? "Kucken" : "Korrigéieren"}</button></td>
+                  <td><span className={`pill ${w.Status === "Bewäert" ? "pill-done" : w.Status === "Verpasst" ? "pill-verpasst" : w.Status === "Entschëllegt" ? "pill-entschellegt" : "pill-pending"}`}>{w.Status}</span></td>
+                  <td><button className="btn-gen" onClick={() => oeffnen(w)}>{w.Status === "Agereecht" ? "Korrigéieren" : "Kucken"}</button></td>
                 </tr>
               ))}
             </tbody>
@@ -182,10 +207,16 @@ function App() {
 
             <div className="modal-actions">
               <button className="btn btn-ghost" onClick={() => setOffen(null)}>Zoumaachen</button>
-              {offen.Status !== "Bewäert" && (
+              {(offen.Status === "Agereecht" || offen.Status === "Verpasst") && (
+                <button className="btn btn-warn" disabled={syncing} onClick={entschellegen}>🩹 Als entschëllegt markéieren</button>
+              )}
+              {offen.Status !== "Bewäert" && offen.Status !== "Entschëllegt" && (
                 <button className="btn btn-primary" disabled={syncing} onClick={speicherePunkte}>{syncing ? "Späichert…" : "✅ Bewäertung späicheren"}</button>
               )}
             </div>
+            {offen.Status === "Entschëllegt" && offen["Entschëllegung-Grond"] && (
+              <p className="entschellegung-grond">🩹 Entschëllegt: {offen["Entschëllegung-Grond"]}</p>
+            )}
           </div>
         </div>
       )}
@@ -213,6 +244,10 @@ body { margin: 0; font-family: -apple-system, "Segoe UI", Inter, Arial, sans-ser
 .cell-strong { font-weight: 700; }
 .pill { font-size: 12px; font-weight: 700; padding: 4px 10px; border-radius: 20px; }
 .pill-pending { background: #fbe8c6; color: #8a5a12; }
+.pill-verpasst { background: #fbe4e1; color: #99392f; }
+.pill-entschellegt { background: #e7eef7; color: #4576B5; }
+.btn-warn { background: #fbe8c6; color: #8a5a12; }
+.entschellegung-grond { font-size: 12.5px; color: #4576B5; background: #e7eef7; padding: 8px 12px; border-radius: 8px; margin: 10px 0 0; }
 .pill-done { background: #d7ecdd; color: #00A94F; }
 .btn-gen { font-size: 11.5px; font-weight: 700; color: #00A94F; background: #eef3ef; border: 1px solid #c9d5cd; padding: 6px 12px; border-radius: 7px; cursor: pointer; }
 .empty { padding: 40px; text-align: center; color: #6d7d74; font-size: 14px; background: #fff; border-radius: 12px; border: 1px solid #e2e8e3; }
