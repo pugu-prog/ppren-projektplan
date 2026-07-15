@@ -65,17 +65,24 @@ const OFFIZIELL_2GSE = [
 ];
 
 const STATUS_OPTIONEN = ["Ausstoend", "Erreecht", "Verspéit"];
-const KATEGORIE_OPTIONEN = ["Event", "Iwwerpréiwung", "Praktesch Phase", "Ofgab"];
+const KATEGORIE_OPTIONEN = ["Event", "Iwwerpréiwung", "Praktesch Phase", "Ofgab", "Eegen"];
 // Selwecht Faarfpalette wéi zeitplang.html: gelb=event, lila=iwwerpréiwung, teal=praktesch phase
-const KATEGORIE_FARWEN = { "Event": "#f0ec3a", "Iwwerpréiwung": "#d9d3f5", "Praktesch Phase": "#1ecdc4", "Ofgab": "#a9d92d" };
-const KATEGORIE_TEXT = { "Event": "#1c2621", "Iwwerpréiwung": "#1c2621", "Praktesch Phase": "#04342c", "Ofgab": "#1c2621" };
+// "Eegen" = Schüler-derbäigesat, eege markant Faarf (net aus dem offizielle Set)
+const KATEGORIE_FARWEN = { "Event": "#f0ec3a", "Iwwerpréiwung": "#d9d3f5", "Praktesch Phase": "#1ecdc4", "Ofgab": "#a9d92d", "Eegen": "#F67E1B" };
+const KATEGORIE_TEXT = { "Event": "#1c2621", "Iwwerpréiwung": "#1c2621", "Praktesch Phase": "#04342c", "Ofgab": "#1c2621", "Eegen": "#ffffff" };
 // Status weist sech als Rand ëm de Balken
 const STATUS_RAND = { "Ausstoend": "transparent", "Erreecht": "#00A94F", "Verspéit": "#e8483a" };
 
 function uid() { return Date.now().toString(36) + Math.random().toString(36).slice(2, 8); }
 
 function App() {
-  const [schuelerId, setSchuelerId] = useState("");
+  const urlParams = new URLSearchParams(window.location.search);
+  const urlSchueler = urlParams.get("schueler");
+  const profModusUrl = urlParams.get("prof") === "1";
+
+  const [schuelerId, setSchuelerId] = useState(urlSchueler || "");
+  const [gespaart, setGespaart] = useState(!!urlSchueler); // Auswiel-Dropdown ausgeblent, wann iwwer Link komm
+  const [profModus, setProfModus] = useState(profModusUrl);
   const [meilensteng, setMeilensteng] = useState([]);
   const [loading, setLoading] = useState(false);
   const [syncing, setSyncing] = useState(false);
@@ -113,13 +120,13 @@ function App() {
     if (!currentSchueler) return;
     const quell = currentSchueler.klasse === "2GSE" ? OFFIZIELL_2GSE : OFFIZIELL_1GSE;
     if (meilensteng.length > 0 && !confirm("Dat ersetzt déi aktuell Lëscht mat den offizielle Datumer. Weiderfueren?")) return;
-    setMeilensteng(quell.map((q) => ({ id: uid(), datum: q.datum, titel: q.titel, status: "Ausstoend", kategorie: q.kategorie || "Event", notiz: "" })));
+    setMeilensteng(quell.map((q) => ({ id: uid(), datum: q.datum, titel: q.titel, status: "Ausstoend", kategorie: q.kategorie || "Event", notiz: "", quell: "Offiziell" })));
   };
 
   const updateZeil = (id, patch) =>
     setMeilensteng((ms) => ms.map((m) => (m.id === id ? { ...m, ...patch } : m)));
   const addZeil = () =>
-    setMeilensteng((ms) => [...ms, { id: uid(), datum: "", titel: "", status: "Ausstoend", kategorie: "Event", notiz: "" }]);
+    setMeilensteng((ms) => [...ms, { id: uid(), datum: "", titel: "", status: "Ausstoend", kategorie: "Eegen", notiz: "", quell: "Eegen" }]);
   const removeZeil = (id) =>
     setMeilensteng((ms) => ms.filter((m) => m.id !== id));
 
@@ -183,12 +190,23 @@ function App() {
 
       <main className="content">
         <section className="card">
-          <label className="field">
-            <span className="field-label">Wie bass du?</span>
-            <select className="select" value={schuelerId} onChange={(e) => setSchuelerId(e.target.value)}>
-              <option value="">– auswählen –</option>
-              {SCHUELER.map((s) => <option key={s.id} value={s.id}>{s.name} ({s.klasse})</option>)}
-            </select>
+          {gespaart && currentSchueler ? (
+            <div className="gespaart-row">
+              <span className="gespaart-label">👤 {currentSchueler.name} ({currentSchueler.klasse})</span>
+              <button className="link-btn-klein" onClick={() => { setGespaart(false); }}>Net dee/déi hei? Wiesselen</button>
+            </div>
+          ) : (
+            <label className="field">
+              <span className="field-label">Wie bass du?</span>
+              <select className="select" value={schuelerId} onChange={(e) => setSchuelerId(e.target.value)}>
+                <option value="">– auswählen –</option>
+                {SCHUELER.map((s) => <option key={s.id} value={s.id}>{s.name} ({s.klasse})</option>)}
+              </select>
+            </label>
+          )}
+          <label className="prof-toggle">
+            <input type="checkbox" checked={profModus} onChange={(e) => setProfModus(e.target.checked)} />
+            <span>👩‍🏫 Prof-Modus (Kategorien änneren, offiziell Datumer réckelen)</span>
           </label>
         </section>
 
@@ -201,7 +219,7 @@ function App() {
               <div className="card-head">
                 <h2>Meilensteng</h2>
                 <div style={{ display: "flex", gap: "8px" }}>
-                  <a className="btn-gen" href="gantt.html">📊 Gantt-Chart uweisen →</a>
+                  <a className="btn-gen" href={`gantt.html?schueler=${schuelerId}${profModus ? "&prof=1" : ""}`}>📊 Gantt-Chart uweisen →</a>
                   <button className="btn-gen" onClick={importéieren}>📥 Vum offiziellen Zäitplang importéieren</button>
                   <button className="btn-gen" onClick={csvExport}>⬇️ CSV</button>
                 </div>
@@ -215,28 +233,39 @@ function App() {
                     <tr><th>Datum</th><th>Titel</th><th>Kategorie</th><th>Status</th><th>Notiz</th><th></th></tr>
                   </thead>
                   <tbody>
-                    {meilensteng.map((m) => (
-                      <tr key={m.id}>
-                        <td><input type="date" className="input input-date" value={m.datum} onChange={(e) => updateZeil(m.id, { datum: e.target.value })} /></td>
-                        <td><input className="input" placeholder="Titel vum Meilensteng" value={m.titel} onChange={(e) => updateZeil(m.id, { titel: e.target.value })} /></td>
-                        <td>
-                          <select className="select status-select" style={{ background: KATEGORIE_FARWEN[m.kategorie], color: KATEGORIE_TEXT[m.kategorie] }} value={m.kategorie || "Event"} onChange={(e) => updateZeil(m.id, { kategorie: e.target.value })}>
-                            {KATEGORIE_OPTIONEN.map((k) => <option key={k} value={k}>{k}</option>)}
-                          </select>
-                        </td>
-                        <td>
-                          <select className="select" value={m.status} onChange={(e) => updateZeil(m.id, { status: e.target.value })}>
-                            {STATUS_OPTIONEN.map((s) => <option key={s} value={s}>{s}</option>)}
-                          </select>
-                        </td>
-                        <td><input className="input" placeholder="optional" value={m.notiz || ""} onChange={(e) => updateZeil(m.id, { notiz: e.target.value })} /></td>
-                        <td><button className="icon-btn" onClick={() => removeZeil(m.id)}>✕</button></td>
-                      </tr>
-                    ))}
+                    {meilensteng.map((m) => {
+                      const quell = m.quell || "Eegen";
+                      const datumGespaart = !profModus && quell === "Offiziell";
+                      const kategorieGespaart = !profModus;
+                      return (
+                        <tr key={m.id}>
+                          <td>
+                            <input type="date" className="input input-date" value={m.datum} disabled={datumGespaart} title={datumGespaart ? "Offiziellt Datum — nëmmen de Prof kann dat réckelen" : ""} onChange={(e) => updateZeil(m.id, { datum: e.target.value })} />
+                          </td>
+                          <td><input className="input" placeholder="Titel vum Meilensteng" value={m.titel} onChange={(e) => updateZeil(m.id, { titel: e.target.value })} /></td>
+                          <td>
+                            {kategorieGespaart ? (
+                              <span className="kategorie-badge" style={{ background: KATEGORIE_FARWEN[m.kategorie], color: KATEGORIE_TEXT[m.kategorie] }}>{m.kategorie}</span>
+                            ) : (
+                              <select className="select status-select" style={{ background: KATEGORIE_FARWEN[m.kategorie], color: KATEGORIE_TEXT[m.kategorie] }} value={m.kategorie || "Event"} onChange={(e) => updateZeil(m.id, { kategorie: e.target.value })}>
+                                {KATEGORIE_OPTIONEN.map((k) => <option key={k} value={k}>{k}</option>)}
+                              </select>
+                            )}
+                          </td>
+                          <td>
+                            <select className="select" value={m.status} onChange={(e) => updateZeil(m.id, { status: e.target.value })}>
+                              {STATUS_OPTIONEN.map((s) => <option key={s} value={s}>{s}</option>)}
+                            </select>
+                          </td>
+                          <td><input className="input" placeholder="optional" value={m.notiz || ""} onChange={(e) => updateZeil(m.id, { notiz: e.target.value })} /></td>
+                          <td>{(profModus || quell === "Eegen") && <button className="icon-btn" onClick={() => removeZeil(m.id)}>✕</button>}</td>
+                        </tr>
+                      );
+                    })}
                   </tbody>
                 </table>
               </div>
-              <button className="add-btn" onClick={addZeil}>+ Meilensteng derbäisetzen</button>
+              <button className="add-btn" onClick={addZeil}>+ Eegene Meilensteng derbäisetzen</button>
             </section>
 
             <div className="actions">
@@ -266,6 +295,11 @@ body { margin: 0; font-family: -apple-system, "Segoe UI", Inter, Arial, sans-ser
 .card-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px; flex-wrap: wrap; gap: 8px; }
 .card h2 { font-size: 15px; margin: 0; color: #00A94F; }
 .field { display: flex; flex-direction: column; gap: 4px; }
+.gespaart-row { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 8px; margin-bottom: 4px; }
+.gespaart-label { font-size: 14px; font-weight: 700; color: #294f3c; }
+.link-btn-klein { font-size: 11px; color: #93a098; background: none; border: none; text-decoration: underline; cursor: pointer; }
+.prof-toggle { display: flex; align-items: center; gap: 7px; font-size: 12px; color: #55625a; margin-top: 12px; padding-top: 12px; border-top: 1px solid #eef1ef; cursor: pointer; }
+.kategorie-badge { display: inline-block; font-size: 11.5px; font-weight: 700; padding: 5px 10px; border-radius: 20px; }
 .field-label { font-size: 12.5px; font-weight: 700; color: #294f3c; }
 .select, .input { border: 1px solid #c9d5cd; border-radius: 7px; padding: 8px 10px; font-size: 13.5px; font-family: inherit; background: #fff; color: #1c2621; }
 .status-select { font-weight: 700; border: none; }
