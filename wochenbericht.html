@@ -1,0 +1,273 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>PPREN Wochenbericht</title>
+<script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+<script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+<script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+</head>
+<body>
+<div id="root"></div>
+<script>
+  window.addEventListener("error", function (e) {
+    document.getElementById("root").innerHTML =
+      '<div style="padding:40px;font-family:sans-serif;color:#8a2b1f;white-space:pre-wrap;">' +
+      '<h2 style="margin-top:0;">Fehler beim Laden</h2>' +
+      (e.message || "Unbekannter Fehler") +
+      (e.filename ? "\n\nDatei: " + e.filename + " Zeile " + e.lineno : "") +
+      "</div>";
+  });
+</script>
+<script type="text/babel">
+const { useState, useEffect, useMemo } = React;
+
+const WEB_APP_URL = "https://script.google.com/macros/s/AKfycbzfyThho8MevoyfSz7NsQ1YxZJO4E-f61GYYzqZyHACIHzxR3bm7SHCwVUkCBJrAEvJ/exec";
+
+const SCHUELER = [
+  { id: "lea_muller", name: "Léa Muller", klasse: "1GSE" },
+  { id: "ben_weber", name: "Ben Weber", klasse: "2GSE" },
+  { id: "noah_schmit", name: "Noah Schmit", klasse: "1GSE" },
+  { id: "mia_reuter", name: "Mia Reuter", klasse: "2GSE" },
+  { id: "tom_klein", name: "Tom Klein", klasse: "2GSE" },
+];
+
+const PERIODEN_2GSE = ["Trimester 1", "Trimester 2", "Trimester 3"];
+const PERIODEN_1GSE = ["Semester 1", "Semester 2"];
+
+function montagDerWoche(datum) {
+  const d = new Date(datum);
+  const tag = d.getDay();
+  const diff = d.getDate() - tag + (tag === 0 ? -6 : 1);
+  return new Date(d.setDate(diff));
+}
+function formatDatum(d) {
+  return d.toLocaleDateString("de-DE", { day: "2-digit", month: "2-digit", year: "numeric" });
+}
+function heutigeWocheLabel() {
+  const montag = montagDerWoche(new Date());
+  const sonntag = new Date(montag);
+  sonntag.setDate(montag.getDate() + 6);
+  return `${formatDatum(montag)} – ${formatDatum(sonntag)}`;
+}
+
+function uid() { return Date.now().toString(36) + Math.random().toString(36).slice(2, 8); }
+
+const leererBericht = () => ({
+  id: null,
+  woche: heutigeWocheLabel(),
+  datumVerfassung: new Date().toISOString().slice(0, 10),
+  zusammenfassung: "",
+  fortschritt: "",
+  anhaenge: "",
+});
+
+function App() {
+  const [schuelerId, setSchuelerId] = useState("");
+  const [periode, setPeriode] = useState("");
+  const [bericht, setBericht] = useState(leererBericht());
+  const [meng, setMeng] = useState([]);
+  const [loading, setLoading] = useState(false);
+  const [syncing, setSyncing] = useState(false);
+  const [error, setError] = useState(null);
+  const [toast, setToast] = useState(null);
+
+  const currentSchueler = SCHUELER.find((s) => s.id === schuelerId);
+  const istGSE2 = currentSchueler?.klasse === "2GSE";
+  const perioden = istGSE2 ? PERIODEN_2GSE : PERIODEN_1GSE;
+
+  const lade = () => {
+    if (!currentSchueler) return;
+    setLoading(true);
+    setError(null);
+    fetch(WEB_APP_URL)
+      .then((res) => res.json())
+      .then((data) => {
+        const eegen = (data.wochenberichte || []).filter((w) => w.Schüler === currentSchueler.name);
+        setMeng(eegen);
+      })
+      .catch(() => setError("Konnte Berichter net lueden."))
+      .finally(() => setLoading(false));
+  };
+
+  useEffect(() => { if (schuelerId) lade(); }, [schuelerId]);
+
+  const canSubmit = periode && bericht.zusammenfassung.trim() && bericht.fortschritt.trim();
+
+  const absenden = async () => {
+    if (!currentSchueler || !canSubmit) return;
+    setSyncing(true);
+    setError(null);
+    try {
+      const res = await fetch(WEB_APP_URL, {
+        method: "POST",
+        headers: { "Content-Type": "text/plain;charset=utf-8" },
+        body: JSON.stringify({
+          typ: "wochenbericht",
+          id: bericht.id,
+          schueler: currentSchueler.name,
+          klasse: currentSchueler.klasse,
+          periode,
+          woche: bericht.woche,
+          datumVerfassung: bericht.datumVerfassung,
+          zusammenfassung: bericht.zusammenfassung,
+          fortschritt: bericht.fortschritt,
+          anhaenge: bericht.anhaenge,
+        }),
+      });
+      const data = await res.json();
+      if (!data.ok) throw new Error(data.error || "Onbekannte Feeler");
+      setToast("Wochebericht ofginn.");
+      setBericht(leererBericht());
+      lade();
+    } catch (e) {
+      setError("Konnte net ofginn: " + e.message);
+    } finally {
+      setSyncing(false);
+      setTimeout(() => setToast(null), 3000);
+    }
+  };
+
+  const bearbechten = (w) => {
+    setBericht({
+      id: w.ID,
+      woche: w.Woche,
+      datumVerfassung: "",
+      zusammenfassung: w.Zusammenfassung,
+      fortschritt: w.Fortschritt,
+      anhaenge: w["Anhänge"] || "",
+    });
+    setPeriode(w.Periode);
+  };
+
+  return (
+    <div className="wrap">
+      <header className="topbar">
+        <div className="brand">
+          <span className="brand-mark">PPREN</span>
+          <span className="brand-sub">Wochenbericht · Sciences Environnementales</span>
+        </div>
+      </header>
+
+      <main className="content">
+        <section className="card">
+          <div className="grid2">
+            <label className="field">
+              <span className="field-label">Wie bass du?</span>
+              <select className="select" value={schuelerId} onChange={(e) => { setSchuelerId(e.target.value); setPeriode(""); }}>
+                <option value="">– auswählen –</option>
+                {SCHUELER.map((s) => <option key={s.id} value={s.id}>{s.name} ({s.klasse})</option>)}
+              </select>
+            </label>
+            {schuelerId && (
+              <label className="field">
+                <span className="field-label">Periode</span>
+                <select className="select" value={periode} onChange={(e) => setPeriode(e.target.value)}>
+                  <option value="">– auswählen –</option>
+                  {perioden.map((p) => <option key={p} value={p}>{p}</option>)}
+                </select>
+              </label>
+            )}
+          </div>
+        </section>
+
+        {schuelerId && periode && (
+          <>
+            <section className="card">
+              <h2>Neien Wochenbericht — {bericht.woche}</h2>
+              <div className="punkte-hint">Zusammefaassung 2P · Fortschrëtt 1,5P · Ahänk 1P · Grammatik 0,5P — max. 5P/Bericht</div>
+
+              <label className="field">
+                <span className="field-label">Wochenzesummefaassung <em>(mindestens 5 Zeilen)</em></span>
+                <textarea className="textarea" rows={5} placeholder="Duerchgefouert Aktivitéiten... Opgetruede Problemer..." value={bericht.zusammenfassung} onChange={(e) => setBericht({ ...bericht, zusammenfassung: e.target.value })} />
+              </label>
+
+              <label className="field">
+                <span className="field-label">Bewäertung vum Fortschrëtt <em>(mindestens 5 Zeilen)</em></span>
+                <textarea className="textarea" rows={5} placeholder="Fortschrëtt am Verglach zum Plang... Erreecht Ziler... Virgeholl Ännerungen..." value={bericht.fortschritt} onChange={(e) => setBericht({ ...bericht, fortschritt: e.target.value })} />
+              </label>
+
+              <label className="field">
+                <span className="field-label">Ahänk <em>(falls néideg — Links, Verweiser)</em></span>
+                <textarea className="textarea" rows={2} placeholder="Linke zu Diagrammer, Fotoen, Quellen..." value={bericht.anhaenge} onChange={(e) => setBericht({ ...bericht, anhaenge: e.target.value })} />
+              </label>
+
+              <button className="btn btn-primary" disabled={!canSubmit || syncing} onClick={absenden}>
+                {syncing ? "Sendet…" : bericht.id ? "💾 Ännerung späicheren" : "📤 Ofginn"}
+              </button>
+            </section>
+
+            <section className="card">
+              <h2>Meng Berichter — {periode}</h2>
+              {loading && <p className="notice">Lädt…</p>}
+              {!loading && meng.filter((w) => w.Periode === periode).length === 0 && (
+                <p className="notice">Nach kee Bericht fir dës Period ofginn.</p>
+              )}
+              <table className="tabelle">
+                <thead><tr><th>Woch</th><th>Status</th><th>Punkte</th><th></th></tr></thead>
+                <tbody>
+                  {meng.filter((w) => w.Periode === periode).map((w) => {
+                    let summe = null;
+                    if (w.Status === "Bewäert") {
+                      try {
+                        const p = JSON.parse(w["Punkte (JSON)"]);
+                        summe = (p.zusammenfassung || 0) + (p.fortschritt || 0) + (p.anhaenge || 0) + (p.grammatik || 0);
+                      } catch {}
+                    }
+                    return (
+                      <tr key={w.ID}>
+                        <td>{w.Woche}</td>
+                        <td><span className={`pill ${w.Status === "Bewäert" ? "pill-done" : "pill-pending"}`}>{w.Status}</span></td>
+                        <td>{summe !== null ? `${summe} / 5` : "–"}</td>
+                        <td>{w.Status !== "Bewäert" && <button className="btn-gen" onClick={() => bearbechten(w)}>Änneren</button>}</td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </section>
+          </>
+        )}
+        {error && <div className="empty error">{error}</div>}
+      </main>
+      {toast && <div className="toast">{toast}</div>}
+    </div>
+  );
+}
+
+ReactDOM.createRoot(document.getElementById("root")).render(<App />);
+</script>
+<style>
+* { box-sizing: border-box; }
+body { margin: 0; font-family: -apple-system, "Segoe UI", Inter, Arial, sans-serif; color: #1c2621; background: #f6f8f6; }
+.topbar { padding: 14px 22px; background: #00A94F; color: #fff; }
+.brand { display: flex; align-items: baseline; gap: 10px; }
+.brand-mark { font-weight: 800; font-size: 15px; letter-spacing: 0.06em; }
+.brand-sub { font-size: 13px; opacity: 0.85; }
+.content { max-width: 720px; margin: 0 auto; padding: 24px 20px 60px; }
+.card { background: #fff; border: 1px solid #e2e8e3; border-radius: 12px; padding: 18px 20px; margin-bottom: 16px; }
+.card h2 { font-size: 15px; margin: 0 0 4px; color: #00A94F; }
+.grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+.field { display: flex; flex-direction: column; gap: 4px; margin-bottom: 14px; }
+.field-label { font-size: 12.5px; font-weight: 700; color: #294f3c; }
+.field-label em { font-weight: 400; color: #93a098; }
+.select, .textarea { border: 1px solid #c9d5cd; border-radius: 7px; padding: 8px 10px; font-size: 13.5px; font-family: inherit; background: #fff; color: #1c2621; width: 100%; }
+.textarea { resize: vertical; }
+.punkte-hint { font-size: 11.5px; color: #6d7d74; background: #eef3ef; padding: 8px 12px; border-radius: 7px; margin-bottom: 14px; }
+.notice { background: #fbe8c6; color: #8a5a12; font-size: 12.5px; padding: 10px 14px; border-radius: 8px; margin: 0; }
+.btn { font-size: 13.5px; font-weight: 700; padding: 10px 18px; border-radius: 8px; border: none; cursor: pointer; }
+.btn-primary { background: #00A94F; color: #fff; }
+.btn-primary:disabled { background: #b7c6bd; cursor: not-allowed; }
+.btn-gen { font-size: 11px; font-weight: 700; color: #00A94F; background: #eef3ef; border: 1px solid #c9d5cd; padding: 4px 10px; border-radius: 6px; cursor: pointer; }
+.tabelle { width: 100%; border-collapse: collapse; margin-top: 8px; }
+.tabelle th { text-align: left; font-size: 11px; text-transform: uppercase; color: #6d7d74; padding: 6px 8px; border-bottom: 1px solid #eef1ef; }
+.tabelle td { padding: 7px 8px; font-size: 13px; border-bottom: 1px solid #f4f6f4; }
+.pill { font-size: 11px; font-weight: 700; padding: 3px 9px; border-radius: 20px; }
+.pill-pending { background: #e6e9e6; color: #55625a; }
+.pill-done { background: #d7ecdd; color: #00A94F; }
+.error { color: #8a2b1f; padding: 12px; }
+.toast { position: fixed; bottom: 22px; left: 50%; transform: translateX(-50%); background: #1c2621; color: #fff; padding: 10px 18px; border-radius: 8px; font-size: 13px; }
+</style>
+</body>
+</html>
