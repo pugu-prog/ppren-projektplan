@@ -1,0 +1,191 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>PPREN Gantt-Chart</title>
+<script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+<script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+<script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+</head>
+<body>
+<div id="root"></div>
+<script>
+  window.addEventListener("error", function (e) {
+    document.getElementById("root").innerHTML =
+      '<div style="padding:40px;font-family:sans-serif;color:#8a2b1f;white-space:pre-wrap;">' +
+      '<h2 style="margin-top:0;">Fehler beim Laden</h2>' +
+      (e.message || "Unbekannter Fehler") +
+      (e.filename ? "\n\nDatei: " + e.filename + " Zeile " + e.lineno : "") +
+      "</div>";
+  });
+</script>
+<script type="text/babel">
+const { useState, useEffect, useMemo } = React;
+
+const WEB_APP_URL = "https://script.google.com/macros/s/AKfycbzfyThho8MevoyfSz7NsQ1YxZJO4E-f61GYYzqZyHACIHzxR3bm7SHCwVUkCBJrAEvJ/exec";
+
+const SCHUELER = [
+  { id: "lea_muller", name: "Léa Muller", klasse: "1GSE" },
+  { id: "ben_weber", name: "Ben Weber", klasse: "2GSE" },
+  { id: "noah_schmit", name: "Noah Schmit", klasse: "1GSE" },
+  { id: "mia_reuter", name: "Mia Reuter", klasse: "2GSE" },
+  { id: "tom_klein", name: "Tom Klein", klasse: "2GSE" },
+];
+
+const KATEGORIE_OPTIONEN = ["Event", "Iwwerpréiwung", "Praktesch Phase", "Ofgab"];
+const KATEGORIE_FARWEN = { "Event": "#f0ec3a", "Iwwerpréiwung": "#d9d3f5", "Praktesch Phase": "#1ecdc4", "Ofgab": "#a9d92d" };
+const KATEGORIE_TEXT = { "Event": "#1c2621", "Iwwerpréiwung": "#1c2621", "Praktesch Phase": "#04342c", "Ofgab": "#1c2621" };
+const STATUS_RAND = { "Ausstoend": "transparent", "Erreecht": "#00A94F", "Verspéit": "#e8483a" };
+
+function App() {
+  const [schuelerId, setSchuelerId] = useState("");
+  const [meilensteng, setMeilensteng] = useState([]);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState(null);
+
+  const currentSchueler = SCHUELER.find((s) => s.id === schuelerId);
+
+  useEffect(() => {
+    if (!schuelerId) return;
+    const s = SCHUELER.find((x) => x.id === schuelerId);
+    setLoading(true);
+    setError(null);
+    fetch(WEB_APP_URL)
+      .then((res) => res.json())
+      .then((data) => {
+        const eintrag = (data.meilensteng || []).find((m) => m.Schüler === s.name);
+        if (eintrag && eintrag["Meilensteng (JSON)"]) {
+          try { setMeilensteng(JSON.parse(eintrag["Meilensteng (JSON)"])); } catch { setMeilensteng([]); }
+        } else {
+          setMeilensteng([]);
+        }
+      })
+      .catch(() => setError("Konnte Meilensteng net lueden."))
+      .finally(() => setLoading(false));
+  }, [schuelerId]);
+
+  const sortéiert = useMemo(
+    () => [...meilensteng].filter((m) => m.datum).sort((a, b) => a.datum.localeCompare(b.datum)),
+    [meilensteng]
+  );
+
+  const zeitraumStart = new Date("2026-09-01").getTime();
+  const zeitraumEnde = new Date("2027-07-31").getTime();
+  const prozentFuer = (datum) => {
+    const t = new Date(datum).getTime();
+    if (isNaN(t)) return null;
+    return Math.min(100, Math.max(0, ((t - zeitraumStart) / (zeitraumEnde - zeitraumStart)) * 100));
+  };
+
+  return (
+    <div className="wrap">
+      <header className="topbar">
+        <div className="brand">
+          <span className="brand-mark">PPREN</span>
+          <span className="brand-sub">Gantt-Chart · Sciences Environnementales</span>
+        </div>
+        <a className="topbar-link" href="planung.html">✏️ Meilensteng bearbechten →</a>
+      </header>
+
+      <main className="content">
+        <section className="card">
+          <label className="field">
+            <span className="field-label">Wie bass du?</span>
+            <select className="select" value={schuelerId} onChange={(e) => setSchuelerId(e.target.value)}>
+              <option value="">– auswählen –</option>
+              {SCHUELER.map((s) => <option key={s.id} value={s.id}>{s.name} ({s.klasse})</option>)}
+            </select>
+          </label>
+        </section>
+
+        {loading && <div className="empty">Lädt…</div>}
+        {error && <div className="empty error">{error}</div>}
+
+        {schuelerId && !loading && (
+          <section className="card">
+            <div className="legend">
+              {KATEGORIE_OPTIONEN.map((k) => (
+                <span key={k} className="legend-item"><span className="legend-dot" style={{ background: KATEGORIE_FARWEN[k] }} />{k}</span>
+              ))}
+              <span className="legend-item"><span className="legend-dot legend-dot-erreecht" />Erreecht</span>
+              <span className="legend-item"><span className="legend-dot legend-dot-verspéit" />Verspéit</span>
+            </div>
+
+            {sortéiert.length === 0 ? (
+              <p className="notice">Nach keng Meilensteng fir dëse Schüler. <a href="planung.html">Am Planungstool derbäisetzen →</a></p>
+            ) : (
+              <div className="gantt">
+                <div className="gantt-monatslinie">
+                  {["Sep","Okt","Nov","Dez","Jan","Feb","Mär","Apr","Mai","Jun","Jul"].map((mo, i) => (
+                    <span key={mo} style={{ left: `${(i / 11) * 100}%` }} className="gantt-mo">{mo}</span>
+                  ))}
+                </div>
+                {sortéiert.map((m, idx) => (
+                  <div key={idx} className="gantt-row">
+                    <div className="gantt-row-label">
+                      <span className="gantt-titel">{m.titel || "(ouni Titel)"}</span>
+                      <span className="gantt-datum">{new Date(m.datum).toLocaleDateString("de-DE", { day: "2-digit", month: "2-digit", year: "numeric" })}</span>
+                    </div>
+                    <div className="gantt-track">
+                      <div
+                        className="gantt-bar"
+                        style={{
+                          left: `${prozentFuer(m.datum)}%`,
+                          background: KATEGORIE_FARWEN[m.kategorie] || "#ccc",
+                          color: KATEGORIE_TEXT[m.kategorie] || "#1c2621",
+                          border: `2px solid ${STATUS_RAND[m.status] || "transparent"}`,
+                        }}
+                      >
+                        <span className="gantt-bar-label">{m.titel}</span>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </section>
+        )}
+      </main>
+    </div>
+  );
+}
+
+ReactDOM.createRoot(document.getElementById("root")).render(<App />);
+</script>
+<style>
+* { box-sizing: border-box; }
+body { margin: 0; font-family: -apple-system, "Segoe UI", Inter, Arial, sans-serif; color: #1c2621; background: #f6f8f6; }
+.topbar { padding: 14px 22px; background: #00A94F; color: #fff; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 8px; }
+.brand { display: flex; align-items: baseline; gap: 10px; }
+.brand-mark { font-weight: 800; font-size: 15px; letter-spacing: 0.06em; }
+.brand-sub { font-size: 13px; opacity: 0.85; }
+.topbar-link { color: #fff; font-size: 12.5px; font-weight: 700; text-decoration: none; background: rgba(255,255,255,0.15); padding: 6px 12px; border-radius: 7px; }
+.topbar-link:hover { background: rgba(255,255,255,0.25); }
+.content { max-width: 820px; margin: 0 auto; padding: 24px 20px 60px; }
+.card { background: #fff; border: 1px solid #e2e8e3; border-radius: 12px; padding: 18px 20px; margin-bottom: 16px; }
+.field { display: flex; flex-direction: column; gap: 4px; }
+.field-label { font-size: 12.5px; font-weight: 700; color: #294f3c; }
+.select { border: 1px solid #c9d5cd; border-radius: 7px; padding: 8px 10px; font-size: 13.5px; font-family: inherit; background: #fff; color: #1c2621; }
+.notice { background: #fbe8c6; color: #8a5a12; font-size: 12.5px; padding: 10px 14px; border-radius: 8px; margin: 0; line-height: 1.5; }
+.notice a { color: #8a5a12; font-weight: 700; }
+.empty { padding: 30px; text-align: center; color: #6d7d74; font-size: 14px; background: #fff; border-radius: 12px; border: 1px solid #e2e8e3; }
+.error { color: #8a2b1f; }
+.legend { display: flex; gap: 14px; flex-wrap: wrap; margin-bottom: 16px; font-size: 11.5px; color: #55625a; }
+.legend-item { display: flex; align-items: center; gap: 5px; }
+.legend-dot { width: 10px; height: 10px; border-radius: 50%; display: inline-block; }
+.legend-dot-erreecht { background: #fff; border: 2px solid #00A94F; }
+.legend-dot-verspéit { background: #fff; border: 2px solid #e8483a; }
+.gantt { padding: 4px 0 0; }
+.gantt-monatslinie { position: relative; height: 20px; border-bottom: 1px solid #eef1ef; margin-bottom: 6px; margin-left: 190px; }
+.gantt-mo { position: absolute; font-size: 10.5px; color: #93a098; transform: translateX(-50%); }
+.gantt-row { display: flex; align-items: center; gap: 10px; padding: 7px 0; border-bottom: 1px solid #f7f8f7; }
+.gantt-row-label { width: 180px; flex: 0 0 180px; display: flex; flex-direction: column; gap: 1px; overflow: hidden; }
+.gantt-titel { font-size: 12.5px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.gantt-datum { font-size: 10.5px; color: #93a098; }
+.gantt-track { position: relative; flex: 1; height: 24px; background: #f7f8f7; border-radius: 5px; }
+.gantt-bar { position: absolute; top: 2px; height: 20px; padding: 0 10px; border-radius: 10px; display: flex; align-items: center; white-space: nowrap; font-size: 11px; font-weight: 700; box-shadow: 0 1px 2px rgba(0,0,0,0.12); }
+.gantt-bar-label { max-width: 160px; overflow: hidden; text-overflow: ellipsis; }
+</style>
+</body>
+</html>
