@@ -199,53 +199,16 @@ function App() {
           <>
             <section className="card">
               <div className="card-head">
-                <h2>Timeline</h2>
-                <button className="btn-gen" onClick={importéieren}>📥 Vum offiziellen Zäitplang importéieren</button>
-              </div>
-              <div className="legend">
-                {KATEGORIE_OPTIONEN.map((k) => (
-                  <span key={k} className="legend-item"><span className="legend-dot" style={{ background: KATEGORIE_FARWEN[k] }} />{k}</span>
-                ))}
-              </div>
-              {sortéiert.length === 0 ? (
-                <p className="notice">Nach keng Meilensteng. Importéier de offiziellen Zäitplang oder setz manuell Zeilen derbäi.</p>
-              ) : (
-                <div className="gantt">
-                  <div className="gantt-monatslinie">
-                    {["Sep","Okt","Nov","Dez","Jan","Feb","Mär","Apr","Mai","Jun","Jul"].map((mo, i) => (
-                      <span key={mo} style={{ left: `${(i / 11) * 100}%` }} className="gantt-mo">{mo}</span>
-                    ))}
-                  </div>
-                  {sortéiert.filter((m) => m.datum).map((m) => (
-                    <div key={m.id} className="gantt-row">
-                      <div className="gantt-row-label">
-                        <span className="gantt-titel">{m.titel || "(ouni Titel)"}</span>
-                        <span className="gantt-datum">{new Date(m.datum).toLocaleDateString("de-DE", { day: "2-digit", month: "2-digit", year: "numeric" })}</span>
-                      </div>
-                      <div className="gantt-track">
-                        <div
-                          className="gantt-bar"
-                          style={{
-                            left: `${prozentFuer(m.datum)}%`,
-                            background: KATEGORIE_FARWEN[m.kategorie] || "#ccc",
-                            color: KATEGORIE_TEXT[m.kategorie] || "#1c2621",
-                            border: `2px solid ${STATUS_RAND[m.status] || "transparent"}`,
-                          }}
-                        >
-                          <span className="gantt-bar-label">{m.titel}</span>
-                        </div>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </section>
-
-            <section className="card">
-              <div className="card-head">
                 <h2>Meilensteng</h2>
-                <button className="btn-gen" onClick={csvExport}>⬇️ CSV</button>
+                <div style={{ display: "flex", gap: "8px" }}>
+                  <a className="btn-gen" href="gantt.html">📊 Gantt-Chart uweisen →</a>
+                  <button className="btn-gen" onClick={importéieren}>📥 Vum offiziellen Zäitplang importéieren</button>
+                  <button className="btn-gen" onClick={csvExport}>⬇️ CSV</button>
+                </div>
               </div>
+              {sortéiert.length === 0 && (
+                <p className="notice">Nach keng Meilensteng. Importéier de offiziellen Zäitplang oder setz manuell Zeilen derbäi.</p>
+              )}
               <div className="tabelle-wrap">
                 <table className="tabelle">
                   <thead>
