@@ -35,6 +35,7 @@ function statusMeta(status) {
 function App() {
   const [projekte, setProjekte] = useState([]);
   const [bewertungen, setBewertungen] = useState([]);
+  const [wochenberichte, setWochenberichte] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [filterKlasse, setFilterKlasse] = useState("alle");
@@ -50,6 +51,7 @@ function App() {
       .then((data) => {
         setProjekte(data.projekte || []);
         setBewertungen(data.bewertungen || []);
+        setWochenberichte(data.wochenberichte || []);
       })
       .catch(() => setError("Konnte Übersicht nicht laden."))
       .finally(() => setLoading(false));
@@ -119,6 +121,10 @@ function App() {
         <div className="stat-card stat-draft">
           <span className="stat-num">{zaehler.draft}</span>
           <span className="stat-label">Im Entwurf</span>
+        </div>
+        <div className="stat-card stat-pending">
+          <span className="stat-num">{wochenberichte.filter((w) => w.Status === "Agereecht").length}</span>
+          <span className="stat-label">Wochenberichter ze korrigéieren</span>
         </div>
       </div>
 
@@ -203,6 +209,38 @@ function App() {
           </table>
         )}
       </main>
+
+      <h2 className="section-titel">Wochenberichter</h2>
+      <main className="table-wrap">
+        <div className="wb-link-row">
+          <a className="link-btn" href="wochenberichte-korrigeieren.html" target="_blank">📋 Alleguer korrigéieren →</a>
+        </div>
+        {!loading && !error && wochenberichte.length === 0 && <div className="empty">Nach keng Wochenberichter ofginn.</div>}
+        {!loading && !error && wochenberichte.length > 0 && (
+          <table className="table">
+            <thead>
+              <tr>
+                <th>Schüler/-in</th><th>Klasse</th><th>Periode</th><th>Woch</th><th>Status</th>
+              </tr>
+            </thead>
+            <tbody>
+              {wochenberichte
+                .slice()
+                .sort((a, b) => (a.Status === "Agereecht" ? -1 : 1) - (b.Status === "Agereecht" ? -1 : 1))
+                .slice(0, 15)
+                .map((w, i) => (
+                  <tr key={i}>
+                    <td className="cell-strong">{w.Schüler}</td>
+                    <td>{w.Klasse}</td>
+                    <td>{w.Periode}</td>
+                    <td>{w.Woche}</td>
+                    <td><span className={`pill pill-${w.Status === "Bewäert" ? "done" : "pending"}`}>{w.Status}</span></td>
+                  </tr>
+                ))}
+            </tbody>
+          </table>
+        )}
+      </main>
     </div>
   );
 }
@@ -238,6 +276,8 @@ body { margin: 0; font-family: -apple-system, "Segoe UI", Inter, Arial, sans-ser
 .pill-pending { background: #fbe8c6; color: #8a5a12; }
 .pill-done { background: #d7ecdd; color: #00A94F; }
 .section-titel { font-size: 15px; font-weight: 800; color: #00A94F; padding: 8px 22px 0; margin: 0; }
+.wb-link-row { padding: 10px 0; }
+.link-btn { display: inline-block; font-size: 12.5px; font-weight: 700; color: #00A94F; background: #eef3ef; border: 1px solid #c9d5cd; padding: 7px 14px; border-radius: 8px; text-decoration: none; }
 .status-select { font-size: 12.5px; font-weight: 700; padding: 5px 10px; border-radius: 20px; border: 1px solid transparent; cursor: pointer; }
 .status-select-draft { background: #e6e9e6; color: #55625a; }
 .status-select-final { background: #d7ecdd; color: #00A94F; }
