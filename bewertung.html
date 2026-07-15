@@ -328,6 +328,7 @@ function App() {
   const [kategorien, setKategorien] = useState([]);
   const [gruppenState, setGruppenState] = useState({});
   const [wbPunkte, setWbPunkte] = useState("");
+  const [wbAuto, setWbAuto] = useState({ summe: 0, max: 0, anzahl: 0 });
   const [kommentar, setKommentar] = useState("");
   const [allgemeinAuswahl, setAllgemeinAuswahl] = useState({});
   const [syncing, setSyncing] = useState(false);
@@ -361,6 +362,7 @@ function App() {
     setKategorien(initKategorien(s, p));
     setGruppenState(initGruppenState(s, p));
     setWbPunkte("");
+    setWbAuto({ summe: 0, max: 0, anzahl: 0 });
     setDocUrl(null);
     setAllgemeinAuswahl({});
     setKommentar("");
@@ -376,6 +378,20 @@ function App() {
       if (bestehend && bestehend.Status === "Finalisiert") {
         setFinalisiert(true);
       }
+      // Wochenberichter-Punkte automatesch aus de bewäerte Berichter zéien
+      const meng = (data.wochenberichte || []).filter((w) => w.Schüler === schuelerName && w.Periode === p);
+      let summe = 0, anzahl = 0;
+      meng.forEach((w) => {
+        if (w.Status === "Bewäert") {
+          try {
+            const pk = JSON.parse(w["Punkte (JSON)"]);
+            summe += (pk.zusammenfassung || 0) + (pk.fortschritt || 0) + (pk.anhaenge || 0) + (pk.grammatik || 0);
+            anzahl++;
+          } catch {}
+        }
+      });
+      setWbAuto({ summe, max: anzahl * 5, anzahl });
+      setWbPunkte(String(summe));
     } catch (e) {
       // Prüfung fehlgeschlagen: im Zweifel nicht sperren, Formulaire bleibt normal nutzbar
     } finally {
@@ -394,8 +410,6 @@ function App() {
 
   const updateKategorie = (id, punkte, max) =>
     setKategorien((ks) => ks.map((k) => (k.id === id ? { ...k, punkte: begrenzeAufMax(punkte, max) } : k)));
-
-  const updateWbPunkte = (punkte) => setWbPunkte(begrenzeAufMax(punkte, wbMax));
 
   const toggleGruppenAuswahl = (gruppe, thema, wert) => {
     setGruppenState((gs) => {
@@ -472,10 +486,12 @@ function App() {
 
   const kategorienSumme = kategorien.reduce((s, k) => s + (parseFloat(k.punkte) || 0), 0);
   const kategorienMax = kategorien.reduce((s, k) => s + k.max, 0);
-  const wbMax = def?.wochenberichte?.max || 0;
+  const wbMax = wbAuto.max;
   const gesamt = kategorienSumme + (parseFloat(wbPunkte) || 0);
   const gesamtMax = kategorienMax + wbMax;
-  const offizielleSkala = def?.offizielleSkala || gesamtMax;
+  // Offiziell Skala passt sech un déi tatsächlech bewäert Zuel Wochenberichter un
+  // (z. B. 2GSE Trimester 3 mat wéineg/kenge Berichter méi → méi kleng Skala)
+  const offizielleSkala = def ? (def.offizielleSkala - def.wochenberichte.max) + wbMax : gesamtMax;
   const note = offizielleSkala > 0 ? Math.round((gesamt * 60 / offizielleSkala) * 10) / 10 : null;
   const abweichung = gesamtMax !== offizielleSkala;
 
@@ -643,12 +659,18 @@ function App() {
             })}
 
             <section className="card">
-              <h2>{def.wochenberichte.label}</h2>
-              <div className="kat-row">
-                <span className="kat-name">Punkte (automatisch aus M5, hier zur Demo manuell)</span>
-                <input type="number" min="0" max={def.wochenberichte.max} className="input input-points" value={wbPunkte} onChange={(e) => updateWbPunkte(e.target.value)} />
-                <span className="kat-max">/ {def.wochenberichte.max}</span>
+              <div className="card-head-row">
+                <h2>{def.wochenberichte.label}</h2>
+                <a className="btn-gen" href="wochenberichte-korrigeieren.html" target="_blank">📋 Wochenberichter korrigéieren →</a>
               </div>
+              <div className="kat-row">
+                <span className="kat-name">Punkte (automatesch aus {wbAuto.anzahl} bewäerte Wochenberichter)</span>
+                <span className="wb-auto-wert">{wbAuto.summe}</span>
+                <span className="kat-max">/ {wbMax}</span>
+              </div>
+              {wbAuto.anzahl === 0 && (
+                <p className="notice">Nach keng Wochenberichter fir dës Period bewäert — d'Skala pass sech automatesch un (relevant z. B. fir 2GSE Trimester 3, wou et keng méi gëtt).</p>
+              )}
             </section>
 
             <section className="card summary-card">
@@ -743,6 +765,9 @@ body { margin: 0; font-family: -apple-system, "Segoe UI", Inter, Arial, sans-ser
 .item-block { margin-bottom: 10px; padding-bottom: 8px; border-bottom: 1px dashed #eef1ef; }
 .item-block:last-of-type { border-bottom: none; }
 .kat-row { display: flex; align-items: center; gap: 10px; margin-bottom: 3px; }
+.card-head-row { display: flex; align-items: center; justify-content: space-between; margin-bottom: 4px; flex-wrap: wrap; gap: 8px; }
+.card-head-row h2 { margin: 0; }
+.wb-auto-wert { flex: 1; text-align: right; font-weight: 700; font-size: 14px; color: #00A94F; }
 .kat-name { flex: 1; font-size: 13px; font-weight: 600; line-height: 1.35; }
 .indikatoren { font-size: 11.5px; color: #6d7d74; line-height: 1.4; padding-right: 100px; }
 .input-points { width: 64px; text-align: right; flex-shrink: 0; }
@@ -755,7 +780,7 @@ body { margin: 0; font-family: -apple-system, "Segoe UI", Inter, Arial, sans-ser
 .remarque-btn:hover:not(.active) { border-color: #b7c6bd; }
 .gruppen-kommentar { margin-top: 10px; font-size: 12.5px; }
 .kommentar-gen-row { margin-top: 12px; }
-.btn-gen { font-size: 11.5px; font-weight: 700; color: #00A94F; background: #eef3ef; border: 1px solid #c9d5cd; padding: 6px 12px; border-radius: 7px; cursor: pointer; }
+.btn-gen { font-size: 11.5px; font-weight: 700; color: #00A94F; background: #eef3ef; border: 1px solid #c9d5cd; padding: 6px 12px; border-radius: 7px; cursor: pointer; text-decoration: none; }
 .btn-gen:hover { background: #e3ece5; }
 .summary-card { background: #eef3ef; }
 .total-row { font-size: 13.5px; font-weight: 700; color: #294f3c; }
