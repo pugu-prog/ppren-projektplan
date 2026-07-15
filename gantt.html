@@ -33,13 +33,17 @@ const SCHUELER = [
   { id: "tom_klein", name: "Tom Klein", klasse: "2GSE" },
 ];
 
-const KATEGORIE_OPTIONEN = ["Event", "Iwwerpréiwung", "Praktesch Phase", "Ofgab"];
-const KATEGORIE_FARWEN = { "Event": "#f0ec3a", "Iwwerpréiwung": "#d9d3f5", "Praktesch Phase": "#1ecdc4", "Ofgab": "#a9d92d" };
-const KATEGORIE_TEXT = { "Event": "#1c2621", "Iwwerpréiwung": "#1c2621", "Praktesch Phase": "#04342c", "Ofgab": "#1c2621" };
+const KATEGORIE_OPTIONEN = ["Event", "Iwwerpréiwung", "Praktesch Phase", "Ofgab", "Eegen"];
+const KATEGORIE_FARWEN = { "Event": "#f0ec3a", "Iwwerpréiwung": "#d9d3f5", "Praktesch Phase": "#1ecdc4", "Ofgab": "#a9d92d", "Eegen": "#F67E1B" };
+const KATEGORIE_TEXT = { "Event": "#1c2621", "Iwwerpréiwung": "#1c2621", "Praktesch Phase": "#04342c", "Ofgab": "#1c2621", "Eegen": "#ffffff" };
 const STATUS_RAND = { "Ausstoend": "transparent", "Erreecht": "#00A94F", "Verspéit": "#e8483a" };
 
 function App() {
-  const [schuelerId, setSchuelerId] = useState("");
+  const urlParams = new URLSearchParams(window.location.search);
+  const urlSchueler = urlParams.get("schueler");
+
+  const [schuelerId, setSchuelerId] = useState(urlSchueler || "");
+  const [gespaart, setGespaart] = useState(!!urlSchueler);
   const [meilensteng, setMeilensteng] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
@@ -85,18 +89,25 @@ function App() {
           <span className="brand-mark">PPREN</span>
           <span className="brand-sub">Gantt-Chart · Sciences Environnementales</span>
         </div>
-        <a className="topbar-link" href="planung.html">✏️ Meilensteng bearbechten →</a>
+        <a className="topbar-link" href={`planung.html?schueler=${schuelerId}`}>✏️ Meilensteng bearbechten →</a>
       </header>
 
       <main className="content">
         <section className="card">
-          <label className="field">
-            <span className="field-label">Wie bass du?</span>
-            <select className="select" value={schuelerId} onChange={(e) => setSchuelerId(e.target.value)}>
-              <option value="">– auswählen –</option>
-              {SCHUELER.map((s) => <option key={s.id} value={s.id}>{s.name} ({s.klasse})</option>)}
-            </select>
-          </label>
+          {gespaart && currentSchueler ? (
+            <div className="gespaart-row">
+              <span className="gespaart-label">👤 {currentSchueler.name} ({currentSchueler.klasse})</span>
+              <button className="link-btn-klein" onClick={() => setGespaart(false)}>Net dee/déi hei? Wiesselen</button>
+            </div>
+          ) : (
+            <label className="field">
+              <span className="field-label">Wie bass du?</span>
+              <select className="select" value={schuelerId} onChange={(e) => setSchuelerId(e.target.value)}>
+                <option value="">– auswählen –</option>
+                {SCHUELER.map((s) => <option key={s.id} value={s.id}>{s.name} ({s.klasse})</option>)}
+              </select>
+            </label>
+          )}
         </section>
 
         {loading && <div className="empty">Lädt…</div>}
@@ -165,6 +176,9 @@ body { margin: 0; font-family: -apple-system, "Segoe UI", Inter, Arial, sans-ser
 .content { max-width: 820px; margin: 0 auto; padding: 24px 20px 60px; }
 .card { background: #fff; border: 1px solid #e2e8e3; border-radius: 12px; padding: 18px 20px; margin-bottom: 16px; }
 .field { display: flex; flex-direction: column; gap: 4px; }
+.gespaart-row { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 8px; }
+.gespaart-label { font-size: 14px; font-weight: 700; color: #294f3c; }
+.link-btn-klein { font-size: 11px; color: #93a098; background: none; border: none; text-decoration: underline; cursor: pointer; }
 .field-label { font-size: 12.5px; font-weight: 700; color: #294f3c; }
 .select { border: 1px solid #c9d5cd; border-radius: 7px; padding: 8px 10px; font-size: 13.5px; font-family: inherit; background: #fff; color: #1c2621; }
 .notice { background: #fbe8c6; color: #8a5a12; font-size: 12.5px; padding: 10px 14px; border-radius: 8px; margin: 0; line-height: 1.5; }
