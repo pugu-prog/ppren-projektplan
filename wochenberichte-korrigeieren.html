@@ -1,0 +1,228 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>PPREN Wochenberichter korrigéieren</title>
+<script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+<script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+<script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+</head>
+<body>
+<div id="root"></div>
+<script>
+  window.addEventListener("error", function (e) {
+    document.getElementById("root").innerHTML =
+      '<div style="padding:40px;font-family:sans-serif;color:#8a2b1f;white-space:pre-wrap;">' +
+      '<h2 style="margin-top:0;">Fehler beim Laden</h2>' +
+      (e.message || "Unbekannter Fehler") +
+      (e.filename ? "\n\nDatei: " + e.filename + " Zeile " + e.lineno : "") +
+      "</div>";
+  });
+</script>
+<script type="text/babel">
+const { useState, useEffect, useMemo } = React;
+
+const WEB_APP_URL = "https://script.google.com/macros/s/AKfycbzfyThho8MevoyfSz7NsQ1YxZJO4E-f61GYYzqZyHACIHzxR3bm7SHCwVUkCBJrAEvJ/exec";
+
+function App() {
+  const [alle, setAlle] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+  const [filterSchueler, setFilterSchueler] = useState("alle");
+  const [filterStatus, setFilterStatus] = useState("Agereecht");
+  const [offen, setOffen] = useState(null);
+  const [punkte, setPunkte] = useState({ zusammenfassung: "", fortschritt: "", anhaenge: "", grammatik: "" });
+  const [syncing, setSyncing] = useState(false);
+  const [toast, setToast] = useState(null);
+
+  const lade = () => {
+    setLoading(true);
+    setError(null);
+    fetch(WEB_APP_URL)
+      .then((res) => res.json())
+      .then((data) => setAlle(data.wochenberichte || []))
+      .catch(() => setError("Konnte Berichter net lueden."))
+      .finally(() => setLoading(false));
+  };
+  useEffect(() => { lade(); }, []);
+
+  const schuelerListe = useMemo(() => ["alle", ...new Set(alle.map((w) => w.Schüler))], [alle]);
+
+  const gefiltert = alle.filter((w) => {
+    if (filterSchueler !== "alle" && w.Schüler !== filterSchueler) return false;
+    if (filterStatus !== "alle" && w.Status !== filterStatus) return false;
+    return true;
+  });
+
+  const oeffnen = (w) => {
+    setOffen(w);
+    setPunkte({ zusammenfassung: "2", fortschritt: "1.5", anhaenge: "1", grammatik: "0.5" });
+  };
+
+  const speicherePunkte = async () => {
+    setSyncing(true);
+    try {
+      const p = {
+        zusammenfassung: Math.min(2, Math.max(0, parseFloat(punkte.zusammenfassung) || 0)),
+        fortschritt: Math.min(1.5, Math.max(0, parseFloat(punkte.fortschritt) || 0)),
+        anhaenge: Math.min(1, Math.max(0, parseFloat(punkte.anhaenge) || 0)),
+        grammatik: Math.min(0.5, Math.max(0, parseFloat(punkte.grammatik) || 0)),
+      };
+      const res = await fetch(WEB_APP_URL, {
+        method: "POST",
+        headers: { "Content-Type": "text/plain;charset=utf-8" },
+        body: JSON.stringify({ typ: "wochenberichtBewerten", id: offen.ID, punkte: p }),
+      });
+      const data = await res.json();
+      if (!data.ok) throw new Error(data.error || "Onbekannte Feeler");
+      setToast("Bewäert.");
+      setOffen(null);
+      lade();
+    } catch (e) {
+      alert("Konnte net späicheren: " + e.message);
+    } finally {
+      setSyncing(false);
+      setTimeout(() => setToast(null), 3000);
+    }
+  };
+
+  return (
+    <div className="wrap">
+      <header className="topbar">
+        <div className="brand">
+          <span className="brand-mark">PPREN</span>
+          <span className="brand-sub">Wochenberichter korrigéieren</span>
+        </div>
+        <button className="refresh-btn" onClick={lade} disabled={loading}>{loading ? "Lädt…" : "🔄 Aktualiséieren"}</button>
+      </header>
+
+      <main className="content">
+        <div className="controls">
+          <select className="select" value={filterSchueler} onChange={(e) => setFilterSchueler(e.target.value)}>
+            {schuelerListe.map((s) => <option key={s} value={s}>{s === "alle" ? "All Schüler" : s}</option>)}
+          </select>
+          <select className="select" value={filterStatus} onChange={(e) => setFilterStatus(e.target.value)}>
+            <option value="Agereecht">Nach ze korrigéieren</option>
+            <option value="Bewäert">Scho bewäert</option>
+            <option value="alle">All</option>
+          </select>
+        </div>
+
+        {loading && <div className="empty">Lädt…</div>}
+        {error && <div className="empty error">{error}</div>}
+        {!loading && !error && gefiltert.length === 0 && <div className="empty">Keng Berichter fonnt.</div>}
+
+        {!loading && !error && gefiltert.length > 0 && (
+          <table className="table">
+            <thead>
+              <tr><th>Schüler/-in</th><th>Klasse</th><th>Periode</th><th>Woch</th><th>Status</th><th></th></tr>
+            </thead>
+            <tbody>
+              {gefiltert.map((w) => (
+                <tr key={w.ID}>
+                  <td className="cell-strong">{w.Schüler}</td>
+                  <td>{w.Klasse}</td>
+                  <td>{w.Periode}</td>
+                  <td>{w.Woche}</td>
+                  <td><span className={`pill ${w.Status === "Bewäert" ? "pill-done" : "pill-pending"}`}>{w.Status}</span></td>
+                  <td><button className="btn-gen" onClick={() => oeffnen(w)}>{w.Status === "Bewäert" ? "Kucken" : "Korrigéieren"}</button></td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        )}
+      </main>
+
+      {offen && (
+        <div className="modal-overlay" onClick={() => setOffen(null)}>
+          <div className="modal" onClick={(e) => e.stopPropagation()}>
+            <h2>{offen.Schüler} — {offen.Woche}</h2>
+            <div className="modal-feld">
+              <span className="modal-label">Zesummefaassung</span>
+              <p>{offen.Zusammenfassung}</p>
+            </div>
+            <div className="modal-feld">
+              <span className="modal-label">Fortschrëtt</span>
+              <p>{offen.Fortschritt}</p>
+            </div>
+            {offen["Anhänge"] && (
+              <div className="modal-feld">
+                <span className="modal-label">Ahänk</span>
+                <p>{offen["Anhänge"]}</p>
+              </div>
+            )}
+
+            <div className="punkte-grid">
+              <label className="punkte-feld">
+                <span>Zesummefaassung (max 2)</span>
+                <input type="number" step="0.5" min="0" max="2" value={punkte.zusammenfassung} onChange={(e) => setPunkte({ ...punkte, zusammenfassung: e.target.value })} disabled={offen.Status === "Bewäert"} />
+              </label>
+              <label className="punkte-feld">
+                <span>Fortschrëtt (max 1,5)</span>
+                <input type="number" step="0.5" min="0" max="1.5" value={punkte.fortschritt} onChange={(e) => setPunkte({ ...punkte, fortschritt: e.target.value })} disabled={offen.Status === "Bewäert"} />
+              </label>
+              <label className="punkte-feld">
+                <span>Ahänk (max 1)</span>
+                <input type="number" step="0.5" min="0" max="1" value={punkte.anhaenge} onChange={(e) => setPunkte({ ...punkte, anhaenge: e.target.value })} disabled={offen.Status === "Bewäert"} />
+              </label>
+              <label className="punkte-feld">
+                <span>Grammatik (max 0,5)</span>
+                <input type="number" step="0.5" min="0" max="0.5" value={punkte.grammatik} onChange={(e) => setPunkte({ ...punkte, grammatik: e.target.value })} disabled={offen.Status === "Bewäert"} />
+              </label>
+            </div>
+
+            <div className="modal-actions">
+              <button className="btn btn-ghost" onClick={() => setOffen(null)}>Zoumaachen</button>
+              {offen.Status !== "Bewäert" && (
+                <button className="btn btn-primary" disabled={syncing} onClick={speicherePunkte}>{syncing ? "Späichert…" : "✅ Bewäertung späicheren"}</button>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+      {toast && <div className="toast">{toast}</div>}
+    </div>
+  );
+}
+
+ReactDOM.createRoot(document.getElementById("root")).render(<App />);
+</script>
+<style>
+* { box-sizing: border-box; }
+body { margin: 0; font-family: -apple-system, "Segoe UI", Inter, Arial, sans-serif; color: #1c2621; background: #f6f8f6; }
+.topbar { display: flex; align-items: center; justify-content: space-between; padding: 14px 22px; background: #00A94F; color: #fff; }
+.brand { display: flex; align-items: baseline; gap: 10px; }
+.brand-mark { font-weight: 800; font-size: 15px; letter-spacing: 0.06em; }
+.brand-sub { font-size: 13px; opacity: 0.85; }
+.refresh-btn { background: rgba(255,255,255,0.15); border: 1px solid rgba(255,255,255,0.3); color: #fff; font-size: 12.5px; font-weight: 700; padding: 7px 14px; border-radius: 8px; cursor: pointer; }
+.content { padding: 20px 22px 60px; max-width: 900px; margin: 0 auto; }
+.controls { display: flex; gap: 10px; margin-bottom: 16px; flex-wrap: wrap; }
+.select { border: 1px solid #c9d5cd; border-radius: 8px; padding: 9px 12px; font-size: 13.5px; font-family: inherit; background: #fff; }
+.table { width: 100%; border-collapse: collapse; background: #fff; border-radius: 12px; overflow: hidden; border: 1px solid #e2e8e3; }
+.table th { text-align: left; font-size: 11.5px; text-transform: uppercase; letter-spacing: 0.04em; color: #6d7d74; background: #eef3ef; padding: 10px 14px; font-weight: 700; }
+.table td { padding: 10px 14px; font-size: 13.5px; border-top: 1px solid #eef1ef; }
+.cell-strong { font-weight: 700; }
+.pill { font-size: 12px; font-weight: 700; padding: 4px 10px; border-radius: 20px; }
+.pill-pending { background: #fbe8c6; color: #8a5a12; }
+.pill-done { background: #d7ecdd; color: #00A94F; }
+.btn-gen { font-size: 11.5px; font-weight: 700; color: #00A94F; background: #eef3ef; border: 1px solid #c9d5cd; padding: 6px 12px; border-radius: 7px; cursor: pointer; }
+.empty { padding: 40px; text-align: center; color: #6d7d74; font-size: 14px; background: #fff; border-radius: 12px; border: 1px solid #e2e8e3; }
+.error { color: #8a2b1f; }
+.modal-overlay { position: fixed; inset: 0; background: rgba(28,38,33,0.5); display: flex; align-items: center; justify-content: center; padding: 20px; z-index: 10; }
+.modal { background: #fff; border-radius: 14px; padding: 24px 26px; max-width: 560px; width: 100%; max-height: 85vh; overflow-y: auto; }
+.modal h2 { font-size: 16px; margin: 0 0 14px; color: #00A94F; }
+.modal-feld { margin-bottom: 12px; }
+.modal-label { font-size: 11px; font-weight: 800; text-transform: uppercase; color: #294f3c; }
+.modal-feld p { font-size: 13px; line-height: 1.5; margin: 4px 0 0; white-space: pre-wrap; }
+.punkte-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin: 16px 0; }
+.punkte-feld { display: flex; flex-direction: column; gap: 4px; font-size: 12px; font-weight: 700; color: #294f3c; }
+.punkte-feld input { border: 1px solid #c9d5cd; border-radius: 7px; padding: 8px 10px; font-size: 13.5px; }
+.modal-actions { display: flex; justify-content: flex-end; gap: 10px; }
+.btn { font-size: 13.5px; font-weight: 700; padding: 9px 16px; border-radius: 8px; border: none; cursor: pointer; }
+.btn-primary { background: #00A94F; color: #fff; }
+.btn-ghost { background: #eef3ef; color: #294f3c; }
+.toast { position: fixed; bottom: 22px; left: 50%; transform: translateX(-50%); background: #1c2621; color: #fff; padding: 10px 18px; border-radius: 8px; font-size: 13px; }
+</style>
+</body>
+</html>
