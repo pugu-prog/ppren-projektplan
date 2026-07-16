@@ -33,57 +33,20 @@ const SCHUELER = [
   { id: "tom_klein", name: "Tom Klein", klasse: "2GSE" },
 ];
 
-// Offizieller Zäitplang 2026/27, aus zeitplang.html — als Startpunkt beim Importéieren
-const OFFIZIELL_1GSE = [
-  { datum: "2026-09-07", titel: "Präsentation PPREN", kategorie: "Event" },
-  { datum: "2026-10-06", titel: "Projektplang erstellen", kategorie: "Event" },
-  { datum: "2026-10-26", titel: "Ziler iwwerpréiwen", kategorie: "Iwwerpréiwung" },
-  { datum: "2026-12-07", titel: "Ofgab Dokumentatioun", kategorie: "Ofgab" },
-  { datum: "2027-01-11", titel: "Start 2. Semester", kategorie: "Event" },
-  { datum: "2027-01-26", titel: "Fachgespréicher 2GSE", kategorie: "Event" },
-  { datum: "2027-02-01", titel: "Ziler iwwerpréiwen", kategorie: "Iwwerpréiwung" },
-  { datum: "2027-03-02", titel: "Prüfung & Ofgab Dokumentatioun", kategorie: "Ofgab" },
-  { datum: "2027-03-08", titel: "Ziler iwwerpréiwen", kategorie: "Iwwerpréiwung" },
-  { datum: "2027-04-26", titel: "Presentatioun & Ofgab Dokumentatioun", kategorie: "Ofgab" },
-  { datum: "2027-05-03", titel: "Fachgespréicher", kategorie: "Event" },
-];
-
-const OFFIZIELL_2GSE = [
-  { datum: "2026-09-07", titel: "Präsentation PPREN", kategorie: "Event" },
-  { datum: "2026-10-06", titel: "Projektplang erstellen", kategorie: "Event" },
-  { datum: "2026-10-26", titel: "Ziler iwwerpréiwen", kategorie: "Iwwerpréiwung" },
-  { datum: "2026-12-07", titel: "Ofgab Dokumentatioun", kategorie: "Ofgab" },
-  { datum: "2027-01-04", titel: "Start 2. Trimester", kategorie: "Event" },
-  { datum: "2027-01-26", titel: "Fachgespréicher 2GSE", kategorie: "Event" },
-  { datum: "2027-02-01", titel: "Ziler iwwerpréiwen", kategorie: "Iwwerpréiwung" },
-  { datum: "2027-03-02", titel: "Prüfung & Ofgab Dokumentatioun", kategorie: "Ofgab" },
-  { datum: "2027-03-08", titel: "Ziler iwwerpréiwen", kategorie: "Iwwerpréiwung" },
-  { datum: "2027-04-12", titel: "Start 3e Trimester", kategorie: "Event" },
-  { datum: "2027-05-03", titel: "Ziler iwwerpréiwen", kategorie: "Iwwerpréiwung" },
-  { datum: "2027-06-21", titel: "Presentatioun & Ofgab Dokumentatioun", kategorie: "Ofgab" },
-  { datum: "2027-06-28", titel: "Fachgespréicher", kategorie: "Event" },
-];
-
 const STATUS_OPTIONEN = ["Ausstoend", "Erreecht", "Verspéit"];
-const KATEGORIE_OPTIONEN = ["Event", "Iwwerpréiwung", "Praktesch Phase", "Ofgab", "Eegen"];
-// Selwecht Faarfpalette wéi zeitplang.html: gelb=event, lila=iwwerpréiwung, teal=praktesch phase
-// "Eegen" = Schüler-derbäigesat, eege markant Faarf (net aus dem offizielle Set)
 const KATEGORIE_FARWEN = { "Event": "#f0ec3a", "Iwwerpréiwung": "#d9d3f5", "Praktesch Phase": "#1ecdc4", "Ofgab": "#a9d92d", "Eegen": "#F67E1B" };
 const KATEGORIE_TEXT = { "Event": "#1c2621", "Iwwerpréiwung": "#1c2621", "Praktesch Phase": "#04342c", "Ofgab": "#1c2621", "Eegen": "#ffffff" };
-// Status weist sech als Rand ëm de Balken
-const STATUS_RAND = { "Ausstoend": "transparent", "Erreecht": "#00A94F", "Verspéit": "#e8483a" };
 
 function uid() { return Date.now().toString(36) + Math.random().toString(36).slice(2, 8); }
 
 function App() {
   const urlParams = new URLSearchParams(window.location.search);
   const urlSchueler = urlParams.get("schueler");
-  const profModusUrl = urlParams.get("prof") === "1";
 
   const [schuelerId, setSchuelerId] = useState(urlSchueler || "");
-  const [gespaart, setGespaart] = useState(!!urlSchueler); // Auswiel-Dropdown ausgeblent, wann iwwer Link komm
-  const [profModus, setProfModus] = useState(profModusUrl);
-  const [meilensteng, setMeilensteng] = useState([]);
+  const [gespaart, setGespaart] = useState(!!urlSchueler);
+  const [eegenMeilensteng, setEegenMeilensteng] = useState([]); // nëmmen eege, editéierbar
+  const [offiziell, setOffiziell] = useState([]); // vum Server, nëmmen liesen
   const [loading, setLoading] = useState(false);
   const [syncing, setSyncing] = useState(false);
   const [error, setError] = useState(null);
@@ -99,16 +62,27 @@ function App() {
     fetch(WEB_APP_URL)
       .then((res) => res.json())
       .then((data) => {
+        let gespäichert = [];
         const eintrag = (data.meilensteng || []).find((m) => m.Schüler === s.name);
         if (eintrag && eintrag["Meilensteng (JSON)"]) {
-          try {
-            setMeilensteng(JSON.parse(eintrag["Meilensteng (JSON)"]));
-          } catch {
-            setMeilensteng([]);
-          }
-        } else {
-          setMeilensteng([]);
+          try { gespäichert = JSON.parse(eintrag["Meilensteng (JSON)"]); } catch { gespäichert = []; }
         }
+        // Eege Meilensteng: alles mat quell "Eegen" (oder ouni quell = alt Format)
+        setEegenMeilensteng(gespäichert.filter((m) => (m.quell || "Eegen") === "Eegen"));
+
+        // Offiziell: Datum/Titel/Kategorie IMMER live vum Server; Status/Notiz
+        // aus der eegener gespäicherter Kopie iwwerhuelen, falls scho do.
+        const offiziellFuerKlass = (data.offiziellZaitplang || [])
+          .filter((m) => m.Klasse === s.klasse)
+          .map((m) => {
+            const refId = "off-" + m.Datum + "-" + m.Titel;
+            const eegKopie = gespäichert.find((g) => g.id === refId);
+            return {
+              id: refId, datum: m.Datum, titel: m.Titel, kategorie: m.Kategorie || "Event",
+              status: eegKopie?.status || "Ausstoend", notiz: eegKopie?.notiz || "", quell: "Offiziell",
+            };
+          });
+        setOffiziell(offiziellFuerKlass);
       })
       .catch(() => setError("Konnte Meilensteng net lueden."))
       .finally(() => setLoading(false));
@@ -116,23 +90,17 @@ function App() {
 
   useEffect(() => { if (schuelerId) lade(schuelerId); }, [schuelerId]);
 
-  const importéieren = () => {
-    if (!currentSchueler) return;
-    const quell = currentSchueler.klasse === "2GSE" ? OFFIZIELL_2GSE : OFFIZIELL_1GSE;
-    if (meilensteng.length > 0 && !confirm("Dat ersetzt déi aktuell Lëscht mat den offizielle Datumer. Weiderfueren?")) return;
-    setMeilensteng(quell.map((q) => ({ id: uid(), datum: q.datum, titel: q.titel, status: "Ausstoend", kategorie: q.kategorie || "Event", notiz: "", quell: "Offiziell" })));
-  };
-
   const updateZeil = (id, patch) =>
-    setMeilensteng((ms) => ms.map((m) => (m.id === id ? { ...m, ...patch } : m)));
+    setEegenMeilensteng((ms) => ms.map((m) => (m.id === id ? { ...m, ...patch } : m)));
   const addZeil = () =>
-    setMeilensteng((ms) => [...ms, { id: uid(), datum: "", titel: "", status: "Ausstoend", kategorie: "Eegen", notiz: "", quell: "Eegen" }]);
+    setEegenMeilensteng((ms) => [...ms, { id: uid(), datum: "", titel: "", status: "Ausstoend", kategorie: "Eegen", notiz: "", quell: "Eegen" }]);
   const removeZeil = (id) =>
-    setMeilensteng((ms) => ms.filter((m) => m.id !== id));
+    setEegenMeilensteng((ms) => ms.filter((m) => m.id !== id));
 
-  const sortéiert = useMemo(
-    () => [...meilensteng].sort((a, b) => (a.datum || "").localeCompare(b.datum || "")),
-    [meilensteng]
+  // Fir d'Uweisung: offiziell (Liesen) + eege (Schreiwen) zesummen, no Datum sortéiert
+  const alleZesummen = useMemo(
+    () => [...offiziell, ...eegenMeilensteng].sort((a, b) => (a.datum || "").localeCompare(b.datum || "")),
+    [offiziell, eegenMeilensteng]
   );
 
   const speicheren = async () => {
@@ -140,10 +108,15 @@ function App() {
     setSyncing(true);
     setError(null);
     try {
+      // Späichert eege Meilensteng KOMPLETT + vun den offizielle just
+      // d'Status/Notiz als kleng "Overlay"-Kopie (Datum/Titel/Kategorie
+      // ginn beim Lueden ëmmer vum Server iwwerschriwwen).
+      const offiziellOverlay = offiziell.map((m) => ({ id: m.id, quell: "Offiziell", status: m.status, notiz: m.notiz }));
+      const zSpäicheren = [...eegenMeilensteng, ...offiziellOverlay];
       const res = await fetch(WEB_APP_URL, {
         method: "POST",
         headers: { "Content-Type": "text/plain;charset=utf-8" },
-        body: JSON.stringify({ typ: "meilensteng", schueler: currentSchueler.name, klasse: currentSchueler.klasse, meilensteng }),
+        body: JSON.stringify({ typ: "meilensteng", schueler: currentSchueler.name, klasse: currentSchueler.klasse, meilensteng: zSpäicheren }),
       });
       const data = await res.json();
       if (!data.ok) throw new Error(data.error || "Onbekannte Feeler");
@@ -157,8 +130,8 @@ function App() {
   };
 
   const csvExport = () => {
-    const kopf = ["Datum", "Titel", "Status", "Notiz"];
-    const zeilen = sortéiert.map((m) => [m.datum, m.titel, m.status, m.notiz || ""]);
+    const kopf = ["Datum", "Titel", "Kategorie", "Quell", "Status", "Notiz"];
+    const zeilen = alleZesummen.map((m) => [m.datum, m.titel, m.kategorie, m.quell, m.status, m.notiz || ""]);
     const csv = [kopf, ...zeilen].map((r) => r.map((c) => `"${String(c).replace(/"/g, '""')}"`).join(";")).join("\n");
     const blob = new Blob(["\ufeff" + csv], { type: "text/csv;charset=utf-8;" });
     const url = URL.createObjectURL(blob);
@@ -167,16 +140,6 @@ function App() {
     a.download = `Meilensteng_${currentSchueler?.name || ""}.csv`;
     a.click();
     URL.revokeObjectURL(url);
-  };
-
-  // Timeline-Skala: Schouljoer September–Juli
-  const zeitraumStart = new Date("2026-09-01").getTime();
-  const zeitraumEnde = new Date("2027-07-31").getTime();
-  const prozentFuer = (datum) => {
-    if (!datum) return null;
-    const t = new Date(datum).getTime();
-    if (isNaN(t)) return null;
-    return Math.min(100, Math.max(0, ((t - zeitraumStart) / (zeitraumEnde - zeitraumStart)) * 100));
   };
 
   return (
@@ -193,7 +156,7 @@ function App() {
           {gespaart && currentSchueler ? (
             <div className="gespaart-row">
               <span className="gespaart-label">👤 {currentSchueler.name} ({currentSchueler.klasse})</span>
-              <button className="link-btn-klein" onClick={() => { setGespaart(false); }}>Net dee/déi hei? Wiesselen</button>
+              <button className="link-btn-klein" onClick={() => setGespaart(false)}>Net dee/déi hei? Wiesselen</button>
             </div>
           ) : (
             <label className="field">
@@ -204,10 +167,6 @@ function App() {
               </select>
             </label>
           )}
-          <label className="prof-toggle">
-            <input type="checkbox" checked={profModus} onChange={(e) => setProfModus(e.target.checked)} />
-            <span>👩‍🏫 Prof-Modus (Kategorien änneren, offiziell Datumer réckelen)</span>
-          </label>
         </section>
 
         {loading && <div className="empty">Lädt…</div>}
@@ -219,46 +178,44 @@ function App() {
               <div className="card-head">
                 <h2>Meilensteng</h2>
                 <div style={{ display: "flex", gap: "8px" }}>
-                  <a className="btn-gen" href={`gantt.html?schueler=${schuelerId}${profModus ? "&prof=1" : ""}`}>📊 Gantt-Chart uweisen →</a>
-                  <button className="btn-gen" onClick={importéieren}>📥 Vum offiziellen Zäitplang importéieren</button>
+                  <a className="btn-gen" href={`gantt.html?schueler=${schuelerId}`}>📊 Gantt-Chart uweisen →</a>
                   <button className="btn-gen" onClick={csvExport}>⬇️ CSV</button>
                 </div>
               </div>
-              {sortéiert.length === 0 && (
-                <p className="notice">Nach keng Meilensteng. Importéier de offiziellen Zäitplang oder setz manuell Zeilen derbäi.</p>
-              )}
+              <p className="hint">🔒 Offiziell Meilensteng (gro Sperr-Symbol) kommen automatesch vum Prof — kënne just vun him geännert ginn. Deng eege Meilensteng (orange) kanns du fräi bearbechten.</p>
               <div className="tabelle-wrap">
                 <table className="tabelle">
                   <thead>
                     <tr><th>Datum</th><th>Titel</th><th>Kategorie</th><th>Status</th><th>Notiz</th><th></th></tr>
                   </thead>
                   <tbody>
-                    {meilensteng.map((m) => {
-                      const quell = m.quell || "Eegen";
-                      const datumGespaart = !profModus && quell === "Offiziell";
-                      const kategorieGespaart = !profModus;
+                    {alleZesummen.map((m) => {
+                      const istOffiziell = m.quell === "Offiziell";
                       return (
-                        <tr key={m.id}>
+                        <tr key={m.id} className={istOffiziell ? "zeil-gespaart" : ""}>
                           <td>
-                            <input type="date" className="input input-date" value={m.datum} disabled={datumGespaart} title={datumGespaart ? "Offiziellt Datum — nëmmen de Prof kann dat réckelen" : ""} onChange={(e) => updateZeil(m.id, { datum: e.target.value })} />
-                          </td>
-                          <td><input className="input" placeholder="Titel vum Meilensteng" value={m.titel} onChange={(e) => updateZeil(m.id, { titel: e.target.value })} /></td>
-                          <td>
-                            {kategorieGespaart ? (
-                              <span className="kategorie-badge" style={{ background: KATEGORIE_FARWEN[m.kategorie], color: KATEGORIE_TEXT[m.kategorie] }}>{m.kategorie}</span>
+                            {istOffiziell ? (
+                              <span className="datum-gespaart" title="Nëmmen de Prof kann dëst Datum réckelen">🔒 {m.datum}</span>
                             ) : (
-                              <select className="select status-select" style={{ background: KATEGORIE_FARWEN[m.kategorie], color: KATEGORIE_TEXT[m.kategorie] }} value={m.kategorie || "Event"} onChange={(e) => updateZeil(m.id, { kategorie: e.target.value })}>
-                                {KATEGORIE_OPTIONEN.map((k) => <option key={k} value={k}>{k}</option>)}
-                              </select>
+                              <input type="date" className="input input-date" value={m.datum} onChange={(e) => updateZeil(m.id, { datum: e.target.value })} />
                             )}
+                          </td>
+                          <td>
+                            {istOffiziell ? <span className="titel-gespaart">{m.titel}</span> :
+                              <input className="input" placeholder="Titel vum Meilensteng" value={m.titel} onChange={(e) => updateZeil(m.id, { titel: e.target.value })} />}
+                          </td>
+                          <td>
+                            <span className="kategorie-badge" style={{ background: KATEGORIE_FARWEN[m.kategorie], color: KATEGORIE_TEXT[m.kategorie] }}>{m.kategorie}</span>
                           </td>
                           <td>
                             <select className="select" value={m.status} onChange={(e) => updateZeil(m.id, { status: e.target.value })}>
                               {STATUS_OPTIONEN.map((s) => <option key={s} value={s}>{s}</option>)}
                             </select>
                           </td>
-                          <td><input className="input" placeholder="optional" value={m.notiz || ""} onChange={(e) => updateZeil(m.id, { notiz: e.target.value })} /></td>
-                          <td>{(profModus || quell === "Eegen") && <button className="icon-btn" onClick={() => removeZeil(m.id)}>✕</button>}</td>
+                          <td>
+                            <input className="input" placeholder="optional" value={m.notiz || ""} onChange={(e) => updateZeil(m.id, { notiz: e.target.value })} />
+                          </td>
+                          <td>{!istOffiziell && <button className="icon-btn" onClick={() => removeZeil(m.id)}>✕</button>}</td>
                         </tr>
                       );
                     })}
@@ -292,24 +249,21 @@ body { margin: 0; font-family: -apple-system, "Segoe UI", Inter, Arial, sans-ser
 .brand-sub { font-size: 13px; opacity: 0.85; }
 .content { max-width: 820px; margin: 0 auto; padding: 24px 20px 60px; }
 .card { background: #fff; border: 1px solid #e2e8e3; border-radius: 12px; padding: 18px 20px; margin-bottom: 16px; }
-.card-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px; flex-wrap: wrap; gap: 8px; }
+.card-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px; flex-wrap: wrap; gap: 8px; }
 .card h2 { font-size: 15px; margin: 0; color: #00A94F; }
 .field { display: flex; flex-direction: column; gap: 4px; }
-.gespaart-row { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 8px; margin-bottom: 4px; }
+.gespaart-row { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 8px; }
 .gespaart-label { font-size: 14px; font-weight: 700; color: #294f3c; }
 .link-btn-klein { font-size: 11px; color: #93a098; background: none; border: none; text-decoration: underline; cursor: pointer; }
-.prof-toggle { display: flex; align-items: center; gap: 7px; font-size: 12px; color: #55625a; margin-top: 12px; padding-top: 12px; border-top: 1px solid #eef1ef; cursor: pointer; }
 .kategorie-badge { display: inline-block; font-size: 11.5px; font-weight: 700; padding: 5px 10px; border-radius: 20px; }
 .field-label { font-size: 12.5px; font-weight: 700; color: #294f3c; }
 .select, .input { border: 1px solid #c9d5cd; border-radius: 7px; padding: 8px 10px; font-size: 13.5px; font-family: inherit; background: #fff; color: #1c2621; }
-.status-select { font-weight: 700; border: none; }
-.notice { background: #fbe8c6; color: #8a5a12; font-size: 12.5px; padding: 10px 14px; border-radius: 8px; margin: 0; line-height: 1.5; }
-.legend { display: flex; gap: 14px; flex-wrap: wrap; margin-bottom: 12px; font-size: 11.5px; color: #55625a; }
-.legend-item { display: flex; align-items: center; gap: 5px; }
-.legend-dot { width: 10px; height: 10px; border-radius: 50%; display: inline-block; }
+.hint { font-size: 11.5px; color: #93a098; margin: 0 0 10px; line-height: 1.5; }
+.zeil-gespaart { background: #fafbfa; }
+.datum-gespaart, .titel-gespaart { font-size: 13px; color: #55625a; }
 .empty { padding: 30px; text-align: center; color: #6d7d74; font-size: 14px; background: #fff; border-radius: 12px; border: 1px solid #e2e8e3; }
 .error { color: #8a2b1f; }
-.btn-gen { font-size: 11.5px; font-weight: 700; color: #00A94F; background: #eef3ef; border: 1px solid #c9d5cd; padding: 6px 12px; border-radius: 7px; cursor: pointer; }
+.btn-gen { font-size: 11.5px; font-weight: 700; color: #00A94F; background: #eef3ef; border: 1px solid #c9d5cd; padding: 6px 12px; border-radius: 7px; cursor: pointer; text-decoration: none; }
 .tabelle-wrap { overflow-x: auto; }
 .tabelle { width: 100%; border-collapse: collapse; }
 .tabelle th { text-align: left; font-size: 11px; text-transform: uppercase; color: #6d7d74; padding: 6px 8px; border-bottom: 1px solid #eef1ef; }
@@ -321,16 +275,6 @@ body { margin: 0; font-family: -apple-system, "Segoe UI", Inter, Arial, sans-ser
 .btn { font-size: 13.5px; font-weight: 700; padding: 10px 18px; border-radius: 8px; border: none; cursor: pointer; }
 .btn-primary { background: #00A94F; color: #fff; }
 .btn-primary:disabled { background: #b7c6bd; cursor: not-allowed; }
-.gantt { padding: 4px 0 0; }
-.gantt-monatslinie { position: relative; height: 20px; border-bottom: 1px solid #eef1ef; margin-bottom: 6px; margin-left: 190px; }
-.gantt-mo { position: absolute; font-size: 10.5px; color: #93a098; transform: translateX(-50%); }
-.gantt-row { display: flex; align-items: center; gap: 10px; padding: 6px 0; border-bottom: 1px solid #f7f8f7; }
-.gantt-row-label { width: 180px; flex: 0 0 180px; display: flex; flex-direction: column; gap: 1px; overflow: hidden; }
-.gantt-titel { font-size: 12.5px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.gantt-datum { font-size: 10.5px; color: #93a098; }
-.gantt-track { position: relative; flex: 1; height: 22px; background: #f7f8f7; border-radius: 5px; }
-.gantt-bar { position: absolute; top: 2px; height: 18px; padding: 0 10px; border-radius: 9px; display: flex; align-items: center; white-space: nowrap; color: #fff; font-size: 11px; font-weight: 700; box-shadow: 0 1px 2px rgba(0,0,0,0.12); }
-.gantt-bar-label { max-width: 160px; overflow: hidden; text-overflow: ellipsis; }
 .toast { position: fixed; bottom: 22px; left: 50%; transform: translateX(-50%); background: #1c2621; color: #fff; padding: 10px 18px; border-radius: 8px; font-size: 13px; }
 </style>
 </body>
