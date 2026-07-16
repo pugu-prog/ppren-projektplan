@@ -28,6 +28,14 @@
   .card-label { font-weight: 700; font-size: 14.5px; }
   .card-desc { font-size: 12px; color: #6d7d74; line-height: 1.4; }
   .footer-note { font-size: 11.5px; color: #93a098; text-align: center; margin-top: 36px; line-height: 1.6; }
+  .status-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(210px, 1fr)); gap: 8px; }
+  .status-card { display: flex; align-items: center; gap: 8px; background: #fff; border: 1px solid #e2e8e3; border-radius: 10px; padding: 10px 14px; }
+  .status-badge { font-size: 15px; }
+  .status-modul { font-size: 12.5px; font-weight: 700; color: #1c2621; }
+  .status-done { border-left: 3px solid #00A94F; }
+  .status-partial { border-left: 3px solid #F67E1B; }
+  .status-open { border-left: 3px solid #93a098; }
+  .status-legend-note { font-size: 11px; color: #93a098; margin-top: 8px; }
 </style>
 </head>
 <body>
@@ -43,6 +51,30 @@
   <main class="content">
     <section class="rubrik">
       <div class="rubrik-head">
+        <span class="rubrik-icon" style="background:#eef3ef;">📋</span>
+        <div>
+          <div class="rubrik-titel">Status vum Projet</div>
+          <div class="rubrik-sub">Wat ass scho gemaach, wat feelt nach — no der Lastenheft (M1-M11)</div>
+        </div>
+      </div>
+      <div class="status-grid">
+        <div class="status-card status-done"><span class="status-badge">✅</span><span class="status-modul">M2 · Projektplang</span></div>
+        <div class="status-card status-done"><span class="status-badge">✅</span><span class="status-modul">M3 · Suivi</span></div>
+        <div class="status-card status-done"><span class="status-badge">✅</span><span class="status-modul">M5 · Wochenberichter</span></div>
+        <div class="status-card status-done"><span class="status-badge">✅</span><span class="status-modul">M6 · Bewertung</span></div>
+        <div class="status-card status-partial"><span class="status-badge">⚠️</span><span class="status-modul">M9 · Planungstool</span></div>
+        <div class="status-card status-partial"><span class="status-badge">⚠️</span><span class="status-modul">M7 · Notenexport</span></div>
+        <div class="status-card status-partial"><span class="status-badge">⚠️</span><span class="status-modul">M8 · Termine/Erënnerungen</span></div>
+        <div class="status-card status-partial"><span class="status-badge">⚠️</span><span class="status-modul">M11 · Auto-Bemierkung</span></div>
+        <div class="status-card status-open"><span class="status-badge">❌</span><span class="status-modul">M1 · Login/Zougrëff</span></div>
+        <div class="status-card status-open"><span class="status-badge">❌</span><span class="status-modul">M4 · Dokumentatioun</span></div>
+        <div class="status-card status-open"><span class="status-badge">❌</span><span class="status-modul">M10 · Fachgespréicher</span></div>
+      </div>
+      <p class="status-legend-note">✅ Fäerdeg &nbsp;·&nbsp; ⚠️ Ugefaangen/deelweis &nbsp;·&nbsp; ❌ Nach net ugepaakt</p>
+    </section>
+
+    <section class="rubrik">
+      <div class="rubrik-head">
         <span class="rubrik-icon rubrik-icon-proffen">👩‍🏫</span>
         <div>
           <div class="rubrik-titel">Fir d'Proffen</div>
@@ -52,6 +84,7 @@
       <div class="grid">
         <a class="card" href="https://pugu-prog.github.io/ppren-projektplan/bewertung.html" target="_blank"><span class="card-icon">📊</span><span class="card-label">Bewertungsformulaire</span><span class="card-desc">Punkten, Remarquen a Kommentar pro Periode aginn</span></a>
         <a class="card" href="https://pugu-prog.github.io/ppren-projektplan/wochenberichte-korrigeieren.html" target="_blank"><span class="card-icon">📋</span><span class="card-label">Wochenberichter korrigéieren</span><span class="card-desc">Punkten a Kommentar pro wéchentlechem Bericht</span></a>
+        <a class="card" href="https://pugu-prog.github.io/ppren-projektplan/zeitplang-verwalten.html" target="_blank"><span class="card-icon">🔒</span><span class="card-label">Zäitplang verwalten</span><span class="card-desc">Zentral offiziell Meilensteng änneren (nëmmen Proffen!)</span></a>
         <a class="card" href="https://pugu-prog.github.io/ppren-projektplan/dashboard.html" target="_blank"><span class="card-icon">📈</span><span class="card-label">Lehrer-Dashboard</span><span class="card-desc">Iwwersiicht iwwer all Schülerprojeten</span></a>
         <a class="card" href="https://pugu-prog.github.io/ppren-projektplan/noten.html" target="_blank"><span class="card-icon">🧮</span><span class="card-label">Notentabell</span><span class="card-desc">All Noten nieft enee, als CSV/Excel exportéierbar</span></a>
         <a class="card" href="https://pugu-prog.github.io/ppren-projektplan/zeitplang.html" target="_blank"><span class="card-icon">🗓️</span><span class="card-label">Zäitplang 26/27</span><span class="card-desc">Iwwersiicht iwwer d'Etappen a Fristen fir 1GSE a 2GSE</span></a>
