@@ -37,6 +37,15 @@ const KATEGORIE_OPTIONEN = ["Event", "Iwwerpréiwung", "Praktesch Phase", "Ofgab
 const KATEGORIE_FARWEN = { "Event": "#f0ec3a", "Iwwerpréiwung": "#d9d3f5", "Praktesch Phase": "#1ecdc4", "Ofgab": "#a9d92d", "Eegen": "#F67E1B" };
 const KATEGORIE_TEXT = { "Event": "#1c2621", "Iwwerpréiwung": "#1c2621", "Praktesch Phase": "#04342c", "Ofgab": "#1c2621", "Eegen": "#ffffff" };
 const STATUS_RAND = { "Ausstoend": "transparent", "Erreecht": "#00A94F", "Verspéit": "#e8483a" };
+const WB_FARWEN = { "Bewäert": "#00A94F", "Agereecht": "#4576B5", "Verpasst": "#e8483a", "Entschëllegt": "#93a098" };
+
+// Datumer aus "dd.mm.yyyy" oder "dd.mm.yyyy – dd.mm.yyyy" (Wochenbericht-Format) ekstrahéieren
+function ersteDatumVunWoche(wocheLabel) {
+  if (!wocheLabel) return null;
+  const m = wocheLabel.match(/(\d{2})\.(\d{2})\.(\d{4})/);
+  if (!m) return null;
+  return `${m[3]}-${m[2]}-${m[1]}`;
+}
 
 function App() {
   const urlParams = new URLSearchParams(window.location.search);
@@ -45,6 +54,7 @@ function App() {
   const [schuelerId, setSchuelerId] = useState(urlSchueler || "");
   const [gespaart, setGespaart] = useState(!!urlSchueler);
   const [meilensteng, setMeilensteng] = useState([]);
+  const [wochenberichte, setWochenberichte] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
 
@@ -58,12 +68,21 @@ function App() {
     fetch(WEB_APP_URL)
       .then((res) => res.json())
       .then((data) => {
+        let gespäichert = [];
         const eintrag = (data.meilensteng || []).find((m) => m.Schüler === s.name);
         if (eintrag && eintrag["Meilensteng (JSON)"]) {
-          try { setMeilensteng(JSON.parse(eintrag["Meilensteng (JSON)"])); } catch { setMeilensteng([]); }
-        } else {
-          setMeilensteng([]);
+          try { gespäichert = JSON.parse(eintrag["Meilensteng (JSON)"]); } catch { gespäichert = []; }
         }
+        const eegen = gespäichert.filter((m) => (m.quell || "Eegen") === "Eegen");
+        const offiziell = (data.offiziellZaitplang || [])
+          .filter((m) => m.Klasse === s.klasse)
+          .map((m) => {
+            const refId = "off-" + m.Datum + "-" + m.Titel;
+            const eegKopie = gespäichert.find((g) => g.id === refId);
+            return { id: refId, datum: m.Datum, titel: m.Titel, kategorie: m.Kategorie || "Event", status: eegKopie?.status || "Ausstoend", quell: "Offiziell" };
+          });
+        setMeilensteng([...offiziell, ...eegen]);
+        setWochenberichte((data.wochenberichte || []).filter((w) => w.Schüler === s.name));
       })
       .catch(() => setError("Konnte Meilensteng net lueden."))
       .finally(() => setLoading(false));
@@ -72,6 +91,11 @@ function App() {
   const sortéiert = useMemo(
     () => [...meilensteng].filter((m) => m.datum).sort((a, b) => a.datum.localeCompare(b.datum)),
     [meilensteng]
+  );
+
+  const wbPunkten = useMemo(
+    () => wochenberichte.map((w) => ({ ...w, isoDatum: ersteDatumVunWoche(w.Woche) })).filter((w) => w.isoDatum),
+    [wochenberichte]
   );
 
   const zeitraumStart = new Date("2026-09-01").getTime();
@@ -121,10 +145,13 @@ function App() {
               ))}
               <span className="legend-item"><span className="legend-dot legend-dot-erreecht" />Erreecht</span>
               <span className="legend-item"><span className="legend-dot legend-dot-verspéit" />Verspéit</span>
+              <span className="legend-item"><span className="legend-punkt" style={{ background: WB_FARWEN.Bewäert }} />Wochebericht bewäert</span>
+              <span className="legend-item"><span className="legend-punkt" style={{ background: WB_FARWEN.Agereecht }} />Wochebericht agereecht</span>
+              <span className="legend-item"><span className="legend-punkt" style={{ background: WB_FARWEN.Verpasst }} />Wochebericht verpasst</span>
             </div>
 
-            {sortéiert.length === 0 ? (
-              <p className="notice">Nach keng Meilensteng fir dëse Schüler. <a href="planung.html">Am Planungstool derbäisetzen →</a></p>
+            {sortéiert.length === 0 && wbPunkten.length === 0 ? (
+              <p className="notice">Nach keng Meilensteng fir dëse Schüler. <a href={`planung.html?schueler=${schuelerId}`}>Am Planungstool derbäisetzen →</a></p>
             ) : (
               <div className="gantt">
                 <div className="gantt-monatslinie">
@@ -132,10 +159,11 @@ function App() {
                     <span key={mo} style={{ left: `${(i / 11) * 100}%` }} className="gantt-mo">{mo}</span>
                   ))}
                 </div>
+
                 {sortéiert.map((m, idx) => (
                   <div key={idx} className="gantt-row">
                     <div className="gantt-row-label">
-                      <span className="gantt-titel">{m.titel || "(ouni Titel)"}</span>
+                      <span className="gantt-titel">{m.quell === "Offiziell" ? "🔒 " : ""}{m.titel || "(ouni Titel)"}</span>
                       <span className="gantt-datum">{new Date(m.datum).toLocaleDateString("de-DE", { day: "2-digit", month: "2-digit", year: "numeric" })}</span>
                     </div>
                     <div className="gantt-track">
@@ -153,6 +181,25 @@ function App() {
                     </div>
                   </div>
                 ))}
+
+                {wbPunkten.length > 0 && (
+                  <div className="gantt-row gantt-row-wb">
+                    <div className="gantt-row-label">
+                      <span className="gantt-titel">📅 Wochenberichter</span>
+                      <span className="gantt-datum">{wbPunkten.length} ofginn</span>
+                    </div>
+                    <div className="gantt-track gantt-track-wb">
+                      {wbPunkten.map((w, i) => (
+                        <div
+                          key={i}
+                          className="gantt-wb-punkt"
+                          style={{ left: `${prozentFuer(w.isoDatum)}%`, background: WB_FARWEN[w.Status] || "#888" }}
+                          title={`${w.Woche} — ${w.Status}`}
+                        />
+                      ))}
+                    </div>
+                  </div>
+                )}
               </div>
             )}
           </section>
@@ -188,18 +235,22 @@ body { margin: 0; font-family: -apple-system, "Segoe UI", Inter, Arial, sans-ser
 .legend { display: flex; gap: 14px; flex-wrap: wrap; margin-bottom: 16px; font-size: 11.5px; color: #55625a; }
 .legend-item { display: flex; align-items: center; gap: 5px; }
 .legend-dot { width: 10px; height: 10px; border-radius: 50%; display: inline-block; }
+.legend-punkt { width: 8px; height: 8px; border-radius: 50%; display: inline-block; }
 .legend-dot-erreecht { background: #fff; border: 2px solid #00A94F; }
 .legend-dot-verspéit { background: #fff; border: 2px solid #e8483a; }
 .gantt { padding: 4px 0 0; }
 .gantt-monatslinie { position: relative; height: 20px; border-bottom: 1px solid #eef1ef; margin-bottom: 6px; margin-left: 190px; }
 .gantt-mo { position: absolute; font-size: 10.5px; color: #93a098; transform: translateX(-50%); }
 .gantt-row { display: flex; align-items: center; gap: 10px; padding: 7px 0; border-bottom: 1px solid #f7f8f7; }
+.gantt-row-wb { border-top: 2px solid #eef1ef; margin-top: 6px; padding-top: 12px; }
 .gantt-row-label { width: 180px; flex: 0 0 180px; display: flex; flex-direction: column; gap: 1px; overflow: hidden; }
 .gantt-titel { font-size: 12.5px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .gantt-datum { font-size: 10.5px; color: #93a098; }
 .gantt-track { position: relative; flex: 1; height: 24px; background: #f7f8f7; border-radius: 5px; }
+.gantt-track-wb { background: #fafbfa; }
 .gantt-bar { position: absolute; top: 2px; height: 20px; padding: 0 10px; border-radius: 10px; display: flex; align-items: center; white-space: nowrap; font-size: 11px; font-weight: 700; box-shadow: 0 1px 2px rgba(0,0,0,0.12); }
 .gantt-bar-label { max-width: 160px; overflow: hidden; text-overflow: ellipsis; }
+.gantt-wb-punkt { position: absolute; top: 8px; width: 8px; height: 8px; border-radius: 50%; transform: translateX(-50%); cursor: pointer; box-shadow: 0 0 0 2px #fff; }
 </style>
 </body>
 </html>
