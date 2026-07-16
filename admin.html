@@ -25,6 +25,14 @@
   .card-label { font-weight: 700; font-size: 14.5px; }
   .card-desc { font-size: 12px; color: #6d7d74; line-height: 1.4; }
   .footer-note { font-size: 11.5px; color: #93a098; text-align: center; margin-top: 36px; line-height: 1.6; }
+  .status-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(210px, 1fr)); gap: 8px; }
+  .status-card { display: flex; align-items: center; gap: 8px; background: #fff; border: 1px solid #e2e8e3; border-radius: 10px; padding: 10px 14px; }
+  .status-badge { font-size: 15px; }
+  .status-modul { font-size: 12.5px; font-weight: 700; color: #1c2621; }
+  .status-done { border-left: 3px solid #00A94F; }
+  .status-partial { border-left: 3px solid #F67E1B; }
+  .status-open { border-left: 3px solid #93a098; }
+  .status-legend-note { font-size: 11px; color: #93a098; margin-top: 8px; }
 </style>
 </head>
 <body>
@@ -36,6 +44,30 @@
   <p class="warn">⚠️ Dës Säit ass net verlinkt vun links.html a gëtt net un Kolleegen weiderginn.</p>
 
   <main class="content">
+    <section class="rubrik">
+      <div class="rubrik-head">
+        <span class="rubrik-icon">📋</span>
+        <div>
+          <div class="rubrik-titel">Status vum Projet</div>
+          <div class="rubrik-sub">Wat ass scho gemaach, wat feelt nach — no der Lastenheft (M1-M11)</div>
+        </div>
+      </div>
+      <div class="status-grid">
+        <div class="status-card status-done"><span class="status-badge">✅</span><span class="status-modul">M2 · Projektplang</span></div>
+        <div class="status-card status-done"><span class="status-badge">✅</span><span class="status-modul">M3 · Suivi</span></div>
+        <div class="status-card status-done"><span class="status-badge">✅</span><span class="status-modul">M5 · Wochenberichter</span></div>
+        <div class="status-card status-done"><span class="status-badge">✅</span><span class="status-modul">M6 · Bewertung</span></div>
+        <div class="status-card status-partial"><span class="status-badge">⚠️</span><span class="status-modul">M9 · Planungstool</span></div>
+        <div class="status-card status-partial"><span class="status-badge">⚠️</span><span class="status-modul">M7 · Notenexport</span></div>
+        <div class="status-card status-partial"><span class="status-badge">⚠️</span><span class="status-modul">M8 · Termine/Erënnerungen</span></div>
+        <div class="status-card status-partial"><span class="status-badge">⚠️</span><span class="status-modul">M11 · Auto-Bemierkung</span></div>
+        <div class="status-card status-open"><span class="status-badge">❌</span><span class="status-modul">M1 · Login/Zougrëff</span></div>
+        <div class="status-card status-open"><span class="status-badge">❌</span><span class="status-modul">M4 · Dokumentatioun</span></div>
+        <div class="status-card status-open"><span class="status-badge">❌</span><span class="status-modul">M10 · Fachgespréicher</span></div>
+      </div>
+      <p class="status-legend-note">✅ Fäerdeg &nbsp;·&nbsp; ⚠️ Ugefaangen/deelweis &nbsp;·&nbsp; ❌ Nach net ugepaakt</p>
+    </section>
+
     <section class="rubrik">
       <div class="rubrik-head">
         <span class="rubrik-icon">👩‍🏫</span>
