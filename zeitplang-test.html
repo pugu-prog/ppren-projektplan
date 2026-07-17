@@ -1,0 +1,219 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>PPREN – Zäitplang 2026/2027 (TEST)</title>
+<style>
+  :root{
+    --brand:#00A94F;
+    --orange:#F67E1B;
+    --yellow:#f0ec3a;
+    --lavender:#d9d3f5;
+    --teal:#1ecdc4;
+    --green:#a9d92d;
+    --black:#1c2621;
+    --red:#e8483a;
+    --blue:#5b9bd5;
+    --purple:#a89be0;
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; font-family: -apple-system, "Segoe UI", Inter, Arial, sans-serif; color: var(--black); background: #f6f8f6; }
+  .hero { background: #ffffff; border-bottom: 1px solid #e2e8e3; padding: 32px 22px 26px; text-align: center; }
+  .hero-logos { display: flex; align-items: center; justify-content: center; gap: 24px; margin-bottom: 14px; flex-wrap: wrap; }
+  .hero-logos img { height: 68px; width: auto; }
+  .hero-bar { height: 3px; width: 90px; background: var(--orange); margin: 0 auto 14px; border-radius: 2px; }
+  .hero h1 { font-size: 20px; font-weight: 800; letter-spacing: 0.02em; margin: 0 0 4px; }
+  .hero p { font-size: 13.5px; color: #55625a; margin: 0; }
+
+  .tabs { display: flex; justify-content: center; gap: 8px; margin: 20px auto 4px; }
+  .tab-btn {
+    border: 1px solid #c9d5cd; background: #fff; color: #55625a;
+    font-weight: 700; font-size: 13.5px; padding: 9px 20px; border-radius: 20px; cursor: pointer;
+  }
+  .tab-btn.active { background: var(--brand); border-color: var(--brand); color: #fff; }
+
+  .subtitle { text-align: center; color: #6d7d74; font-size: 12.5px; margin: 10px 0 18px; }
+
+  .legend { display:flex; gap:18px; justify-content:center; flex-wrap:wrap; margin-bottom:22px; font-size:11.5px; color:#55625a; }
+  .legend div { display:flex; align-items:center; gap:6px; }
+  .dot { width:12px; height:12px; border-radius:50%; display:inline-block; }
+
+  .scroll-wrap { overflow-x: auto; padding: 0 0 18px; }
+  .track { display: flex; align-items: stretch; min-width: max-content; padding: 0 20px; }
+  .col { width: 158px; flex: 0 0 158px; display: flex; flex-direction: column; align-items: center; }
+  .icons { display:flex; gap:6px; height:16px; align-items:center; justify-content:center; margin-bottom:6px; }
+  .icon { width:13px; height:13px; border-radius:50%; }
+  .icon.student { background: var(--yellow); border:1px solid #c9c400; }
+  .icon.teacher { background: var(--blue); border:1px solid #3f7fb5; }
+
+  .bubble { border-radius:20px; padding:8px; text-align:center; font-size:11px; font-weight:700; height:74px; width:94%; display:flex; align-items:center; justify-content:center; line-height:1.2; }
+  .bubble.event { background: var(--yellow); }
+  .bubble.review { background: var(--lavender); }
+  .bubble.practice { background: var(--teal); color:#fff; }
+  .bubble.ofgab { background: var(--green); }
+
+  .connector { width:1px; height:22px; border-left:1px dashed #b7c2ba; margin:0 auto; }
+  .axis { position: relative; width:100%; height:3px; background:var(--black); margin:2px 0; }
+  .axis-dot { width:15px; height:15px; border-radius:50%; position:absolute; top:50%; left:50%; transform:translate(-50%,-50%); }
+  .axis-dot.black { background: var(--black); }
+  .axis-dot.red { background: var(--red); }
+
+  .sub-row { display:flex; align-items:center; gap:5px; font-size:10px; margin-top:10px; height:14px; white-space:nowrap; color:#55625a; }
+  .sub-dot { width:9px; height:9px; border-radius:50%; flex:0 0 9px; }
+  .sub-dot.problem { background: var(--purple); }
+  .sub-dot.verstark { background: var(--yellow); border:1px solid #c9c400; }
+
+  .date { background: var(--green); border-radius:14px; padding:7px 6px; font-size:11px; font-weight:700; text-align:center; margin-top:9px; min-width:78px; min-height:14px; }
+
+  .badge { text-align: center; margin: 24px 0 40px; }
+  .badge span { padding: 12px 40px; border-radius: 12px; font-weight: 800; font-size: 20px; color: #fff; }
+
+  .back { display:block; text-align:center; font-size:13px; color:var(--brand); text-decoration:none; font-weight:700; margin-top: -10px; padding-bottom: 30px; }
+  .lade-hinweis { text-align:center; color:#6d7d74; font-size:13px; padding: 40px 0; }
+  .prof-link { display:block; text-align:center; font-size:11.5px; color:#93a098; margin-top: -20px; padding-bottom: 20px; }
+</style>
+</head>
+<body>
+  <header class="hero">
+    <div class="hero-logos">
+      <img src="LogoSE_weisHintergrund.png" alt="Sciences Environnementales" />
+      <img src="LTEtt_Logo.png" alt="Lycée Technique d'Ettelbruck" />
+    </div>
+    <div class="hero-bar"></div>
+    <h1>Zäitplang PPREN</h1>
+    <p>Sciences Environnementales · Schouljoer 2026/2027</p>
+  </header>
+
+  <div class="tabs">
+    <button class="tab-btn active" id="btn-1gse">1GSE (Semester)</button>
+    <button class="tab-btn" id="btn-2gse">2GSE (Trimester)</button>
+  </div>
+  <div class="subtitle">De Projet ass ëmmer Méindes &amp; Dënschdes</div>
+
+  <div class="legend">
+    <div><span class="dot" style="background:var(--yellow)"></span> Event</div>
+    <div><span class="dot" style="background:var(--lavender)"></span> Iwwerpréiwung</div>
+    <div><span class="dot" style="background:var(--teal)"></span> Praktesch Phase</div>
+    <div><span class="dot" style="background:var(--green)"></span> Ofgab</div>
+  </div>
+
+  <div id="ladeHinweis" class="lade-hinweis">Lädt…</div>
+  <div class="scroll-wrap"><div class="track" id="track"></div></div>
+  <div class="badge" id="badge" style="display:none;"><span>1GSE</span></div>
+
+  <a class="prof-link" href="zeitplang-verwalten.html">🔒 Als Prof änneren →</a>
+  <a class="back" href="links.html">← Zréck op d'Haaptsäit</a>
+
+<script>
+const WEB_APP_URL = "https://script.google.com/macros/s/AKfycbzfyThho8MevoyfSz7NsQ1YxZJO4E-f61GYYzqZyHACIHzxR3bm7SHCwVUkCBJrAEvJ/exec";
+
+const MONATER = ["Jan.","Feb.","Mär.","Apr.","Mai","Jun.","Jul.","Aug.","Sep.","Okt.","Nov.","Dez."];
+function formatDatum(isoDatum) {
+  const [j, m, t] = isoDatum.split("-").map(Number);
+  return `${t} ${MONATER[m - 1]} ${String(j).slice(2)}`;
+}
+
+// Kategorie -> Bubble-Typ + Achs-Punkt/Ënner-Zeil (visuell no bei der urspréngleche Gestaltung)
+const KATEGORIE_ZU_TYP = { "Event": "event", "Iwwerpréiwung": "review", "Praktesch Phase": "practice", "Ofgab": "ofgab" };
+const KATEGORIE_ZU_DOT = { "Event": "black", "Iwwerpréiwung": "red", "Praktesch Phase": null, "Ofgab": "black" };
+const KATEGORIE_ZU_SUB = { "Event": "problem", "Iwwerpréiwung": "verstark", "Praktesch Phase": null, "Ofgab": "problem" };
+
+let DATA_1GSE = [];
+let DATA_2GSE = [];
+
+function render(data){
+  const track = document.getElementById('track');
+  track.innerHTML = '';
+  data.forEach(item=>{
+    const col = document.createElement('div');
+    col.className = 'col';
+
+    const icons = document.createElement('div');
+    icons.className='icons';
+    ['s','t'].forEach(i=>{
+      const d = document.createElement('span');
+      d.className = 'icon ' + (i==='s'?'student':'teacher');
+      icons.appendChild(d);
+    });
+    col.appendChild(icons);
+
+    const bubble = document.createElement('div');
+    bubble.className = 'bubble ' + item.type;
+    bubble.textContent = item.label;
+    col.appendChild(bubble);
+
+    const conn = document.createElement('div');
+    conn.className='connector';
+    col.appendChild(conn);
+
+    const axis = document.createElement('div');
+    axis.className='axis';
+    if(item.dot){
+      const d = document.createElement('div');
+      d.className='axis-dot '+item.dot;
+      axis.appendChild(d);
+    }
+    col.appendChild(axis);
+
+    const sub = document.createElement('div');
+    sub.className='sub-row';
+    if(item.sub){
+      const sd = document.createElement('span');
+      sd.className='sub-dot '+item.sub;
+      sub.appendChild(sd);
+      const txt = document.createElement('span');
+      txt.textContent = item.sub==='problem' ? 'Problempunkt' : 'Verstärkungspunkt';
+      sub.appendChild(txt);
+    }
+    col.appendChild(sub);
+
+    const date = document.createElement('div');
+    date.className='date';
+    if(item.date) date.textContent = item.date;
+    col.appendChild(date);
+
+    track.appendChild(col);
+  });
+}
+
+const btn1 = document.getElementById('btn-1gse');
+const btn2 = document.getElementById('btn-2gse');
+const badge = document.getElementById('badge');
+
+function show1GSE(){
+  render(DATA_1GSE);
+  btn1.classList.add('active'); btn2.classList.remove('active');
+  badge.innerHTML = '<span style="background:#f5c98a;color:#1c2621;">1GSE</span>';
+}
+function show2GSE(){
+  render(DATA_2GSE);
+  btn2.classList.add('active'); btn1.classList.remove('active');
+  badge.innerHTML = '<span style="background:var(--teal);">2GSE</span>';
+}
+btn1.addEventListener('click', show1GSE);
+btn2.addEventListener('click', show2GSE);
+
+fetch(WEB_APP_URL)
+  .then((res) => res.json())
+  .then((data) => {
+    const alle = (data.offiziellZaitplang || []).slice().sort((a,b) => (a.Datum||"").localeCompare(b.Datum||""));
+    const zuItem = (m) => ({
+      label: m.Titel,
+      type: KATEGORIE_ZU_TYP[m.Kategorie] || "event",
+      dot: KATEGORIE_ZU_DOT[m.Kategorie] || null,
+      sub: KATEGORIE_ZU_SUB[m.Kategorie] || null,
+      date: m.Datum ? formatDatum(m.Datum) : null,
+    });
+    DATA_1GSE = alle.filter((m) => m.Klasse === "1GSE").map(zuItem);
+    DATA_2GSE = alle.filter((m) => m.Klasse === "2GSE").map(zuItem);
+    document.getElementById('ladeHinweis').style.display = 'none';
+    badge.style.display = 'block';
+    show1GSE();
+  })
+  .catch(() => {
+    document.getElementById('ladeHinweis').textContent = 'Konnte Zäitplang net lueden.';
+  });
+</script>
+</body>
+</html>
