@@ -7,6 +7,8 @@
 <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
 <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
 <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/mammoth/1.6.0/mammoth.browser.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
 </head>
 <body>
 <div id="root"></div>
@@ -37,9 +39,11 @@ const PERIODEN_1GSE = ["Semester 1", "Semester 2"];
 
 function uid() { return Date.now().toString(36) + Math.random().toString(36).slice(2, 8); }
 
-function leerFroen(variante) {
+function leerFroen(variante, reflexionAktiv) {
   const anzuel = variante === "B" ? 4 : 5;
-  const punkteMax = variante === "B" ? 7.5 : 6;
+  const punkteMax = reflexionAktiv
+    ? (variante === "B" ? 5 : 4)      // mat Reflexioun: Fachwëssen just 20P (4x5 oder 5x4)
+    : (variante === "B" ? 7.5 : 6);   // ouni Reflexioun: Fachwëssen 30P (4x7,5 oder 5x6)
   return Array.from({ length: anzuel }, () => ({ id: uid(), frage: "", punkte: "", max: punkteMax }));
 }
 
@@ -51,7 +55,7 @@ function formatZeit(sek) {
 
 function Timer() {
   const [phase, setPhase] = useState("idle"); // idle | vorbereitung | gespraech
-  const [sek, setSek] = useState(5 * 60);
+  const [sek, setSek] = useState(10 * 60);
   const intervalRef = useRef(null);
 
   useEffect(() => {
@@ -68,11 +72,11 @@ function Timer() {
       <div className={`timer-zeit ${sek < 0 ? "timer-negativ" : ""}`}>{formatZeit(sek)}</div>
       <div className="timer-label">
         {phase === "idle" && "Timer bereet"}
-        {phase === "vorbereitung" && "⏳ Virbereedungszäit (5 Min.)"}
+        {phase === "vorbereitung" && "⏳ Virbereedungszäit (10 Min.)"}
         {phase === "gespraech" && "🗣️ Fachgespréich (20 Min., ~4 Min./Fro)"}
       </div>
       <div className="timer-btns">
-        <button className="btn-gen" onClick={() => start("vorbereitung", 5 * 60)}>5 Min. Virbereedung starten</button>
+        <button className="btn-gen" onClick={() => start("vorbereitung", 10 * 60)}>10 Min. Virbereedung starten</button>
         <button className="btn-gen" onClick={() => start("gespraech", 20 * 60)}>20 Min. Gespréich starten</button>
         {phase !== "idle" && <button className="btn-gen btn-stop" onClick={stop}>Stopp</button>}
       </div>
@@ -85,7 +89,7 @@ function App() {
   const [periode, setPeriode] = useState("");
   const [variante, setVariante] = useState("A");
   const [datum, setDatum] = useState(new Date().toISOString().slice(0, 10));
-  const [froen, setFroen] = useState(leerFroen("A"));
+  const [froen, setFroen] = useState(leerFroen("A", false));
   const [reflexionAktiv, setReflexionAktiv] = useState(false);
   const [reflexionPunkte, setReflexionPunkte] = useState("");
   const [notiz, setNotiz] = useState("");
@@ -112,14 +116,73 @@ function App() {
 
   const varianteWaehlen = (v) => {
     setVariante(v);
-    setFroen(leerFroen(v));
+    setFroen(leerFroen(v, reflexionAktiv));
+  };
+
+  const reflexionToggle = (checked) => {
+    setReflexionAktiv(checked);
+    setFroen(leerFroen(variante, checked));
   };
 
   const updateFro = (id, patch) => setFroen((fs) => fs.map((f) => (f.id === id ? { ...f, ...patch } : f)));
 
+  // Extrahéiert numeréiert Zeilen (1. ... / 1) ... / 1 - ...) aus engem Text
+  const extrahéierFroen = (text) => {
+    const zeilen = text.split(/\r?\n/).map((z) => z.trim()).filter(Boolean);
+    const treffer = [];
+    zeilen.forEach((z) => {
+      const m = z.match(/^(\d{1,2})[.\)\-]\s*(.+)/);
+      if (m && m[2].length > 3) treffer.push(m[2].trim());
+    });
+    return treffer;
+  };
+
+  const [importFehler, setImportFehler] = useState(null);
+  const [importInfo, setImportInfo] = useState(null);
+
+  const dateiImport = async (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    setImportFehler(null);
+    setImportInfo(null);
+    try {
+      let text = "";
+      if (file.name.toLowerCase().endsWith(".docx")) {
+        const buf = await file.arrayBuffer();
+        const result = await mammoth.extractRawText({ arrayBuffer: buf });
+        text = result.value;
+      } else if (file.name.toLowerCase().endsWith(".pdf")) {
+        pdfjsLib.GlobalWorkerOptions.workerSrc = "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js";
+        const buf = await file.arrayBuffer();
+        const pdf = await pdfjsLib.getDocument({ data: buf }).promise;
+        for (let p = 1; p <= pdf.numPages; p++) {
+          const page = await pdf.getPage(p);
+          const content = await page.getTextContent();
+          text += content.items.map((it) => it.str).join(" ") + "\n";
+        }
+      } else {
+        setImportFehler("Nëmmen .docx oder .pdf ënnerstëtzt.");
+        return;
+      }
+
+      const gefonnen = extrahéierFroen(text);
+      if (gefonnen.length === 0) {
+        setImportFehler("Keng numeréiert Froen (1. 2. 3. ...) am Dokument fonnt. Manuell aginn.");
+        return;
+      }
+      const anzuel = froen.length;
+      setFroen((fs) => fs.map((f, i) => (gefonnen[i] ? { ...f, frage: gefonnen[i] } : f)));
+      setImportInfo(`${Math.min(gefonnen.length, anzuel)} vun ${anzuel} Froen aus dem Dokument iwwerholl. Kontrolléieren a bäi Bedarf upassen!`);
+    } catch (err) {
+      setImportFehler("Konnte Dokument net liesen: " + err.message);
+    } finally {
+      e.target.value = "";
+    }
+  };
+
   const summe = useMemo(() => froen.reduce((s, f) => s + (parseFloat(f.punkte) || 0), 0), [froen]);
   const gesamt = summe + (reflexionAktiv ? (parseFloat(reflexionPunkte) || 0) : 0);
-  const maxGesamt = 30 + (reflexionAktiv ? 10 : 0);
+  const maxGesamt = 30; // Fachwëssen pass sech un (30 oder 20), Reflexioun kënnt derbäi, Total bleift 30
 
   const canSubmit = schuelerId && periode && froen.every((f) => f.frage.trim() && f.punkte !== "");
 
@@ -144,7 +207,7 @@ function App() {
       const data = await res.json();
       if (!data.ok) throw new Error(data.error || "Onbekannte Feeler");
       setToast("Fachgespréich gespäichert.");
-      setFroen(leerFroen(variante));
+      setFroen(leerFroen(variante, reflexionAktiv));
       setNotiz("");
       lade();
     } catch (e) {
@@ -193,7 +256,7 @@ function App() {
           <>
             <section className="card">
               <h2>2. Timer</h2>
-              <p className="hint">5 Min. Virbereedung, duerno 20 Min. Gespréich (~4 Min./Fro). Froen ginn genee 5 Min. virum Ufank ausgedeelt.</p>
+              <p className="hint">10 Min. Virbereedung, duerno 20 Min. Gespréich (~4 Min./Fro). Froen ginn genee 10 Min. virum Ufank ausgedeelt.</p>
               <Timer />
             </section>
 
@@ -207,6 +270,15 @@ function App() {
 
             <section className="card">
               <h2>4. Froen & Punkten (max. 30P)</h2>
+              <div className="import-row">
+                <label className="btn-gen btn-upload">
+                  📄 Froen aus Dokument (docx/pdf) importéieren
+                  <input type="file" accept=".docx,.pdf" style={{ display: "none" }} onChange={dateiImport} />
+                </label>
+                <span className="hint hint-inline">Sicht no numeréierte Zeilen ("1. ...", "2. ...") am Dokument.</span>
+              </div>
+              {importInfo && <p className="notice notice-info">{importInfo}</p>}
+              {importFehler && <p className="notice notice-error">{importFehler}</p>}
               {froen.map((f, i) => (
                 <div className="fro-block" key={f.id}>
                   <span className="fro-nr">Fro {i + 1}</span>
@@ -217,13 +289,13 @@ function App() {
                   </div>
                 </div>
               ))}
-              <div className="summe-row">Zwëschesumme Fachwëssen: <strong>{summe} / 30</strong></div>
+              <div className="summe-row">Zwëschesumme Fachwëssen: <strong>{summe} / {froen.reduce((s, f) => s + f.max, 0)}</strong></div>
             </section>
 
             <section className="card">
               <h2>5. Eegebewäertung / Reflexioun (optional, +10P)</h2>
               <label className="toggle-row">
-                <input type="checkbox" checked={reflexionAktiv} onChange={(e) => setReflexionAktiv(e.target.checked)} />
+                <input type="checkbox" checked={reflexionAktiv} onChange={(e) => reflexionToggle(e.target.checked)} />
                 <span>Dës Period huet och en eegent Reflexioun-Kritär (z.B. 2GSE Tri1/Tri3)</span>
               </label>
               {reflexionAktiv && (
@@ -298,6 +370,12 @@ body { margin: 0; font-family: -apple-system, "Segoe UI", Inter, Arial, sans-ser
 .select:disabled { background: #f1f3f1; color: #7a847e; }
 .textarea { resize: vertical; }
 .hint { font-size: 11.5px; color: #6d7d74; margin: 0 0 10px; line-height: 1.5; }
+.import-row { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin-bottom: 12px; }
+.btn-upload { display: inline-flex; align-items: center; cursor: pointer; }
+.hint-inline { margin: 0; }
+.notice { font-size: 12px; padding: 8px 12px; border-radius: 8px; margin: 0 0 12px; }
+.notice-info { background: #d7ecdd; color: #00A94F; }
+.notice-error { background: #fbe4e1; color: #99392f; }
 .timer-box { text-align: center; padding: 14px 0 4px; }
 .timer-zeit { font-size: 42px; font-weight: 800; color: #00A94F; font-variant-numeric: tabular-nums; }
 .timer-negativ { color: #99392f; }
