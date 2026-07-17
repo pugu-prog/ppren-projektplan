@@ -329,6 +329,7 @@ function App() {
   const [gruppenState, setGruppenState] = useState({});
   const [wbPunkte, setWbPunkte] = useState("");
   const [wbAuto, setWbAuto] = useState({ summe: 0, max: 0, anzahl: 0 });
+  const [fgInfo, setFgInfo] = useState(null);
   const [kommentar, setKommentar] = useState("");
   const [allgemeinAuswahl, setAllgemeinAuswahl] = useState({});
   const [syncing, setSyncing] = useState(false);
@@ -354,6 +355,7 @@ function App() {
     setAllgemeinAuswahl({});
     setKommentar("");
     setFinalisiert(false);
+    setFgInfo(null);
   };
 
   const periodeWaehlen = async (p) => {
@@ -363,6 +365,7 @@ function App() {
     setGruppenState(initGruppenState(s, p));
     setWbPunkte("");
     setWbAuto({ summe: 0, max: 0, anzahl: 0 });
+    setFgInfo(null);
     setDocUrl(null);
     setAllgemeinAuswahl({});
     setKommentar("");
@@ -392,6 +395,32 @@ function App() {
       });
       setWbAuto({ summe, max: anzahl * 5, anzahl });
       setWbPunkte(String(summe));
+
+      // Fachgespréich-Punkte automatesch aus dem Fachgespraech-Tool zéien
+      const fgTreffer = (data.fachgespraeche || [])
+        .filter((f) => f.Schüler === schuelerName && f.Periode === p)
+        .sort((a, b) => (a["Zuletzt aktualisiert"] || "").localeCompare(b["Zuletzt aktualisiert"] || ""));
+      const fgLetzt = fgTreffer[fgTreffer.length - 1];
+      if (fgLetzt) {
+        setKategorien((ks) => {
+          const fgItems = ks.filter((k) => k.gruppe === "Fachgespräch");
+          if (fgItems.length === 0) return ks;
+          return ks.map((k) => {
+            if (k.gruppe !== "Fachgespräch") return k;
+            if (fgItems.length === 1) {
+              // Nëmmen Fachwëssen (max 30): kompletten Gesamt-Wäert
+              return { ...k, punkte: String(fgLetzt.Gesamt ?? "") };
+            }
+            // Opgedeelt: Fachwëssen + Eegebewäertung/Reflexioun
+            if (k.name === "Fachwissen") return { ...k, punkte: String(fgLetzt["Fachwissen-Punkte"] ?? "") };
+            if (k.name.startsWith("Eigenbewertung")) return { ...k, punkte: String(fgLetzt["Reflexioun-Punkte"] ?? "") };
+            return k;
+          });
+        });
+        setFgInfo({ datum: fgLetzt.Datum, variante: fgLetzt.Variante });
+      } else {
+        setFgInfo(null);
+      }
     } catch (e) {
       // Prüfung fehlgeschlagen: im Zweifel nicht sperren, Formulaire bleibt normal nutzbar
     } finally {
@@ -602,7 +631,18 @@ function App() {
               const gState = gruppenState[g.titel] || { auswahl: {}, kommentar: "" };
               return (
                 <section className="card" key={g.titel}>
-                  <h2>{g.titel}</h2>
+                  <div className="card-head-row">
+                    <h2>{g.titel}</h2>
+                    {g.typ === "fachgespraech" && (
+                      <a className="btn-gen" href="fachgespraech.html" target="_blank">🗣️ Fachgespréich-Tool →</a>
+                    )}
+                  </div>
+                  {g.typ === "fachgespraech" && fgInfo && (
+                    <p className="notice notice-success">✅ Automatesch iwwerholl aus dem Fachgespréich-Tool ({fgInfo.datum}, Variante {fgInfo.variante}). Bäi Bedarf hei nach upassen.</p>
+                  )}
+                  {g.typ === "fachgespraech" && !fgInfo && (
+                    <p className="notice">ℹ️ Nach kee gespäichert Fachgespréich fonnt fir dës Period — manuell aginn oder éischt am Fachgespréich-Tool ausfëllen.</p>
+                  )}
 
                   {(gruppiert[g.titel] || []).map((k) => (
                     <div className="item-block" key={k.id}>
@@ -754,6 +794,7 @@ body { margin: 0; font-family: -apple-system, "Segoe UI", Inter, Arial, sans-ser
 .brand-sub { font-size: 13px; opacity: 0.85; }
 .content { max-width: 720px; margin: 0 auto; padding: 24px 20px 60px; }
 .notice { background: #fbe8c6; color: #8a5a12; font-size: 12px; padding: 10px 14px; border-radius: 8px; margin: 10px 0 0; line-height: 1.45; }
+.notice-success { background: #d7ecdd; color: #00A94F; }
 .card { background: #fff; border: 1px solid #e2e8e3; border-radius: 12px; padding: 18px 20px; margin-bottom: 14px; }
 .card h2 { font-size: 14px; margin: 0 0 12px; color: #00A94F; }
 .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
