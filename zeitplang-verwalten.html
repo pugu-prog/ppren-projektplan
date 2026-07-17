@@ -30,6 +30,31 @@ const KATEGORIE_OPTIONEN = ["Event", "Iwwerpréiwung", "Praktesch Phase", "Ofgab
 const KATEGORIE_FARWEN = { "Event": "#f0ec3a", "Iwwerpréiwung": "#d9d3f5", "Praktesch Phase": "#1ecdc4", "Ofgab": "#a9d92d" };
 const KATEGORIE_TEXT = { "Event": "#1c2621", "Iwwerpréiwung": "#1c2621", "Praktesch Phase": "#04342c", "Ofgab": "#1c2621" };
 
+// Lëtzebuerger Schoulvakanzen a Feierdeeg fir d'Schouljoer 2026/2027 (Quell: men.public.lu)
+const VAKANZEN_2026_27 = [
+  { start: "2026-10-31", end: "2026-11-08", label: "Allerheiligenferien" },
+  { start: "2026-12-19", end: "2027-01-03", label: "Chreschtvakanz" },
+  { start: "2027-02-06", end: "2027-02-14", label: "Karénervakanz" },
+  { start: "2027-03-27", end: "2027-04-11", label: "Ouschterferien" },
+  { start: "2027-05-29", end: "2027-06-06", label: "Pengschtferien" },
+  { start: "2027-07-16", end: "2027-09-14", label: "Summerferien" },
+];
+const FEIERDEEG_2026_27 = [
+  { datum: "2027-05-01", label: "Gesetzleche Feierdag (1. Mee)" },
+  { datum: "2027-05-06", label: "Christi Himmelfahrt" },
+  { datum: "2027-06-23", label: "Gebuertsdag Groussherzog" },
+];
+
+/** Gëtt de Label vun der Vakanz/dem Feierdag zréck, op deen dëst Datum fällt — oder null. */
+function pruefVakanzOderFeierdag(iso) {
+  if (!iso) return null;
+  const feier = FEIERDEEG_2026_27.find((f) => f.datum === iso);
+  if (feier) return feier.label;
+  const vakanz = VAKANZEN_2026_27.find((v) => iso >= v.start && iso <= v.end);
+  if (vakanz) return vakanz.label;
+  return null;
+}
+
 function uid() { return Date.now().toString(36) + Math.random().toString(36).slice(2, 8); }
 
 function App() {
@@ -75,12 +100,17 @@ function App() {
       });
       const data = await res.json();
       if (!data.ok) throw new Error(data.error || "Onbekannte Feeler");
-      setToast("Gespäichert — gëllt ab elo fir all Schüler an dëser Klass.");
+      const konflikter = meilensteng.filter((m) => pruefVakanzOderFeierdag(m.datum));
+      if (konflikter.length > 0) {
+        setToast(`Gespäichert — awer ⚠️ ${konflikter.length} Datum(er) falen op Vakanz/Feierdag (kuck rout markéiert Zeilen).`);
+      } else {
+        setToast("Gespäichert — gëllt ab elo fir all Schüler an dëser Klass.");
+      }
     } catch (e) {
       setError("Konnte net späicheren: " + e.message);
     } finally {
       setSyncing(false);
-      setTimeout(() => setToast(null), 4000);
+      setTimeout(() => setToast(null), 6000);
     }
   };
 
@@ -159,10 +189,15 @@ function App() {
               <table className="tabelle">
                 <thead><tr><th>Datum</th><th>Titel</th><th>Kategorie</th><th></th></tr></thead>
                 <tbody>
-                  {meilensteng.map((m) => (
-                    <tr key={m.id}>
-                      <td><input type="date" className="input input-date" value={m.datum} onChange={(e) => updateZeil(m.id, { datum: e.target.value })} /></td>
-                      <td><input className="input" value={m.titel} onChange={(e) => updateZeil(m.id, { titel: e.target.value })} /></td>
+                  {meilensteng.map((m) => {
+                    const konflikt = pruefVakanzOderFeierdag(m.datum);
+                    return (
+                      <tr key={m.id} className={konflikt ? "zeil-konflikt" : ""}>
+                        <td>
+                          <input type="date" className="input input-date" value={m.datum} onChange={(e) => updateZeil(m.id, { datum: e.target.value })} />
+                          {konflikt && <div className="konflikt-hint">⚠️ {konflikt}</div>}
+                        </td>
+                        <td><input className="input" value={m.titel} onChange={(e) => updateZeil(m.id, { titel: e.target.value })} /></td>
                       <td>
                         <select className="select status-select" style={{ background: KATEGORIE_FARWEN[m.kategorie], color: KATEGORIE_TEXT[m.kategorie] }} value={m.kategorie} onChange={(e) => updateZeil(m.id, { kategorie: e.target.value })}>
                           {KATEGORIE_OPTIONEN.map((k) => <option key={k} value={k}>{k}</option>)}
@@ -170,7 +205,8 @@ function App() {
                       </td>
                       <td><button className="icon-btn" onClick={() => removeZeil(m.id)}>✕</button></td>
                     </tr>
-                  ))}
+                    );
+                  })}
                 </tbody>
               </table>
             </div>
@@ -215,6 +251,8 @@ body { margin: 0; font-family: -apple-system, "Segoe UI", Inter, Arial, sans-ser
 .tabelle td { padding: 5px 8px; border-bottom: 1px solid #f4f6f4; }
 .input, .select { border: 1px solid #c9d5cd; border-radius: 7px; padding: 7px 9px; font-size: 13px; font-family: inherit; background: #fff; color: #1c2621; }
 .input-date { min-width: 130px; }
+.zeil-konflikt { background: #fbe4e1; }
+.konflikt-hint { font-size: 10.5px; color: #99392f; font-weight: 700; margin-top: 3px; white-space: nowrap; }
 .status-select { font-weight: 700; border: none; }
 .icon-btn { border: none; background: transparent; color: #99392f; cursor: pointer; font-size: 13px; width: 24px; height: 24px; border-radius: 6px; }
 .add-btn { margin-top: 10px; border: 1px dashed #9db6a7; background: transparent; color: #00A94F; font-size: 12.5px; font-weight: 600; padding: 6px 10px; border-radius: 7px; cursor: pointer; }
