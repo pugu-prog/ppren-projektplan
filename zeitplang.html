@@ -51,6 +51,7 @@
   .bubble.event { background: var(--yellow); }
   .bubble.review { background: var(--lavender); }
   .bubble.practice { background: var(--teal); color:#fff; }
+  .bubble.ofgab { background: var(--green); }
 
   .connector { width:1px; height:22px; border-left:1px dashed #b7c2ba; margin:0 auto; }
   .axis { position: relative; width:100%; height:3px; background:var(--black); margin:2px 0; }
@@ -69,6 +70,8 @@
   .badge span { padding: 12px 40px; border-radius: 12px; font-weight: 800; font-size: 20px; color: #fff; }
 
   .back { display:block; text-align:center; font-size:13px; color:var(--brand); text-decoration:none; font-weight:700; margin-top: -10px; padding-bottom: 30px; }
+  .lade-hinweis { text-align:center; color:#6d7d74; font-size:13px; padding: 40px 0; }
+  .prof-link { display:block; text-align:center; font-size:11.5px; color:#93a098; margin-top: -20px; padding-bottom: 20px; }
 </style>
 </head>
 <body>
@@ -89,51 +92,35 @@
   <div class="subtitle">De Projet ass ëmmer Méindes &amp; Dënschdes</div>
 
   <div class="legend">
-    <div><span class="dot" style="background:var(--yellow)"></span> Student</div>
-    <div><span class="dot" style="background:var(--blue)"></span> Léierpersoun</div>
-    <div><span class="dot" style="background:var(--purple)"></span> Problempunkt</div>
-    <div><span class="dot" style="background:var(--yellow);border:1px solid #c9c400"></span> Verstärkungspunkt</div>
+    <div><span class="dot" style="background:var(--yellow)"></span> Event</div>
+    <div><span class="dot" style="background:var(--lavender)"></span> Iwwerpréiwung</div>
+    <div><span class="dot" style="background:var(--teal)"></span> Praktesch Phase</div>
+    <div><span class="dot" style="background:var(--green)"></span> Ofgab</div>
   </div>
 
+  <div id="ladeHinweis" class="lade-hinweis">Lädt…</div>
   <div class="scroll-wrap"><div class="track" id="track"></div></div>
-  <div class="badge" id="badge"><span>1GSE</span></div>
+  <div class="badge" id="badge" style="display:none;"><span>1GSE</span></div>
 
+  <a class="prof-link" href="zeitplang-verwalten.html">🔒 Als Prof änneren →</a>
   <a class="back" href="links.html">← Zréck op d'Haaptsäit</a>
 
 <script>
-const DATA_1GSE = [
-  {icons:['s','t'], label:'Präsentation PPREN', type:'event', dot:'black', sub:'problem', date:'September 26'},
-  {icons:['s','t'], label:'Projektplan erstellen', type:'event', dot:'black', sub:'problem', date:'6 Oktober 26'},
-  {icons:['s','t'], label:'Ziele überprüfen', type:'review', dot:'red', sub:'verstark', date:'26&27 Okt. 26'},
-  {icons:['s'], label:'Abgabe Dokumentation', type:'event', dot:'black', sub:'problem', date:'7 Dez. 26'},
-  {icons:['s','t'], label:'Ziele überprüfen', type:'review', dot:'red', sub:'verstark', date:'7&8 Dez. 26'},
-  {icons:['s','t'], label:'Start 2. Semester', type:'event', dot:'black', sub:null, date:'11 Jan. 27'},
-  {icons:['s'], label:'praktische Umsetzung', type:'practice', dot:null, sub:null, date:null},
-  {icons:['s','t'], label:'Fachgespräche 2GSE', type:'event', dot:'red', sub:'verstark', date:'26 Jan. 27'},
-  {icons:['s'], label:'Ziele überprüfen', type:'review', dot:'red', sub:'verstark', date:'1&2 Feb. 27'},
-  {icons:['s','t'], label:'Prüfung & Abgabe Dokumentation', type:'event', dot:'black', sub:'problem', date:'2 Mär. 27'},
-  {icons:['s','t'], label:'Ziele überprüfen', type:'review', dot:'red', sub:'verstark', date:'8&9 Mär. 27'},
-  {icons:['s'], label:'Präsentations & Abgabe Dokumentation', type:'event', dot:'black', sub:null, date:'26&27 Apr. 27'},
-  {icons:['s','t'], label:'Fachgespräche', type:'event', dot:'red', sub:'problem', date:'3&4 Mai 27'},
-];
+const WEB_APP_URL = "https://script.google.com/macros/s/AKfycbzfyThho8MevoyfSz7NsQ1YxZJO4E-f61GYYzqZyHACIHzxR3bm7SHCwVUkCBJrAEvJ/exec";
 
-const DATA_2GSE = [
-  {icons:['s','t'], label:'Präsentation PPREN', type:'event', dot:'black', sub:'problem', date:'September 26'},
-  {icons:['s','t'], label:'Projektplan erstellen', type:'event', dot:'black', sub:'problem', date:'6 Oktober 26'},
-  {icons:['s','t'], label:'Ziele überprüfen', type:'review', dot:'red', sub:'verstark', date:'26&27 Okt. 26'},
-  {icons:['s'], label:'Abgabe Dokumentation', type:'event', dot:'black', sub:'problem', date:'7 Dez. 26'},
-  {icons:['s','t'], label:'Ziele überprüfen', type:'review', dot:'red', sub:'verstark', date:'7&8 Dez. 26'},
-  {icons:['s','t'], label:'Start 2. Trimester', type:'event', dot:'black', sub:null, date:'4 Jan. 27'},
-  {icons:['s'], label:'praktische Umsetzung', type:'practice', dot:null, sub:null, date:null},
-  {icons:['s','t'], label:'Fachgespräche 2GSE', type:'event', dot:'red', sub:'verstark', date:'26 Jan. 27'},
-  {icons:['s'], label:'Ziele überprüfen', type:'review', dot:'red', sub:'verstark', date:'1&2 Feb. 27'},
-  {icons:['s','t'], label:'Prüfung & Abgabe Dokumentation', type:'event', dot:'black', sub:'problem', date:'2 Mär. 27'},
-  {icons:['s','t'], label:'Ziele überprüfen', type:'review', dot:'red', sub:'verstark', date:'8&9 Mär. 27'},
-  {icons:['s'], label:'Start 3e Trimester', type:'event', dot:'black', sub:null, date:'12 Apr. 27'},
-  {icons:['s','t'], label:'Ziele überprüfen', type:'review', dot:'red', sub:'verstark', date:'3&4 Mai 27'},
-  {icons:['s'], label:'Präsentations & Abgabe Dokumentation', type:'event', dot:'black', sub:'problem', date:'21 Jun. 27 oder 28 Jun. 27'},
-  {icons:['s','t'], label:'Fachgespräche', type:'event', dot:'red', sub:null, date:'28 Jun. 27 oder 29 Jun. 27'},
-];
+const MONATER = ["Jan.","Feb.","Mär.","Apr.","Mai","Jun.","Jul.","Aug.","Sep.","Okt.","Nov.","Dez."];
+function formatDatum(isoDatum) {
+  const [j, m, t] = isoDatum.split("-").map(Number);
+  return `${t} ${MONATER[m - 1]} ${String(j).slice(2)}`;
+}
+
+// Kategorie -> Bubble-Typ + Achs-Punkt/Ënner-Zeil (visuell no bei der urspréngleche Gestaltung)
+const KATEGORIE_ZU_TYP = { "Event": "event", "Iwwerpréiwung": "review", "Praktesch Phase": "practice", "Ofgab": "ofgab" };
+const KATEGORIE_ZU_DOT = { "Event": "black", "Iwwerpréiwung": "red", "Praktesch Phase": null, "Ofgab": "black" };
+const KATEGORIE_ZU_SUB = { "Event": "problem", "Iwwerpréiwung": "verstark", "Praktesch Phase": null, "Ofgab": "problem" };
+
+let DATA_1GSE = [];
+let DATA_2GSE = [];
 
 function render(data){
   const track = document.getElementById('track');
@@ -144,7 +131,7 @@ function render(data){
 
     const icons = document.createElement('div');
     icons.className='icons';
-    item.icons.forEach(i=>{
+    ['s','t'].forEach(i=>{
       const d = document.createElement('span');
       d.className = 'icon ' + (i==='s'?'student':'teacher');
       icons.appendChild(d);
@@ -206,7 +193,27 @@ function show2GSE(){
 }
 btn1.addEventListener('click', show1GSE);
 btn2.addEventListener('click', show2GSE);
-show1GSE();
+
+fetch(WEB_APP_URL)
+  .then((res) => res.json())
+  .then((data) => {
+    const alle = (data.offiziellZaitplang || []).slice().sort((a,b) => (a.Datum||"").localeCompare(b.Datum||""));
+    const zuItem = (m) => ({
+      label: m.Titel,
+      type: KATEGORIE_ZU_TYP[m.Kategorie] || "event",
+      dot: KATEGORIE_ZU_DOT[m.Kategorie] || null,
+      sub: KATEGORIE_ZU_SUB[m.Kategorie] || null,
+      date: m.Datum ? formatDatum(m.Datum) : null,
+    });
+    DATA_1GSE = alle.filter((m) => m.Klasse === "1GSE").map(zuItem);
+    DATA_2GSE = alle.filter((m) => m.Klasse === "2GSE").map(zuItem);
+    document.getElementById('ladeHinweis').style.display = 'none';
+    badge.style.display = 'block';
+    show1GSE();
+  })
+  .catch(() => {
+    document.getElementById('ladeHinweis').textContent = 'Konnte Zäitplang net lueden.';
+  });
 </script>
 </body>
 </html>
