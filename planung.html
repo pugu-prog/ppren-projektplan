@@ -33,6 +33,31 @@ const SCHUELER = [
   { id: "tom_klein", name: "Tom Klein", klasse: "2GSE" },
 ];
 
+// Lëtzebuerger Schoulvakanzen a Feierdeeg fir d'Schouljoer 2026/2027 (Quell: men.public.lu)
+const VAKANZEN_2026_27 = [
+  { start: "2026-10-31", end: "2026-11-08", label: "Allerheiligenferien" },
+  { start: "2026-12-19", end: "2027-01-03", label: "Chreschtvakanz" },
+  { start: "2027-02-06", end: "2027-02-14", label: "Karénervakanz" },
+  { start: "2027-03-27", end: "2027-04-11", label: "Ouschterferien" },
+  { start: "2027-05-29", end: "2027-06-06", label: "Pengschtferien" },
+  { start: "2027-07-16", end: "2027-09-14", label: "Summerferien" },
+];
+const FEIERDEEG_2026_27 = [
+  { datum: "2027-05-01", label: "Gesetzleche Feierdag (1. Mee)" },
+  { datum: "2027-05-06", label: "Christi Himmelfahrt" },
+  { datum: "2027-06-23", label: "Gebuertsdag Groussherzog" },
+];
+
+/** Gëtt de Label vun der Vakanz/dem Feierdag zréck, op deen dëst Datum fällt — oder null. */
+function pruefVakanzOderFeierdag(iso) {
+  if (!iso) return null;
+  const feier = FEIERDEEG_2026_27.find((f) => f.datum === iso);
+  if (feier) return feier.label;
+  const vakanz = VAKANZEN_2026_27.find((v) => iso >= v.start && iso <= v.end);
+  if (vakanz) return vakanz.label;
+  return null;
+}
+
 const STATUS_OPTIONEN = ["Ausstoend", "Erreecht", "Verspéit"];
 const KATEGORIE_FARWEN = { "Event": "#f0ec3a", "Iwwerpréiwung": "#d9d3f5", "Praktesch Phase": "#1ecdc4", "Ofgab": "#a9d92d", "Eegen": "#F67E1B" };
 const KATEGORIE_TEXT = { "Event": "#1c2621", "Iwwerpréiwung": "#1c2621", "Praktesch Phase": "#04342c", "Ofgab": "#1c2621", "Eegen": "#ffffff" };
@@ -191,6 +216,7 @@ function App() {
                   <tbody>
                     {alleZesummen.map((m) => {
                       const istOffiziell = m.quell === "Offiziell";
+                      const konflikt = pruefVakanzOderFeierdag(m.datum);
                       return (
                         <tr key={m.id} className={istOffiziell ? "zeil-gespaart" : ""}>
                           <td>
@@ -199,6 +225,7 @@ function App() {
                             ) : (
                               <input type="date" className="input input-date" value={m.datum} onChange={(e) => updateZeil(m.id, { datum: e.target.value })} />
                             )}
+                            {konflikt && <div className="vakanz-hint">🏖️ {konflikt}</div>}
                           </td>
                           <td>
                             {istOffiziell ? <span className="titel-gespaart">{m.titel}</span> :
@@ -261,6 +288,7 @@ body { margin: 0; font-family: -apple-system, "Segoe UI", Inter, Arial, sans-ser
 .hint { font-size: 11.5px; color: #93a098; margin: 0 0 10px; line-height: 1.5; }
 .zeil-gespaart { background: #fafbfa; }
 .datum-gespaart, .titel-gespaart { font-size: 13px; color: #55625a; }
+.vakanz-hint { font-size: 10.5px; color: #4576B5; font-weight: 700; margin-top: 3px; white-space: nowrap; }
 .empty { padding: 30px; text-align: center; color: #6d7d74; font-size: 14px; background: #fff; border-radius: 12px; border: 1px solid #e2e8e3; }
 .error { color: #8a2b1f; }
 .btn-gen { font-size: 11.5px; font-weight: 700; color: #00A94F; background: #eef3ef; border: 1px solid #c9d5cd; padding: 6px 12px; border-radius: 7px; cursor: pointer; text-decoration: none; }
