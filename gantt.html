@@ -33,11 +33,29 @@ const SCHUELER = [
   { id: "tom_klein", name: "Tom Klein", klasse: "2GSE" },
 ];
 
-const KATEGORIE_OPTIONEN = ["Event", "Iwwerpréiwung", "Praktesch Phase", "Ofgab", "Eegen"];
-const KATEGORIE_FARWEN = { "Event": "#f0ec3a", "Iwwerpréiwung": "#d9d3f5", "Praktesch Phase": "#1ecdc4", "Ofgab": "#a9d92d", "Eegen": "#F67E1B" };
-const KATEGORIE_TEXT = { "Event": "#1c2621", "Iwwerpréiwung": "#1c2621", "Praktesch Phase": "#04342c", "Ofgab": "#1c2621", "Eegen": "#ffffff" };
+const KATEGORIE_OPTIONEN = ["Event", "Iwwerpréiwung", "Praktesch Phase", "Ofgab", "Eegen", "Vakanz"];
+const KATEGORIE_FARWEN = { "Event": "#f0ec3a", "Iwwerpréiwung": "#d9d3f5", "Praktesch Phase": "#1ecdc4", "Ofgab": "#a9d92d", "Eegen": "#F67E1B", "Vakanz": "#b3d9e8" };
+const KATEGORIE_TEXT = { "Event": "#1c2621", "Iwwerpréiwung": "#1c2621", "Praktesch Phase": "#04342c", "Ofgab": "#1c2621", "Eegen": "#ffffff", "Vakanz": "#1c4a5e" };
 const STATUS_RAND = { "Ausstoend": "transparent", "Erreecht": "#00A94F", "Verspéit": "#e8483a" };
 const WB_FARWEN = { "Bewäert": "#00A94F", "Agereecht": "#4576B5", "Verpasst": "#e8483a", "Entschëllegt": "#93a098" };
+
+// Lëtzebuerger Schoulvakanzen a Feierdeeg fir d'Schouljoer 2026/2027 (Quell: men.public.lu)
+const VAKANZEN_2026_27 = [
+  { start: "2026-10-31", end: "2026-11-08", label: "Allerheiligenferien" },
+  { start: "2026-12-19", end: "2027-01-03", label: "Chreschtvakanz" },
+  { start: "2027-02-06", end: "2027-02-14", label: "Karénervakanz" },
+  { start: "2027-03-27", end: "2027-04-11", label: "Ouschterferien" },
+  { start: "2027-05-29", end: "2027-06-06", label: "Pengschtferien" },
+  { start: "2027-07-16", end: "2027-09-14", label: "Summerferien" },
+];
+const FEIERDEEG_2026_27 = [
+  { datum: "2027-05-01", label: "Gesetzleche Feierdag (1. Mee)" },
+  { datum: "2027-05-06", label: "Christi Himmelfahrt" },
+  { datum: "2027-06-23", label: "Gebuertsdag Groussherzog" },
+];
+const VAKANZ_ZEILEN = VAKANZEN_2026_27.map((v) => ({
+  id: "vak-" + v.start, datum: v.start, datumEnn: v.end, titel: v.label, kategorie: "Vakanz", quell: "Vakanz",
+}));
 
 // Datumer aus "dd.mm.yyyy" oder "dd.mm.yyyy – dd.mm.yyyy" (Wochenbericht-Format) ekstrahéieren
 function ersteDatumVunWoche(wocheLabel) {
@@ -81,7 +99,7 @@ function App() {
             const eegKopie = gespäichert.find((g) => g.id === refId);
             return { id: refId, datum: m.Datum, titel: m.Titel, kategorie: m.Kategorie || "Event", status: eegKopie?.status || "Ausstoend", quell: "Offiziell" };
           });
-        setMeilensteng([...offiziell, ...eegen]);
+        setMeilensteng([...offiziell, ...eegen, ...VAKANZ_ZEILEN]);
         setWochenberichte((data.wochenberichte || []).filter((w) => w.Schüler === s.name));
       })
       .catch(() => setError("Konnte Meilensteng net lueden."))
@@ -160,17 +178,25 @@ function App() {
                   ))}
                 </div>
 
-                {sortéiert.map((m, idx) => (
-                  <div key={idx} className="gantt-row">
+                {sortéiert.map((m, idx) => {
+                  const istVakanz = m.quell === "Vakanz";
+                  const breet = istVakanz ? Math.max(1, prozentFuer(m.datumEnn) - prozentFuer(m.datum)) : null;
+                  return (
+                  <div key={idx} className={`gantt-row ${istVakanz ? "gantt-row-vakanz" : ""}`}>
                     <div className="gantt-row-label">
-                      <span className="gantt-titel">{m.quell === "Offiziell" ? "🔒 " : ""}{m.titel || "(ouni Titel)"}</span>
-                      <span className="gantt-datum">{new Date(m.datum).toLocaleDateString("de-DE", { day: "2-digit", month: "2-digit", year: "numeric" })}</span>
+                      <span className="gantt-titel">{m.quell === "Offiziell" ? "🔒 " : ""}{istVakanz ? "🏖️ " : ""}{m.titel || "(ouni Titel)"}</span>
+                      <span className="gantt-datum">
+                        {istVakanz
+                          ? `${new Date(m.datum).toLocaleDateString("de-DE", { day: "2-digit", month: "2-digit" })} – ${new Date(m.datumEnn).toLocaleDateString("de-DE", { day: "2-digit", month: "2-digit", year: "numeric" })}`
+                          : new Date(m.datum).toLocaleDateString("de-DE", { day: "2-digit", month: "2-digit", year: "numeric" })}
+                      </span>
                     </div>
                     <div className="gantt-track">
                       <div
                         className="gantt-bar"
                         style={{
                           left: `${prozentFuer(m.datum)}%`,
+                          width: istVakanz ? `${breet}%` : undefined,
                           background: KATEGORIE_FARWEN[m.kategorie] || "#ccc",
                           color: KATEGORIE_TEXT[m.kategorie] || "#1c2621",
                           border: `2px solid ${STATUS_RAND[m.status] || "transparent"}`,
@@ -180,7 +206,8 @@ function App() {
                       </div>
                     </div>
                   </div>
-                ))}
+                  );
+                })}
 
                 {wbPunkten.length > 0 && (
                   <div className="gantt-row gantt-row-wb">
@@ -243,6 +270,7 @@ body { margin: 0; font-family: -apple-system, "Segoe UI", Inter, Arial, sans-ser
 .gantt-mo { position: absolute; font-size: 10.5px; color: #93a098; transform: translateX(-50%); }
 .gantt-row { display: flex; align-items: center; gap: 10px; padding: 7px 0; border-bottom: 1px solid #f7f8f7; }
 .gantt-row-wb { border-top: 2px solid #eef1ef; margin-top: 6px; padding-top: 12px; }
+.gantt-row-vakanz { background: #f3fafd; }
 .gantt-row-label { width: 180px; flex: 0 0 180px; display: flex; flex-direction: column; gap: 1px; overflow: hidden; }
 .gantt-titel { font-size: 12.5px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .gantt-datum { font-size: 10.5px; color: #93a098; }
