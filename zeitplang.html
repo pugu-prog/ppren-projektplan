@@ -52,6 +52,7 @@
   .bubble.review { background: var(--lavender); }
   .bubble.practice { background: var(--teal); color:#fff; }
   .bubble.ofgab { background: var(--green); }
+  .bubble.vakanz { background: #b3d9e8; color: #1c4a5e; }
 
   .connector { width:1px; height:22px; border-left:1px dashed #b7c2ba; margin:0 auto; }
   .axis { position: relative; width:100%; height:3px; background:var(--black); margin:2px 0; }
@@ -96,6 +97,7 @@
     <div><span class="dot" style="background:var(--lavender)"></span> Iwwerpréiwung</div>
     <div><span class="dot" style="background:var(--teal)"></span> Praktesch Phase</div>
     <div><span class="dot" style="background:var(--green)"></span> Ofgab</div>
+    <div><span class="dot" style="background:#b3d9e8"></span> Vakanz</div>
   </div>
 
   <div id="ladeHinweis" class="lade-hinweis">Lädt…</div>
@@ -118,6 +120,21 @@ function formatDatum(isoDatum) {
 const KATEGORIE_ZU_TYP = { "Event": "event", "Iwwerpréiwung": "review", "Praktesch Phase": "practice", "Ofgab": "ofgab" };
 const KATEGORIE_ZU_DOT = { "Event": "black", "Iwwerpréiwung": "red", "Praktesch Phase": null, "Ofgab": "black" };
 const KATEGORIE_ZU_SUB = { "Event": "problem", "Iwwerpréiwung": "verstark", "Praktesch Phase": null, "Ofgab": "problem" };
+
+// Lëtzebuerger Schoulvakanzen 2026/2027 (Quell: men.public.lu) — fir béid Klassen d'selwecht
+const VAKANZEN_2026_27 = [
+  { start: "2026-10-31", end: "2026-11-08", label: "Allerheiligenferien" },
+  { start: "2026-12-19", end: "2027-01-03", label: "Chreschtvakanz" },
+  { start: "2027-02-06", end: "2027-02-14", label: "Karénervakanz" },
+  { start: "2027-03-27", end: "2027-04-11", label: "Ouschterferien" },
+  { start: "2027-05-29", end: "2027-06-06", label: "Pengschtferien" },
+  { start: "2027-07-16", end: "2027-09-14", label: "Summerferien" },
+];
+const VAKANZ_ITEMS = VAKANZEN_2026_27.map((v) => ({
+  label: v.label, type: "vakanz", dot: null, sub: null,
+  date: `${formatDatum(v.start)} – ${formatDatum(v.end)}`,
+  sortDatum: v.start,
+}));
 
 let DATA_1GSE = [];
 let DATA_2GSE = [];
@@ -204,9 +221,11 @@ fetch(WEB_APP_URL)
       dot: KATEGORIE_ZU_DOT[m.Kategorie] || null,
       sub: KATEGORIE_ZU_SUB[m.Kategorie] || null,
       date: m.Datum ? formatDatum(m.Datum) : null,
+      sortDatum: m.Datum || "",
     });
-    DATA_1GSE = alle.filter((m) => m.Klasse === "1GSE").map(zuItem);
-    DATA_2GSE = alle.filter((m) => m.Klasse === "2GSE").map(zuItem);
+    const mischen = (liste) => [...liste, ...VAKANZ_ITEMS].sort((a, b) => a.sortDatum.localeCompare(b.sortDatum));
+    DATA_1GSE = mischen(alle.filter((m) => m.Klasse === "1GSE").map(zuItem));
+    DATA_2GSE = mischen(alle.filter((m) => m.Klasse === "2GSE").map(zuItem));
     document.getElementById('ladeHinweis').style.display = 'none';
     badge.style.display = 'block';
     show1GSE();
