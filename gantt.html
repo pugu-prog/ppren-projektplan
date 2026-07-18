@@ -91,7 +91,6 @@ function App() {
         if (eintrag && eintrag["Meilensteng (JSON)"]) {
           try { gespäichert = JSON.parse(eintrag["Meilensteng (JSON)"]); } catch { gespäichert = []; }
         }
-        const eegen = gespäichert.filter((m) => (m.quell || "Eegen") === "Eegen");
         const offiziell = (data.offiziellZaitplang || [])
           .filter((m) => m.Klasse === s.klasse)
           .map((m) => {
@@ -99,6 +98,11 @@ function App() {
             const eegKopie = gespäichert.find((g) => g.id === refId);
             return { id: refId, datum: m.Datum, titel: m.Titel, kategorie: m.Kategorie || "Event", status: eegKopie?.status || "Ausstoend", quell: "Offiziell" };
           });
+        // Ale Kopie-Duplikater aus der Zäit virun der quell-Ëmstellung erausfilteren
+        const offiziellSchlëssel = new Set(offiziell.map((o) => o.datum + "|" + o.titel));
+        const eegen = gespäichert
+          .filter((m) => (m.quell || "Eegen") === "Eegen")
+          .filter((m) => !offiziellSchlëssel.has(m.datum + "|" + m.titel));
         setMeilensteng([...offiziell, ...eegen, ...VAKANZ_ZEILEN]);
         setWochenberichte((data.wochenberichte || []).filter((w) => w.Schüler === s.name));
       })
