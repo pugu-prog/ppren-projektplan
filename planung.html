@@ -95,9 +95,6 @@ function App() {
         if (eintrag && eintrag["Meilensteng (JSON)"]) {
           try { gespäichert = JSON.parse(eintrag["Meilensteng (JSON)"]); } catch { gespäichert = []; }
         }
-        // Eege Meilensteng: alles mat quell "Eegen" (oder ouni quell = alt Format)
-        setEegenMeilensteng(gespäichert.filter((m) => (m.quell || "Eegen") === "Eegen"));
-
         // Offiziell: Datum/Titel/Kategorie IMMER live vum Server; Status/Notiz
         // aus der eegener gespäicherter Kopie iwwerhuelen, falls scho do.
         const offiziellFuerKlass = (data.offiziellZaitplang || [])
@@ -110,6 +107,16 @@ function App() {
               status: eegKopie?.status || "Ausstoend", notiz: eegKopie?.notiz || "", quell: "Offiziell",
             };
           });
+
+        // Eege Meilensteng: alles mat quell "Eegen" (oder ouni quell = alt Format) —
+        // ale Kopie-Duplikater aus der Zäit virun der quell-Ëmstellung erausfilteren
+        // (déiselwecht Datum+Titel wéi eng offiziell Zeil ass keng richteg eege Zeil).
+        const offiziellSchlëssel = new Set(offiziellFuerKlass.map((o) => o.datum + "|" + o.titel));
+        setEegenMeilensteng(
+          gespäichert
+            .filter((m) => (m.quell || "Eegen") === "Eegen")
+            .filter((m) => !offiziellSchlëssel.has(m.datum + "|" + m.titel))
+        );
         setOffiziell(offiziellFuerKlass);
       })
       .catch(() => setError("Konnte Meilensteng net lueden."))
