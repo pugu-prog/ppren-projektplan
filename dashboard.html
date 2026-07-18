@@ -105,6 +105,14 @@ function App() {
         <button className="refresh-btn" onClick={lade} disabled={loading}>{loading ? "Lädt…" : "🔄 Aktualisieren"}</button>
       </header>
 
+      <div className="tools-row">
+        <a className="tool-link" href="bewertung.html" target="_blank">📊 Bewertung</a>
+        <a className="tool-link" href="fachgespraech.html" target="_blank">🗣️ Fachgespréich</a>
+        <a className="tool-link" href="zieluewerpreiwung.html" target="_blank">🎯 Ziler iwwerpréiwen</a>
+        <a className="tool-link" href="wochenberichte-korrigeieren.html" target="_blank">📋 Wochenberichter</a>
+        <a className="tool-link" href="zeitplang-verwalten.html" target="_blank">🔒 Zäitplang verwalten</a>
+      </div>
+
       <div className="stats-row">
         <div className="stat-card">
           <span className="stat-num">{zaehler.total}</span>
@@ -256,6 +264,9 @@ body { margin: 0; font-family: -apple-system, "Segoe UI", Inter, Arial, sans-ser
 .brand-sub { font-size: 13px; opacity: 0.85; }
 .refresh-btn { background: rgba(255,255,255,0.15); border: 1px solid rgba(255,255,255,0.3); color: #fff; font-size: 12.5px; font-weight: 700; padding: 7px 14px; border-radius: 8px; cursor: pointer; }
 .refresh-btn:hover { background: rgba(255,255,255,0.25); }
+.tools-row { display: flex; gap: 8px; flex-wrap: wrap; padding: 14px 22px 0; }
+.tool-link { font-size: 12.5px; font-weight: 700; color: #00A94F; background: #eef3ef; border: 1px solid #c9d5cd; padding: 7px 14px; border-radius: 8px; text-decoration: none; }
+.tool-link:hover { background: #e3ece5; }
 .stats-row { display: flex; gap: 14px; padding: 20px 22px 4px; flex-wrap: wrap; }
 .stat-card { flex: 1; min-width: 140px; background: #fff; border: 1px solid #e2e8e3; border-radius: 12px; padding: 14px 16px; display: flex; flex-direction: column; gap: 2px; }
 .stat-num { font-size: 26px; font-weight: 800; color: #00A94F; }
