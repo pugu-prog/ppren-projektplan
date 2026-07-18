@@ -59,8 +59,11 @@ function pruefVakanzOderFeierdag(iso) {
 }
 
 const STATUS_OPTIONEN = ["Ausstoend", "Erreecht", "Verspéit"];
-const KATEGORIE_FARWEN = { "Event": "#f0ec3a", "Iwwerpréiwung": "#d9d3f5", "Praktesch Phase": "#1ecdc4", "Ofgab": "#a9d92d", "Eegen": "#F67E1B" };
-const KATEGORIE_TEXT = { "Event": "#1c2621", "Iwwerpréiwung": "#1c2621", "Praktesch Phase": "#04342c", "Ofgab": "#1c2621", "Eegen": "#ffffff" };
+const KATEGORIE_FARWEN = { "Event": "#f0ec3a", "Iwwerpréiwung": "#d9d3f5", "Praktesch Phase": "#1ecdc4", "Ofgab": "#a9d92d", "Eegen": "#F67E1B", "Vakanz": "#b3d9e8" };
+const KATEGORIE_TEXT = { "Event": "#1c2621", "Iwwerpréiwung": "#1c2621", "Praktesch Phase": "#04342c", "Ofgab": "#1c2621", "Eegen": "#ffffff", "Vakanz": "#1c4a5e" };
+const VAKANZ_ZEILEN = VAKANZEN_2026_27.map((v) => ({
+  id: "vak-" + v.start, datum: v.start, datumEnn: v.end, titel: v.label, kategorie: "Vakanz", quell: "Vakanz", status: "", notiz: "",
+}));
 
 function uid() { return Date.now().toString(36) + Math.random().toString(36).slice(2, 8); }
 
@@ -122,9 +125,9 @@ function App() {
   const removeZeil = (id) =>
     setEegenMeilensteng((ms) => ms.filter((m) => m.id !== id));
 
-  // Fir d'Uweisung: offiziell (Liesen) + eege (Schreiwen) zesummen, no Datum sortéiert
+  // Fir d'Uweisung: offiziell (Liesen) + eege (Schreiwen) + Vakanzen zesummen, no Datum sortéiert
   const alleZesummen = useMemo(
-    () => [...offiziell, ...eegenMeilensteng].sort((a, b) => (a.datum || "").localeCompare(b.datum || "")),
+    () => [...offiziell, ...eegenMeilensteng, ...VAKANZ_ZEILEN].sort((a, b) => (a.datum || "").localeCompare(b.datum || "")),
     [offiziell, eegenMeilensteng]
   );
 
@@ -216,7 +219,17 @@ function App() {
                   <tbody>
                     {alleZesummen.map((m) => {
                       const istOffiziell = m.quell === "Offiziell";
-                      const konflikt = pruefVakanzOderFeierdag(m.datum);
+                      const istVakanz = m.quell === "Vakanz";
+                      const konflikt = !istVakanz && pruefVakanzOderFeierdag(m.datum);
+                      if (istVakanz) {
+                        return (
+                          <tr key={m.id} className="zeil-vakanz">
+                            <td colSpan={6}>
+                              🏖️ <strong>{m.titel}</strong> ({new Date(m.datum).toLocaleDateString("de-DE", { day: "2-digit", month: "2-digit" })} – {new Date(m.datumEnn).toLocaleDateString("de-DE", { day: "2-digit", month: "2-digit", year: "numeric" })})
+                            </td>
+                          </tr>
+                        );
+                      }
                       return (
                         <tr key={m.id} className={istOffiziell ? "zeil-gespaart" : ""}>
                           <td>
@@ -289,6 +302,8 @@ body { margin: 0; font-family: -apple-system, "Segoe UI", Inter, Arial, sans-ser
 .zeil-gespaart { background: #fafbfa; }
 .datum-gespaart, .titel-gespaart { font-size: 13px; color: #55625a; }
 .vakanz-hint { font-size: 10.5px; color: #4576B5; font-weight: 700; margin-top: 3px; white-space: nowrap; }
+.zeil-vakanz { background: #f3fafd; }
+.zeil-vakanz td { padding: 8px; font-size: 12.5px; color: #1c4a5e; }
 .empty { padding: 30px; text-align: center; color: #6d7d74; font-size: 14px; background: #fff; border-radius: 12px; border: 1px solid #e2e8e3; }
 .error { color: #8a2b1f; }
 .btn-gen { font-size: 11.5px; font-weight: 700; color: #00A94F; background: #eef3ef; border: 1px solid #c9d5cd; padding: 6px 12px; border-radius: 7px; cursor: pointer; text-decoration: none; }
