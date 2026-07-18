@@ -330,6 +330,7 @@ function App() {
   const [wbPunkte, setWbPunkte] = useState("");
   const [wbAuto, setWbAuto] = useState({ summe: 0, max: 0, anzahl: 0 });
   const [fgInfo, setFgInfo] = useState(null);
+  const [zpInfo, setZpInfo] = useState(null);
   const [kommentar, setKommentar] = useState("");
   const [allgemeinAuswahl, setAllgemeinAuswahl] = useState({});
   const [syncing, setSyncing] = useState(false);
@@ -356,6 +357,7 @@ function App() {
     setKommentar("");
     setFinalisiert(false);
     setFgInfo(null);
+    setZpInfo(null);
   };
 
   const periodeWaehlen = async (p) => {
@@ -366,6 +368,7 @@ function App() {
     setWbPunkte("");
     setWbAuto({ summe: 0, max: 0, anzahl: 0 });
     setFgInfo(null);
+    setZpInfo(null);
     setDocUrl(null);
     setAllgemeinAuswahl({});
     setKommentar("");
@@ -420,6 +423,17 @@ function App() {
         setFgInfo({ datum: fgLetzt.Datum, variante: fgLetzt.Variante });
       } else {
         setFgInfo(null);
+      }
+
+      // Ziel-Iwwerpréiwung-Punkten automatesch an "Bewältigung des Themas" zéien
+      // (deckt just d'Prüftermine of, Autonomie muss d'Prof bäi Bedarf dobäi addéieren)
+      const zpTreffer = (data.zieluewerpreiwungen || []).filter((z) => z.Schüler === schuelerName && z.Periode === p);
+      if (zpTreffer.length > 0) {
+        const zpSumme = zpTreffer.reduce((s, z) => s + (Number(z.Punkte) || 0), 0);
+        setKategorien((ks) => ks.map((k) => (k.name === "Bewältigung des Themas" ? { ...k, punkte: String(zpSumme) } : k)));
+        setZpInfo({ anzuel: zpTreffer.length, summe: zpSumme });
+      } else {
+        setZpInfo(null);
       }
     } catch (e) {
       // Prüfung fehlgeschlagen: im Zweifel nicht sperren, Formulaire bleibt normal nutzbar
@@ -643,6 +657,18 @@ function App() {
                   {g.typ === "fachgespraech" && !fgInfo && (
                     <p className="notice">ℹ️ Nach kee gespäichert Fachgespréich fonnt fir dës Period — manuell aginn oder éischt am Fachgespréich-Tool ausfëllen.</p>
                   )}
+                  {(gruppiert[g.titel] || []).some((k) => k.name === "Bewältigung des Themas") && (
+                    <div className="card-head-row">
+                      <span></span>
+                      <a className="btn-gen" href="zieluewerpreiwung.html" target="_blank">🗣️ Ziler-iwwerpréiwen-Tool →</a>
+                    </div>
+                  )}
+                  {(gruppiert[g.titel] || []).some((k) => k.name === "Bewältigung des Themas") && zpInfo && (
+                    <p className="notice notice-success">✅ {zpInfo.summe}P automatesch aus {zpInfo.anzuel} Ziel-Iwwerpréiwung(en) iwwerholl fir "Bewältigung des Themas" — Autonomie-Undeel bäi Bedarf nach dobäi addéieren.</p>
+                  )}
+                  {(gruppiert[g.titel] || []).some((k) => k.name === "Bewältigung des Themas") && !zpInfo && (
+                    <p className="notice">ℹ️ Nach keng Ziel-Iwwerpréiwung fir dës Period gespäichert — manuell aginn oder éischt am Ziler-iwwerpréiwen-Tool ausfëllen.</p>
+                  )}
 
                   {(gruppiert[g.titel] || []).map((k) => (
                     <div className="item-block" key={k.id}>
@@ -821,7 +847,7 @@ body { margin: 0; font-family: -apple-system, "Segoe UI", Inter, Arial, sans-ser
 .remarque-btn:hover:not(.active) { border-color: #b7c6bd; }
 .gruppen-kommentar { margin-top: 10px; font-size: 12.5px; }
 .kommentar-gen-row { margin-top: 12px; }
-.btn-gen { font-size: 11.5px; font-weight: 700; color: #00A94F; background: #eef3ef; border: 1px solid #c9d5cd; padding: 6px 12px; border-radius: 7px; cursor: pointer; text-decoration: none; }
+.btn-gen { font-size: 11.5px; font-weight: 700; color: #00A94F; background: #eef3ef; border: 1px solid #c9d5cd; padding: 6px 12px; border-radius: 7px; cursor: pointer; }
 .btn-gen:hover { background: #e3ece5; }
 .summary-card { background: #eef3ef; }
 .total-row { font-size: 13.5px; font-weight: 700; color: #294f3c; }
