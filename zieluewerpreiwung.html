@@ -1,0 +1,298 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>PPREN Ziler iwwerpréiwen</title>
+<script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+<script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+<script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+</head>
+<body>
+<div id="root"></div>
+<script>
+  window.addEventListener("error", function (e) {
+    document.getElementById("root").innerHTML =
+      '<div style="padding:40px;font-family:sans-serif;color:#8a2b1f;white-space:pre-wrap;">' +
+      '<h2 style="margin-top:0;">Fehler beim Laden</h2>' +
+      (e.message || "Unbekannter Fehler") +
+      (e.filename ? "\n\nDatei: " + e.filename + " Zeile " + e.lineno : "") +
+      "</div>";
+  });
+</script>
+<script type="text/babel">
+const { useState, useEffect, useRef } = React;
+
+const WEB_APP_URL = "https://script.google.com/macros/s/AKfycbzfyThho8MevoyfSz7NsQ1YxZJO4E-f61GYYzqZyHACIHzxR3bm7SHCwVUkCBJrAEvJ/exec";
+
+const SCHUELER = [
+  { id: "lea_muller", name: "Léa Muller", klasse: "1GSE" },
+  { id: "ben_weber", name: "Ben Weber", klasse: "2GSE" },
+  { id: "noah_schmit", name: "Noah Schmit", klasse: "1GSE" },
+  { id: "mia_reuter", name: "Mia Reuter", klasse: "2GSE" },
+  { id: "tom_klein", name: "Tom Klein", klasse: "2GSE" },
+];
+const PERIODEN_2GSE = ["Trimester 1", "Trimester 2", "Trimester 3"];
+const PERIODEN_1GSE = ["Semester 1", "Semester 2"];
+
+// Selwecht Gesprächskritären fir all Schüler (keng individuell Froen wéi beim Fachgespréich)
+const KRITAEREN = [
+  "Fortschrëtt zënter der leschter Etapp",
+  "Erreechung vun de gesate Ziler",
+  "Autonomie / Eegenstännegkeet bei der Ëmsetzung",
+  "Ëmgang mat opgetruedene Problemer",
+  "Nächst Schrëtt sënnvoll geplangt",
+];
+
+function formatZeit(sek) {
+  const m = Math.floor(Math.abs(sek) / 60);
+  const s = Math.abs(sek) % 60;
+  return `${sek < 0 ? "-" : ""}${String(m).padStart(2, "0")}:${String(s).padStart(2, "0")}`;
+}
+
+function Timer() {
+  const [laeft, setLaeft] = useState(false);
+  const [sek, setSek] = useState(12 * 60);
+  const intervalRef = useRef(null);
+
+  useEffect(() => {
+    if (!laeft) return;
+    intervalRef.current = setInterval(() => setSek((s) => s - 1), 1000);
+    return () => clearInterval(intervalRef.current);
+  }, [laeft]);
+
+  return (
+    <div className="timer-box">
+      <div className={`timer-zeit ${sek < 0 ? "timer-negativ" : ""}`}>{formatZeit(sek)}</div>
+      <div className="timer-label">🗣️ Gespréich (10-12 Min., keng Preparatiounszäit — Schüler koum scho virbereet)</div>
+      <div className="timer-btns">
+        <button className="btn-gen" onClick={() => { setSek(12 * 60); setLaeft(true); }}>▶️ Start (12 Min.)</button>
+        <button className="btn-gen" onClick={() => { setSek(10 * 60); setLaeft(true); }}>▶️ Start (10 Min.)</button>
+        {laeft && <button className="btn-gen btn-stop" onClick={() => setLaeft(false)}>Stopp</button>}
+      </div>
+    </div>
+  );
+}
+
+function App() {
+  const [schuelerId, setSchuelerId] = useState("");
+  const [periode, setPeriode] = useState("");
+  const [termin, setTermin] = useState(1);
+  const [datum, setDatum] = useState(new Date().toISOString().slice(0, 10));
+  const [punkte, setPunkte] = useState("");
+  const [max, setMax] = useState("11");
+  const [notiz, setNotiz] = useState("");
+  const [bisherig, setBisherig] = useState([]);
+  const [loading, setLoading] = useState(false);
+  const [syncing, setSyncing] = useState(false);
+  const [toast, setToast] = useState(null);
+  const [error, setError] = useState(null);
+
+  const currentSchueler = SCHUELER.find((s) => s.id === schuelerId);
+  const istGSE2 = currentSchueler?.klasse === "2GSE";
+  const perioden = istGSE2 ? PERIODEN_2GSE : PERIODEN_1GSE;
+
+  const lade = () => {
+    if (!currentSchueler) return;
+    setLoading(true);
+    fetch(WEB_APP_URL)
+      .then((res) => res.json())
+      .then((data) => setBisherig((data.zieluewerpreiwungen || []).filter((z) => z.Schüler === currentSchueler.name)))
+      .catch(() => setError("Konnte Historique net lueden."))
+      .finally(() => setLoading(false));
+  };
+  useEffect(() => { if (schuelerId) lade(); }, [schuelerId]);
+
+  useEffect(() => {
+    // Nächst fräi Terminnummer fir dës Period virschloen
+    if (!periode) return;
+    const bestehend = bisherig.filter((z) => z.Periode === periode).length;
+    setTermin(bestehend + 1);
+  }, [periode, bisherig]);
+
+  const canSubmit = schuelerId && periode && punkte !== "" && max !== "";
+
+  const speicheren = async () => {
+    if (!canSubmit) return;
+    setSyncing(true);
+    setError(null);
+    try {
+      const res = await fetch(WEB_APP_URL, {
+        method: "POST",
+        headers: { "Content-Type": "text/plain;charset=utf-8" },
+        body: JSON.stringify({
+          typ: "zieluewerpreiwung",
+          schueler: currentSchueler.name, klasse: currentSchueler.klasse,
+          periode, termin, datum,
+          punkte: Number(punkte), max: Number(max),
+          notiz,
+        }),
+      });
+      const data = await res.json();
+      if (!data.ok) throw new Error(data.error || "Onbekannte Feeler");
+      setToast("Ziel-Iwwerpréiwung gespäichert.");
+      setPunkte("");
+      setNotiz("");
+      lade();
+    } catch (e) {
+      setError("Konnte net späicheren: " + e.message);
+    } finally {
+      setSyncing(false);
+      setTimeout(() => setToast(null), 3000);
+    }
+  };
+
+  const summeFuerPeriode = bisherig.filter((z) => z.Periode === periode).reduce((s, z) => s + (Number(z.Punkte) || 0), 0);
+  const maxFuerPeriode = bisherig.filter((z) => z.Periode === periode).reduce((s, z) => s + (Number(z.Max) || 0), 0);
+
+  return (
+    <div className="wrap">
+      <header className="topbar">
+        <div className="brand">
+          <span className="brand-mark">PPREN</span>
+          <span className="brand-sub">Ziler iwwerpréiwen · Sciences Environnementales</span>
+        </div>
+      </header>
+
+      <main className="content">
+        <section className="card">
+          <h2>1. Schüler/-in, Periode & Termin</h2>
+          <div className="grid3">
+            <label className="field">
+              <span className="field-label">Schüler/-in</span>
+              <select className="select" value={schuelerId} onChange={(e) => { setSchuelerId(e.target.value); setPeriode(""); }}>
+                <option value="">– auswählen –</option>
+                {SCHUELER.map((s) => <option key={s.id} value={s.id}>{s.name} ({s.klasse})</option>)}
+              </select>
+            </label>
+            <label className="field">
+              <span className="field-label">Periode</span>
+              <select className="select" value={periode} onChange={(e) => setPeriode(e.target.value)} disabled={!schuelerId}>
+                <option value="">– auswählen –</option>
+                {perioden.map((p) => <option key={p} value={p}>{p}</option>)}
+              </select>
+            </label>
+            <label className="field">
+              <span className="field-label">Datum</span>
+              <input type="date" className="input" value={datum} onChange={(e) => setDatum(e.target.value)} />
+            </label>
+          </div>
+        </section>
+
+        {schuelerId && periode && (
+          <>
+            <section className="card">
+              <h2>2. Termin {termin} — Gespréichskritären</h2>
+              <p className="hint">Selwecht Kritären fir all Schüler — de Schüler huet sech doheem virbereet, et gëtt keng Virbereedungszäit hei.</p>
+              <ul className="kritaeren-liste">
+                {KRITAEREN.map((k) => <li key={k}>{k}</li>)}
+              </ul>
+              <Timer />
+            </section>
+
+            <section className="card">
+              <h2>3. Punkten</h2>
+              <div className="punkte-row">
+                <label className="field field-inline">
+                  <span className="field-label">Max fir dëse Termin</span>
+                  <input type="number" step="0.5" min="0" className="input input-points" value={max} onChange={(e) => setMax(e.target.value)} />
+                </label>
+                <label className="field field-inline">
+                  <span className="field-label">Erreecht Punkten</span>
+                  <input type="number" step="0.5" min="0" max={max || undefined} className="input input-points" value={punkte} onChange={(e) => setPunkte(e.target.value)} />
+                </label>
+              </div>
+              <p className="hint">Punkten-Skala pro Termin variéiert je no Period (kuck de Bewertungsbou) — normalerweis ronn 11P, kann awer ugepasst ginn.</p>
+            </section>
+
+            <section className="card">
+              <h2>4. Notiz (optional)</h2>
+              <textarea className="textarea" rows={3} placeholder="Wat gouf besprach, Beobachtungen..." value={notiz} onChange={(e) => setNotiz(e.target.value)} />
+            </section>
+
+            <div className="actions">
+              <button className="btn btn-primary" disabled={!canSubmit || syncing} onClick={speicheren}>
+                {syncing ? "Späichert…" : "✅ Termin späicheren"}
+              </button>
+            </div>
+            {error && <div className="sync-error">{error}</div>}
+
+            <section className="card summary-card">
+              <div className="note-row">
+                <span className="note-pill">{summeFuerPeriode} / {maxFuerPeriode}</span>
+                <span className="note-hint">Zwëschesumme fir {periode} ({bisherig.filter((z) => z.Periode === periode).length} Termin(er) scho gespäichert)</span>
+              </div>
+            </section>
+
+            {bisherig.length > 0 && (
+              <section className="card">
+                <h2>Bisherech Rendez-vousen — {currentSchueler.name}</h2>
+                <table className="tabelle">
+                  <thead><tr><th>Periode</th><th>Termin</th><th>Datum</th><th>Punkten</th></tr></thead>
+                  <tbody>
+                    {bisherig.map((z, i) => (
+                      <tr key={i}>
+                        <td>{z.Periode}</td>
+                        <td>{z.Termin}</td>
+                        <td>{z.Datum}</td>
+                        <td>{z.Punkte} / {z.Max}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </section>
+            )}
+          </>
+        )}
+      </main>
+      {toast && <div className="toast">{toast}</div>}
+    </div>
+  );
+}
+
+ReactDOM.createRoot(document.getElementById("root")).render(<App />);
+</script>
+<style>
+* { box-sizing: border-box; }
+body { margin: 0; font-family: -apple-system, "Segoe UI", Inter, Arial, sans-serif; color: #1c2621; background: #f6f8f6; }
+.topbar { padding: 14px 22px; background: #00A94F; color: #fff; }
+.brand { display: flex; align-items: baseline; gap: 10px; }
+.brand-mark { font-weight: 800; font-size: 15px; letter-spacing: 0.06em; }
+.brand-sub { font-size: 13px; opacity: 0.85; }
+.content { max-width: 720px; margin: 0 auto; padding: 24px 20px 60px; }
+.card { background: #fff; border: 1px solid #e2e8e3; border-radius: 12px; padding: 18px 20px; margin-bottom: 16px; }
+.card h2 { font-size: 15px; margin: 0 0 12px; color: #00A94F; }
+.grid3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 14px; }
+.field { display: flex; flex-direction: column; gap: 4px; }
+.field-inline { flex: 1; }
+.field-label { font-size: 12.5px; font-weight: 700; color: #294f3c; }
+.select, .input, .textarea { border: 1px solid #c9d5cd; border-radius: 7px; padding: 8px 10px; font-size: 13.5px; font-family: inherit; background: #fff; color: #1c2621; width: 100%; }
+.select:disabled { background: #f1f3f1; color: #7a847e; }
+.textarea { resize: vertical; }
+.hint { font-size: 11.5px; color: #6d7d74; margin: 0 0 10px; line-height: 1.5; }
+.kritaeren-liste { margin: 0 0 14px; padding-left: 18px; font-size: 13px; line-height: 1.7; color: #294f3c; }
+.timer-box { text-align: center; padding: 10px 0 4px; border-top: 1px solid #eef1ef; margin-top: 4px; }
+.timer-zeit { font-size: 38px; font-weight: 800; color: #00A94F; font-variant-numeric: tabular-nums; }
+.timer-negativ { color: #99392f; }
+.timer-label { font-size: 12px; color: #55625a; margin: 4px 0 12px; }
+.timer-btns { display: flex; gap: 8px; justify-content: center; flex-wrap: wrap; }
+.btn-stop { color: #99392f; }
+.punkte-row { display: flex; gap: 14px; margin-bottom: 10px; }
+.input-points { text-align: right; }
+.btn-gen { font-size: 11.5px; font-weight: 700; color: #00A94F; background: #eef3ef; border: 1px solid #c9d5cd; padding: 7px 12px; border-radius: 7px; cursor: pointer; }
+.summary-card { background: #eef3ef; }
+.note-row { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.note-pill { background: #00A94F; color: #fff; padding: 8px 18px; border-radius: 20px; font-size: 16px; font-weight: 800; }
+.note-hint { font-size: 12px; color: #6d7d74; }
+.btn { font-size: 13.5px; font-weight: 700; padding: 10px 18px; border-radius: 8px; border: none; cursor: pointer; }
+.btn-primary { background: #00A94F; color: #fff; }
+.btn-primary:disabled { background: #b7c6bd; cursor: not-allowed; }
+.actions { padding: 4px 0 20px; }
+.sync-error { color: #8a2b1f; font-size: 12.5px; background: #fbe4e1; padding: 8px 12px; border-radius: 8px; margin-bottom: 16px; }
+.tabelle { width: 100%; border-collapse: collapse; margin-top: 8px; }
+.tabelle th { text-align: left; font-size: 11px; text-transform: uppercase; color: #6d7d74; padding: 6px 8px; border-bottom: 1px solid #eef1ef; }
+.tabelle td { padding: 7px 8px; font-size: 13px; border-bottom: 1px solid #f4f6f4; }
+.toast { position: fixed; bottom: 22px; left: 50%; transform: translateX(-50%); background: #1c2621; color: #fff; padding: 10px 18px; border-radius: 8px; font-size: 13px; }
+</style>
+</body>
+</html>
