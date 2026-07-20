@@ -59,8 +59,8 @@ function pruefVakanzOderFeierdag(iso) {
 }
 
 const STATUS_OPTIONEN = ["Ausstoend", "Erreecht", "Verspéit"];
-const KATEGORIE_FARWEN = { "Event": "#f0ec3a", "Iwwerpréiwung": "#d9d3f5", "Praktesch Phase": "#1ecdc4", "Ofgab": "#a9d92d", "Eegen": "#F67E1B", "Vakanz": "#b3d9e8" };
-const KATEGORIE_TEXT = { "Event": "#1c2621", "Iwwerpréiwung": "#1c2621", "Praktesch Phase": "#04342c", "Ofgab": "#1c2621", "Eegen": "#ffffff", "Vakanz": "#1c4a5e" };
+const KATEGORIE_FARWEN = { "Event": "#f0ec3a", "Iwwerpréiwung": "#d9d3f5", "Praktesch Phase": "#1ecdc4", "Ofgab": "#a9d92d", "Eegen": "#F67E1B", "Vakanz": "#b3d9e8", "Projektplang": "#5b9bd5" };
+const KATEGORIE_TEXT = { "Event": "#1c2621", "Iwwerpréiwung": "#1c2621", "Praktesch Phase": "#04342c", "Ofgab": "#1c2621", "Eegen": "#ffffff", "Vakanz": "#1c4a5e", "Projektplang": "#ffffff" };
 const VAKANZ_ZEILEN = VAKANZEN_2026_27.map((v) => ({
   id: "vak-" + v.start, datum: v.start, datumEnn: v.end, titel: v.label, kategorie: "Vakanz", quell: "Vakanz", status: "", notiz: "",
 }));
@@ -75,6 +75,7 @@ function App() {
   const [gespaart, setGespaart] = useState(!!urlSchueler);
   const [eegenMeilensteng, setEegenMeilensteng] = useState([]); // nëmmen eege, editéierbar
   const [offiziell, setOffiziell] = useState([]); // vum Server, nëmmen liesen
+  const [projektplang, setProjektplang] = useState([]); // Projektplang-Meilensteng, Status/Notiz editéierbar
   const [loading, setLoading] = useState(false);
   const [syncing, setSyncing] = useState(false);
   const [error, setError] = useState(null);
@@ -117,6 +118,9 @@ function App() {
             .filter((m) => (m.quell || "Eegen") === "Eegen")
             .filter((m) => !offiziellSchlëssel.has(m.datum + "|" + m.titel))
         );
+        // Projektplang-Meilensteng: kommen aus dem Projektplang-Formulaire (index.html),
+        // Datum/Titel ginn do festgeluecht — hei just Status/Notiz upassbar.
+        setProjektplang(gespäichert.filter((m) => m.quell === "Projektplang"));
         setOffiziell(offiziellFuerKlass);
       })
       .catch(() => setError("Konnte Meilensteng net lueden."))
@@ -127,15 +131,18 @@ function App() {
 
   const updateZeil = (id, patch) =>
     setEegenMeilensteng((ms) => ms.map((m) => (m.id === id ? { ...m, ...patch } : m)));
+  const updateProjektplangZeil = (id, patch) =>
+    setProjektplang((ms) => ms.map((m) => (m.id === id ? { ...m, ...patch } : m)));
   const addZeil = () =>
     setEegenMeilensteng((ms) => [...ms, { id: uid(), datum: "", titel: "", status: "Ausstoend", kategorie: "Eegen", notiz: "", quell: "Eegen" }]);
   const removeZeil = (id) =>
     setEegenMeilensteng((ms) => ms.filter((m) => m.id !== id));
 
-  // Fir d'Uweisung: offiziell (Liesen) + eege (Schreiwen) + Vakanzen zesummen, no Datum sortéiert
+  // Fir d'Uweisung: offiziell (Liesen) + Projektplang (Status/Notiz editéierbar)
+  // + eege (Schreiwen) + Vakanzen zesummen, no Datum sortéiert
   const alleZesummen = useMemo(
-    () => [...offiziell, ...eegenMeilensteng, ...VAKANZ_ZEILEN].sort((a, b) => (a.datum || "").localeCompare(b.datum || "")),
-    [offiziell, eegenMeilensteng]
+    () => [...offiziell, ...projektplang, ...eegenMeilensteng, ...VAKANZ_ZEILEN].sort((a, b) => (a.datum || "").localeCompare(b.datum || "")),
+    [offiziell, projektplang, eegenMeilensteng]
   );
 
   const speicheren = async () => {
@@ -145,9 +152,11 @@ function App() {
     try {
       // Späichert eege Meilensteng KOMPLETT + vun den offizielle just
       // d'Status/Notiz als kleng "Overlay"-Kopie (Datum/Titel/Kategorie
-      // ginn beim Lueden ëmmer vum Server iwwerschriwwen).
+      // ginn beim Lueden ëmmer vum Server iwwerschriwwen). Projektplang-
+      // Zeilen ginn komplett mat (Datum/Titel bleiwen d'selwecht wéi
+      // gelueden, well se just am Projektplang-Formulaire änderbar sinn).
       const offiziellOverlay = offiziell.map((m) => ({ id: m.id, quell: "Offiziell", status: m.status, notiz: m.notiz }));
-      const zSpäicheren = [...eegenMeilensteng, ...offiziellOverlay];
+      const zSpäicheren = [...eegenMeilensteng, ...offiziellOverlay, ...projektplang];
       const res = await fetch(WEB_APP_URL, {
         method: "POST",
         headers: { "Content-Type": "text/plain;charset=utf-8" },
@@ -217,7 +226,7 @@ function App() {
                   <button className="btn-gen" onClick={csvExport}>⬇️ CSV</button>
                 </div>
               </div>
-              <p className="hint">🔒 Offiziell Meilensteng (gro Sperr-Symbol) kommen automatesch vum Prof — kënne just vun him geännert ginn. Deng eege Meilensteng (orange) kanns du fräi bearbechten.</p>
+              <p className="hint">🔒 Offiziell Meilensteng (gro) kommen automatesch vum Prof. 📝 Projektplang-Meilensteng (blo) kommen aus dengem <a href={`index.html`}>Projektplang-Formulaire</a> — Datum/Titel do änneren, Status/Notiz hei. Deng eege Meilensteng (orange) kanns du fräi bearbechten.</p>
               <div className="tabelle-wrap">
                 <table className="tabelle">
                   <thead>
@@ -227,6 +236,7 @@ function App() {
                     {alleZesummen.map((m) => {
                       const istOffiziell = m.quell === "Offiziell";
                       const istVakanz = m.quell === "Vakanz";
+                      const istProjektplang = m.quell === "Projektplang";
                       const konflikt = !istVakanz && pruefVakanzOderFeierdag(m.datum);
                       if (istVakanz) {
                         return (
@@ -234,6 +244,29 @@ function App() {
                             <td colSpan={6}>
                               🏖️ <strong>{m.titel}</strong> ({new Date(m.datum).toLocaleDateString("de-DE", { day: "2-digit", month: "2-digit" })} – {new Date(m.datumEnn).toLocaleDateString("de-DE", { day: "2-digit", month: "2-digit", year: "numeric" })})
                             </td>
+                          </tr>
+                        );
+                      }
+                      if (istProjektplang) {
+                        return (
+                          <tr key={m.id} className="zeil-gespaart">
+                            <td>
+                              <span className="datum-gespaart" title="Am Projektplang-Formulaire festgeluecht">📝 {m.datum}</span>
+                              {konflikt && <div className="vakanz-hint">🏖️ {konflikt}</div>}
+                            </td>
+                            <td><span className="titel-gespaart">{m.titel}</span></td>
+                            <td>
+                              <span className="kategorie-badge" style={{ background: KATEGORIE_FARWEN.Projektplang, color: KATEGORIE_TEXT.Projektplang }}>Projektplang</span>
+                            </td>
+                            <td>
+                              <select className="select" value={m.status} onChange={(e) => updateProjektplangZeil(m.id, { status: e.target.value })}>
+                                {STATUS_OPTIONEN.map((s) => <option key={s} value={s}>{s}</option>)}
+                              </select>
+                            </td>
+                            <td>
+                              <input className="input" placeholder="optional" value={m.notiz || ""} onChange={(e) => updateProjektplangZeil(m.id, { notiz: e.target.value })} />
+                            </td>
+                            <td></td>
                           </tr>
                         );
                       }
