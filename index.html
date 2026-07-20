@@ -140,6 +140,33 @@ function App() {
     }
   }, [schuelerId]);
 
+  // "Vis versa": Meilensteng, déi am Planungstool derbäigesat goufen (quell "Eegen"),
+  // an de Projektplang-Formulaire iwwerhuelen, wa se hei nach net stinn (no Titel gepréift).
+  useEffect(() => {
+    if (!schuelerId || !currentSchueler || !loaded) return;
+    fetch(WEB_APP_URL)
+      .then((res) => res.json())
+      .then((data) => {
+        const eintrag = (data.meilensteng || []).find((m) => m.Schüler === currentSchueler.name);
+        if (!eintrag || !eintrag["Meilensteng (JSON)"]) return;
+        let gespäichert = [];
+        try { gespäichert = JSON.parse(eintrag["Meilensteng (JSON)"]); } catch { return; }
+        const ausPlanungstool = gespäichert.filter((m) => (m.quell || "Eegen") === "Eegen" && m.titel && m.titel.trim());
+        setPlan((p) => {
+          const bestehendTitelen = new Set(p.meilensteine.map((m) => (m.beschreibung || "").trim().toLowerCase()));
+          const nei = ausPlanungstool
+            .filter((m) => !bestehendTitelen.has(m.titel.trim().toLowerCase()))
+            .map((m) => ({ id: uid(), datum: m.datum || "", beschreibung: m.titel }));
+          if (nei.length === 0) return p;
+          // Éischt eidel Zeil (ouni Beschreiwung) duerch déi nei ersetzen, dann de Rescht undréinen
+          const ouniEidel = p.meilensteine.filter((m) => m.beschreibung && m.beschreibung.trim());
+          return { ...p, meilensteine: [...ouniEidel, ...nei] };
+        });
+      })
+      .catch(() => {});
+    // eslint-disable-next-line
+  }, [schuelerId, loaded]);
+
   const update = useCallback((patch) => setPlan((p) => ({ ...p, ...patch })), []);
 
   const updateMeilenstein = (id, patch) =>
@@ -280,6 +307,7 @@ function App() {
 
                 <section className="card">
                   <h2>3. Ziele & Meilensteine</h2>
+                  <p className="field-hint" style={{ marginBottom: "10px" }}>Meilensteng hei ginn automatesch am <a href={`planung.html?schueler=${schuelerId}`}>Planungstool</a> ugewisen (Datum/Titel hei änneren). Meilensteng, déi s du am Planungstool derbäisetz, kommen och hei erageluede.</p>
                   <Field label="Ziele">
                     <textarea className="textarea" rows={3} value={plan.ziele} onChange={(e) => update({ ziele: e.target.value })} />
                   </Field>
