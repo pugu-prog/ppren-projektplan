@@ -34,6 +34,22 @@ const SCHUELER = [
 ];
 const PROFFEN = ["Guy Putz", "Pol Medernach", "Sarah Blum"];
 
+// Säiten, déi just fir eng bestëmmte Roll gedaach sinn — gëtt benotzt fir
+// de "zréck"-Parameter ze préiwen, sou datt kee mat der falscher Roll op
+// eng gespaart Säit geleet gëtt (och net iwwer en ale Link).
+const PROF_SÄITEN = ["admin.html", "bewertung.html", "dashboard.html", "fachgespraech.html", "zieluewerpreiwung.html", "wochenberichte-korrigeieren.html", "zeitplang-verwalten.html", "noten.html"];
+const SCHUELER_SÄITEN = ["index.html", "wochenbericht.html"];
+
+/** Gëtt eng sécher Ziel-Säit zréck: benotzt "zréck" nëmmen, wann d'Roll do och Zougrëff huet. */
+function sécherZiel(zréckParam, rolle) {
+  const standard = rolle === "Prof" ? "dashboard.html" : "links.html";
+  if (!zréckParam) return standard;
+  const seitenNumm = zréckParam.split("?")[0];
+  if (rolle === "Prof" && SCHUELER_SÄITEN.includes(seitenNumm)) return standard;
+  if (rolle === "Schüler" && PROF_SÄITEN.includes(seitenNumm)) return standard;
+  return zréckParam;
+}
+
 function App() {
   const [rolle, setRolle] = useState("Schüler");
   const [numm, setNumm] = useState("");
@@ -43,10 +59,12 @@ function App() {
 
   useEffect(() => {
     // Wann scho ugemellt, direkt weiderleeden op déi Säit, déi virdru gewollt war
+    // (mä just wann d'Roll do Zougrëff huet, soss op d'Standard-Säit).
     const bestehendToken = localStorage.getItem("ppren_token");
-    if (bestehendToken) {
-      const ziel = new URLSearchParams(window.location.search).get("zréck") || "links.html";
-      window.location.href = ziel;
+    const bestehendRolle = localStorage.getItem("ppren_rolle");
+    if (bestehendToken && bestehendRolle) {
+      const zréckParam = new URLSearchParams(window.location.search).get("zréck");
+      window.location.href = sécherZiel(zréckParam, bestehendRolle);
     }
   }, []);
 
@@ -71,8 +89,8 @@ function App() {
       localStorage.setItem("ppren_numm", data.numm);
       localStorage.setItem("ppren_rolle", data.rolle);
       localStorage.setItem("ppren_klasse", data.klasse || "");
-      const ziel = new URLSearchParams(window.location.search).get("zréck") || (data.rolle === "Prof" ? "dashboard.html" : "links.html");
-      window.location.href = ziel;
+      const zréckParam = new URLSearchParams(window.location.search).get("zréck");
+      window.location.href = sécherZiel(zréckParam, data.rolle);
     } catch (e) {
       setError(e.message);
     } finally {
