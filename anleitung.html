@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>PPREN Gebrauchsanweisung</title>
+<script src="auth-guard.js"></script>
+<style>
+  * { box-sizing: border-box; }
+  body { margin: 0; font-family: -apple-system, "Segoe UI", Inter, Arial, sans-serif; color: #1c2621; background: #f6f8f6; }
+  .hero { background: #fff; border-bottom: 1px solid #e2e8e3; padding: 32px 22px 26px; text-align: center; }
+  .hero-bar { height: 3px; width: 90px; background: #F67E1B; margin: 0 auto 14px; border-radius: 2px; }
+  .hero h1 { font-size: 20px; font-weight: 800; margin: 0 0 6px; }
+  .hero p { font-size: 13px; color: #55625a; margin: 0; }
+  .content { max-width: 720px; margin: 0 auto; padding: 24px 20px 60px; }
+  .download-card { background: #00A94F; border-radius: 14px; padding: 20px 24px; text-align: center; margin-bottom: 24px; }
+  .download-card p { color: #fff; font-size: 13px; margin: 0 0 12px; opacity: 0.9; }
+  .download-btn { display: inline-block; background: #fff; color: #00A94F; font-weight: 800; font-size: 14px; padding: 12px 24px; border-radius: 9px; text-decoration: none; }
+  .card { background: #fff; border: 1px solid #e2e8e3; border-radius: 12px; padding: 18px 20px; margin-bottom: 16px; }
+  .card h2 { font-size: 15px; margin: 0 0 10px; color: #00A94F; }
+  .card p { font-size: 13.5px; line-height: 1.6; margin: 0 0 8px; }
+  table { width: 100%; border-collapse: collapse; margin-top: 4px; }
+  th { text-align: left; font-size: 11px; text-transform: uppercase; color: #6d7d74; padding: 6px 8px; border-bottom: 1px solid #eef1ef; }
+  td { padding: 7px 8px; font-size: 12.5px; border-bottom: 1px solid #f4f6f4; vertical-align: top; }
+  td:first-child { font-weight: 700; white-space: nowrap; }
+  .notice { background: #eef3ef; padding: 10px 14px; border-radius: 8px; font-size: 12.5px; line-height: 1.5; margin-top: 10px; }
+  .back { display: block; text-align: center; font-size: 13px; color: #00A94F; text-decoration: none; font-weight: 700; margin-top: 20px; }
+</style>
+</head>
+<body>
+  <header class="hero">
+    <div class="hero-bar"></div>
+    <h1>📖 PPREN — Gebrauchsanweisung</h1>
+    <p>Sciences Environnementales · Lycée Technique d'Ettelbruck</p>
+  </header>
+
+  <main class="content">
+    <div class="download-card">
+      <p>Komplett Gebrauchsanweisung als PDF (2 Säiten) — fir ze drécken oder ofzespäicheren.</p>
+      <a class="download-btn" href="data:application/pdf;base64,JVBERi0xLjQKJZOMi54gUmVwb3J0TGFiIEdlbmVyYXRlZCBQREYgZG9jdW1lbnQgKG9wZW5zb3VyY2UpCjEgMCBvYmoKPDwKL0YxIDIgMCBSIC9GMiAzIDAgUgo+PgplbmRvYmoKMiAwIG9iago8PAovQmFzZUZvbnQgL0hlbHZldGljYSAvRW5jb2RpbmcgL1dpbkFuc2lFbmNvZGluZyAvTmFtZSAvRjEgL1N1YnR5cGUgL1R5cGUxIC9UeXBlIC9Gb250Cj4+CmVuZG9iagozIDAgb2JqCjw8Ci9CYXNlRm9udCAvSGVsdmV0aWNhLUJvbGQgL0VuY29kaW5nIC9XaW5BbnNpRW5jb2RpbmcgL05hbWUgL0YyIC9TdWJ0eXBlIC9UeXBlMSAvVHlwZSAvRm9udAo+PgplbmRvYmoKNCAwIG9iago8PAovQ29udGVudHMgOSAwIFIgL01lZGlhQm94IFsgMCAwIDU5NS4yNzU2IDg0MS44ODk4IF0gL1BhcmVudCA4IDAgUiAvUmVzb3VyY2VzIDw8Ci9Gb250IDEgMCBSIC9Qcm9jU2V0IFsgL1BERiAvVGV4dCAvSW1hZ2VCIC9JbWFnZUMgL0ltYWdlSSBdCj4+IC9Sb3RhdGUgMCAvVHJhbnMgPDwKCj4+IAogIC9UeXBlIC9QYWdlCj4+CmVuZG9iago1IDAgb2JqCjw8Ci9Db250ZW50cyAxMCAwIFIgL01lZGlhQm94IFsgMCAwIDU5NS4yNzU2IDg0MS44ODk4IF0gL1BhcmVudCA4IDAgUiAvUmVzb3VyY2VzIDw8Ci9Gb250IDEgMCBSIC9Qcm9jU2V0IFsgL1BERiAvVGV4dCAvSW1hZ2VCIC9JbWFnZUMgL0ltYWdlSSBdCj4+IC9Sb3RhdGUgMCAvVHJhbnMgPDwKCj4+IAogIC9UeXBlIC9QYWdlCj4+CmVuZG9iago2IDAgb2JqCjw8Ci9QYWdlTW9kZSAvVXNlTm9uZSAvUGFnZXMgOCAwIFIgL1R5cGUgL0NhdGFsb2cKPj4KZW5kb2JqCjcgMCBvYmoKPDwKL0F1dGhvciAoXChhbm9ueW1vdXNcKSkgL0NyZWF0aW9uRGF0ZSAoRDoyMDI2MDcyMTIwMTQwNCswMCcwMCcpIC9DcmVhdG9yIChcKHVuc3BlY2lmaWVkXCkpIC9LZXl3b3JkcyAoKSAvTW9kRGF0ZSAoRDoyMDI2MDcyMTIwMTQwNCswMCcwMCcpIC9Qcm9kdWNlciAoUmVwb3J0TGFiIFBERiBMaWJyYXJ5IC0gXChvcGVuc291cmNlXCkpIAogIC9TdWJqZWN0IChcKHVuc3BlY2lmaWVkXCkpIC9UaXRsZSAoUFBSRU4gR2VicmF1Y2hzYW53ZWlzdW5nKSAvVHJhcHBlZCAvRmFsc2UKPj4KZW5kb2JqCjggMCBvYmoKPDwKL0NvdW50IDIgL0tpZHMgWyA0IDAgUiA1IDAgUiBdIC9UeXBlIC9QYWdlcwo+PgplbmRvYmoKOSAwIG9iago8PAovRmlsdGVyIFsgL0FTQ0lJODVEZWNvZGUgL0ZsYXRlRGVjb2RlIF0gL0xlbmd0aCAyMTA2Cj4+CnN0cmVhbQpHYXVgVGdOKSI9JjpPOlNvTk9pbidQVEI6K3RtMGRgLS1GbmZNOVg7PEBNNmJCTCJqJU9qVjVxSS9XYnQvcjVEcDMydFVrYEZVa2VlIUpQPjdsWG8qVDQ7Ml8kLEM2c2hPWmdlMF4rUzZpPi40SjI0WD44SVtpQ1o6N2tbPE83YUxWSEIuKmxZIyJmPkFdcT8qSl4pI09HZ0Mhb2BkNC5PalEodDpTXTMsV0tNR3BqYlIrLj0pSHE/L1Q/aENfXmZWQypuM01nKUUxMkppSlBoX2thX1UqaUxdLzYwYEAoTjpBVm8vWT4ybCEjQCg/O14qTzxjWlpuNUxaMy8mZ0JYQ0liUDlYdTY3LiMrLCpSPFhbJC5LaChIPCNGKixKR0VLXHJcWVwqU3FHRDFpRGAzMEVlTWlAMVNsZFNPU05qPUo/ZD4sZ3RHbE5AXilNInMuJV9McSorK2JOc21YLXE+JyM8UihGJGlJYThAUT85aGssXDo0az4mIjpsIko9QCxWV2FucWo8bG87M3BjJCNLN146aGdUQ14nWmxlc19iTlpqTEBaRTtHdE9zXFFQNCFyUGAwJ0E/YC1xSmppME1WWWZgMGBBKjJIWG9bI0BqLFVnamxpbUY6bm1xV2ZqbSk7Qj1BQEpTVDx1MyZjLEc1YVoyQiNnIms+Om5qaWlcJyY5R0RgYSkzRkcoOnBBMyhkRURGN088aFEkIyxTUDg6QDlHJFZFRF1raFhLbG9ZMj0+TjNDWUc+ZDZUSG5zUzE9K0YrJl5ValZJaWBpJ1ZIayxkX1lCLCw0ZztNQjlraDU8aGtJXidoRkVmbyNkYGtOMzEkVSImTnJRLzBxc2JBRi1LZ3JNYCwpWGJYK1RdKEQlcDRzLDEsVz9uIXRsTFUuRT4mZUZOYyRpSG1KTFJJUTVdNTZyZ1FMNEgwVEokW2RoMlZrTF40VU07aUpLNkEtRE08J0xhOGhPRi9gYjs3XTgoLVIqa1ZhSmgqTz1jS0JwWzhaNTZiLFIjYm5pdSdQPzxzUiooJFI7KGJrNik+KkI8K3E3Tj9NZG1sJnQ8UjEpJCoqOzI7KlgsZCdsaExQOlFdSiJUXS0ibTlGPDNnN049RmtjOmVePXNyT0ZuW2QkaDBDITRwckk9OTBPQWReWjMqak1SSWNFXWNnbVFDQC5uWWQ0b1tMTy9wZShmRHFfbzFOR1VeVFVSQE9rVFAmUE4zQzA/VSxVYFo1QSw6M0lYYVpfWU48RChdM0RPWVE9KDM9JjguI1IjYFwiWFBeSjRnQFA2TCc9ZT45bj45WzJVOkQpZGlWcVxfMkwhQlheSElFL3BCMiNIJXMmTDJWImxESC5CYlonTzckQiRzPzZvNz8uOUFmalQ6KHMvXVtfLT1xXjNKPkRNRjRFNipgLD5sOylscG4pRm9pIU5DPzljPihFIy1zK1ZEVjMwKG0xZHBmJFxrR19HNkUyb0NyWCZMJi07OGxMKVdDazo1Rk0tO1klcm0/RERJTEZRZHVPWGVrTCFkXVpuRjtcPnFUX11rTVwzRFRkNUlcbTxITmRHZyhrVUpUcDBqM2VDTTtdQD0qP0hbXildT1spXERbNy9wU20majJMQzspTzgxTUgkKyZAWiU4XXNeTUJfLnUyc2BpNUIpZzpfaEouYl8/cEEuSi5JWGJ1QmYnTTxOKTpJQkNpUSJnbGpgal1FYTpySjIlbjQ2MDktOjhbNVtVSWAqRURebyVYO3QkLG8kbTZHUVc4LzNFXVk9NGI9R2lgVlNgL2E3LnM4RTFPV0RsQ25jP2lNUSVHOTshKk5GVSgyUThZbFpRYVciVz44Rlw5TltLISVmdT4qQDwqTWdARTBWSiMwaT4qZGBTUS5yLTNYXUNtO01RPktVbD5dXylkXGhEVmVVLHNWUD1BIUc4MD1paClAKzUiSUFrX0FBS2tLUF9sQDNLRmMsMm4oP3RTOVUvK1JFRFYmNUVdJW48XTgyJDBTUzAnRVtHM2MkVj0kdC1QXTRPKDNAQUpaUUE7IWpqP0I5Zz5lVmZEXjpvTi8ta1o9Y25Qbk5KSC5LWWlQNjxVJ2pbbWlvcDVlcUUmay1eIV1PU29nQVl1Mi9PU0o3YnMjQT5ANUB0LWBfXFYycmlNTEtyJyt0Q24xcDFkVnFha2pBQEBwOmhYUD04XDpDKXE0YzI9ODY3ZFNYZSE+SDJCSmc2UmImNmkwVS5lRmlSOi1KbU8lWnRjVzZlZ1c1LUosLUBvUHJDRkAlZCdmSzBnPzdAUioyaWNgbGxhTCg/SXBOPStrUiEkLSpSNlEjXHFzTFhRUUFGN1dkL0ttcFspMixsZTQ6cSQkYStjPVFWMSsvMk1WTnVcIk0ocz1hSC8tVE5oRGFeZyZ1I1BAVS1yNGVlYE1HNmY2Q0BXYXNBPyROLFtIcTlfMXFOXDZNRiRwLEVSb1ckOydCJiVLdCxNNmQvNWwhLnIuTkcvcDA8NkFsUC1oRCIhQz5gO0AzQGlAU09cOlxdMXFSR0lgM04oY2JLMD10RG9mVSZANWBPKTZUSTNdbGwra10tU15PPGM4R3RcZT5PRTtWRiFtPFZgZ1xDZE1MOURRPURrUWRjTC1lV29kdTlDQ3BHZEAiOkwxMzdePEUrT1xfNFNBRysiMDVvMGMlUFwxY1dUZGNlb0hCSEs2SE5yLF0qTXA+JnInQSlqTGt0M0g4X2IwaDpnbWwsW21QNkcpLHJjPy5aLTFQbEEka2ZAPjYhRkMhcVBoKWIoVTwtdEk0OjtiQCllUiVjRVE8MShMMztGKCU2YlxUfj5lbmRzdHJlYW0KZW5kb2JqCjEwIDAgb2JqCjw8Ci9GaWx0ZXIgWyAvQVNDSUk4NURlY29kZSAvRmxhdGVEZWNvZGUgXSAvTGVuZ3RoIDExNDYKPj4Kc3RyZWFtCkdhdTEtPyNTSVUnU2MpVC8nX0ZgLCVnTDZhalNfRD91YVJHYy5wPChKXGpAUUkzXlY3OD0oTjExciJLcFBpSEFYXTRqUUQpaldhT2lsZ010a0UlRGRvU3BjZ1dXZm8kX3M7IkZFPD5fPUBhNnNXRHI+cSpxRTBXRzRuRj9nQVEkTiVpPktoJThQXD0wMGU2MyYhRU5mKGFeX29aUDllPmVlMD4uV19aK2tDWihgWjJMNF9kaj9CKmg9SlQ0WCkmSTAqQzEucGNpTEY3TmpCby5vQWlXQTdaWTpdJUlIIkguXG9rSytvTSs0WCsoPG4uIWBHLz1dW2tpcSFNbEA5a0kkK3Itbl89IWBjKFRGTzwiMFI3MW9PZSwlRXQ/cj4uUE5xbDtoJFJyJzVCKm82Wms+SyhKWmcoIi1iZ19uJkkwZWhvZUIkNVEyZ0pMcihRNjkvaiMkYnQ3ai47NlVFVFliOSJvZC9EKmNHRVU0Q05TJFlBajgvIlJYYkNRJWt0X1EqJ0smcyFSKChmXl1SNVZDPldKXTplQ2VdJEJjWjJpWEdnKkJIRzJtVUpfIWVYU0hEdDRMRSFNUGRCXjlIMGsiIyYyWUspVCNXJjo+Y0dMWU0oYC5gJ0BzU1xpMkFybGZSZzdVcSdfKEZfRTRRbFdRbF5lMS1mYllyY2MnUlVuTVp0Q1lIM0JETEZFISxgKGxhW2draGdpaC0sZVV0bW5bJS5vJ14wLGgsKnEmbyhMOyNBWXMjXSU7Wm9cXVJHT2o/R0VedGliMzgxMG9pMz9cPEgpWlMjUDlJMzk9NVJIRnVnLi5pa08yPDw7JlBKQEQ1X1FvXSE/XDQoJFRxLi9uM2M6XEhcY3RhajpPKjVSS3ApNGw0TlpXNjohPm9xV3FMRylBX0s6XSFac0xcSms0SjZaaV5ZN14nN1U+ZEhVMy48NistXT04XW40WSppPCtUcVhXU2s+IjpcWlwhTEJRKCpnWF09J2IwbWY1JCs/PXFlcjlTO08pS0UuSE45Wz9KS0JQPy0vWSZuZilyWGAqRVRBLnBIaUQ/K08mVGVsKyRxQio6RV5SLDNJTzNRclc/ZCdjc0hNRDk8ajRVZj0lQCEjMCxfbSlib25DMnI2LkMjTjFNdSo8Sj9LNW45SWo6QSozQyhMM1hrLXA/PCpSU0dzOGxXXiFBS2AxPEgkI0BaN0c4bnNIYiJiZSRYM0JRKVM5Y0lAVE81WVxfVTJIVC1UZ2gnQUVERm5qZmtYSF5RMktaJ2goSTQvODA8XlFQSGtCJ2E4dTA2aTRFRDcxMjQycXUmVllXYk9hMl5ydGc2cm1NbllpampVM0UvbUhzU2U8b0hwPy47JGMzKjtDRSNcbFA0NUZgSGlWSmstalYnKl8nJUk9Tlw1ai1nQlgwM2lGWG5BRiQuIVAoWEYrJW1iUihxRlQsZ2ZWPzxgPzRkXltnY0Y/NXVuRy02I0tTXkI8cVY7OFgtUFBYcmk3cERDIl1aNG1BJyMnMixOO2BtOSxcXiF+PmVuZHN0cmVhbQplbmRvYmoKeHJlZgowIDExCjAwMDAwMDAwMDAgNjU1MzUgZiAKMDAwMDAwMDA2MSAwMDAwMCBuIAowMDAwMDAwMTAyIDAwMDAwIG4gCjAwMDAwMDAyMDkgMDAwMDAgbiAKMDAwMDAwMDMyMSAwMDAwMCBuIAowMDAwMDAwNTI0IDAwMDAwIG4gCjAwMDAwMDA3MjggMDAwMDAgbiAKMDAwMDAwMDc5NiAwMDAwMCBuIAowMDAwMDAxMDg3IDAwMDAwIG4gCjAwMDAwMDExNTIgMDAwMDAgbiAKMDAwMDAwMzM0OSAwMDAwMCBuIAp0cmFpbGVyCjw8Ci9JRCAKWzwwYjdmZjE0YWUzMmZhOTkxODhhODY2NjFiY2M3MTkzZj48MGI3ZmYxNGFlMzJmYTk5MTg4YTg2NjYxYmNjNzE5M2Y+XQolIFJlcG9ydExhYiBnZW5lcmF0ZWQgUERGIGRvY3VtZW50IC0tIGRpZ2VzdCAob3BlbnNvdXJjZSkKCi9JbmZvIDcgMCBSCi9Sb290IDYgMCBSCi9TaXplIDExCj4+CnN0YXJ0eHJlZgo0NTg3CiUlRU9GCg==" download="PPREN_Gebrauchsanweisung.pdf">⬇️ PDF eroflueden</a>
+    </div>
+
+    <section class="card">
+      <h2>1. Umellen</h2>
+      <p>All Säite brauchen eng Umeldung. Op <strong>login.html</strong> Ären Numm auswielen (Schüler/-in oder Prof) an Ären 4-stellege PIN aginn.</p>
+      <div class="notice">PIN vergiess? Frot eng Betreiungspersoun, si kann en zrécksetzen. Ofmellen: Knäppchen ënne riets op all Säit.</div>
+    </section>
+
+    <section class="card">
+      <h2>2. Fir Schüler/-innen</h2>
+      <table>
+        <thead><tr><th>Tool</th><th>Wat et mécht</th></tr></thead>
+        <tbody>
+          <tr><td>Projektplang</td><td>Projektplang ausfëllen, Meilensteng festleeën, areechen.</td></tr>
+          <tr><td>Wochenbericht</td><td>All Woch e Bericht mat Zesummefaassung a Fortschrëtt ofginn.</td></tr>
+          <tr><td>Mäin Suivi</td><td>Punkten, Remarquen a Fortschrëtt kucken.</td></tr>
+          <tr><td>Planungstool</td><td>Meng Meilensteng verfollegen a Status setzen.</td></tr>
+          <tr><td>Gantt-Chart</td><td>Meng Zäitschinn visuell kucken.</td></tr>
+          <tr><td>Zäitplang</td><td>Offiziell Etappen a Vakanzen kucken.</td></tr>
+        </tbody>
+      </table>
+    </section>
+
+    <section class="card">
+      <h2>3. Fir Proffen</h2>
+      <table>
+        <thead><tr><th>Tool</th><th>Wat et mécht</th></tr></thead>
+        <tbody>
+          <tr><td>Bewertung</td><td>Punkten, Remarquen a Kommentar aginn a finaliséieren.</td></tr>
+          <tr><td>Fachgespréich</td><td>Timer, Froen-Import a Punkten.</td></tr>
+          <tr><td>Ziler iwwerpréiwen</td><td>Kuerz Rendez-vousen ouni Preparatioun bewäerten.</td></tr>
+          <tr><td>Wochenberichter korrigéieren</td><td>Berichter kucken, bewäerten, entschëllegen.</td></tr>
+          <tr><td>Dashboard</td><td>Iwwersiicht iwwer all Projeten.</td></tr>
+          <tr><td>Notentabell</td><td>All Noten, CSV/Excel-exportéierbar.</td></tr>
+          <tr><td>Zäitplang verwalten</td><td>Zentral offiziell Meilensteng änneren.</td></tr>
+        </tbody>
+      </table>
+    </section>
+
+    <a class="back" href="admin.html">← Zréck op Admin</a>
+  </main>
+</body>
+</html>
