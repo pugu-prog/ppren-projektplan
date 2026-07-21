@@ -1,0 +1,151 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>PPREN Umeldung</title>
+<script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+<script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+<script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+</head>
+<body>
+<div id="root"></div>
+<script>
+  window.addEventListener("error", function (e) {
+    document.getElementById("root").innerHTML =
+      '<div style="padding:40px;font-family:sans-serif;color:#8a2b1f;white-space:pre-wrap;">' +
+      '<h2 style="margin-top:0;">Fehler beim Laden</h2>' +
+      (e.message || "Unbekannter Fehler") +
+      (e.filename ? "\n\nDatei: " + e.filename + " Zeile " + e.lineno : "") +
+      "</div>";
+  });
+</script>
+<script type="text/babel">
+const { useState, useEffect } = React;
+
+const WEB_APP_URL = "https://script.google.com/macros/s/AKfycbzfyThho8MevoyfSz7NsQ1YxZJO4E-f61GYYzqZyHACIHzxR3bm7SHCwVUkCBJrAEvJ/exec";
+
+const SCHUELER = [
+  { id: "lea_muller", name: "Léa Muller", klasse: "1GSE" },
+  { id: "ben_weber", name: "Ben Weber", klasse: "2GSE" },
+  { id: "noah_schmit", name: "Noah Schmit", klasse: "1GSE" },
+  { id: "mia_reuter", name: "Mia Reuter", klasse: "2GSE" },
+  { id: "tom_klein", name: "Tom Klein", klasse: "2GSE" },
+];
+const PROFFEN = ["Prof. Kayser", "Prof. Reuter", "Prof. Diederich", "Prof. Wagner"];
+
+function App() {
+  const [rolle, setRolle] = useState("Schüler");
+  const [numm, setNumm] = useState("");
+  const [pin, setPin] = useState("");
+  const [error, setError] = useState(null);
+  const [syncing, setSyncing] = useState(false);
+
+  useEffect(() => {
+    // Wann scho ugemellt, direkt weiderleeden op déi Säit, déi virdru gewollt war
+    const bestehendToken = localStorage.getItem("ppren_token");
+    if (bestehendToken) {
+      const ziel = new URLSearchParams(window.location.search).get("zréck") || "links.html";
+      window.location.href = ziel;
+    }
+  }, []);
+
+  const nimm = rolle === "Schüler" ? SCHUELER.map((s) => s.name) : PROFFEN;
+
+  const umellen = async () => {
+    if (!numm || pin.length !== 4) {
+      setError("Weg Numm auswielen an 4-stellegen PIN aginn.");
+      return;
+    }
+    setSyncing(true);
+    setError(null);
+    try {
+      const res = await fetch(WEB_APP_URL, {
+        method: "POST",
+        headers: { "Content-Type": "text/plain;charset=utf-8" },
+        body: JSON.stringify({ typ: "login", numm, pin }),
+      });
+      const data = await res.json();
+      if (!data.ok) throw new Error(data.error || "Umeldung feelgeschloen.");
+      localStorage.setItem("ppren_token", data.token);
+      localStorage.setItem("ppren_numm", data.numm);
+      localStorage.setItem("ppren_rolle", data.rolle);
+      localStorage.setItem("ppren_klasse", data.klasse || "");
+      const ziel = new URLSearchParams(window.location.search).get("zréck") || (data.rolle === "Prof" ? "dashboard.html" : "links.html");
+      window.location.href = ziel;
+    } catch (e) {
+      setError(e.message);
+    } finally {
+      setSyncing(false);
+    }
+  };
+
+  return (
+    <div className="wrap">
+      <div className="card">
+        <div className="logo-row">
+          <span className="brand-mark">PPREN</span>
+        </div>
+        <h1>Umeldung</h1>
+        <p className="hint">Sciences Environnementales · Lycée Technique d'Ettelbruck</p>
+
+        <div className="rolle-switch">
+          <button className={`switch-btn ${rolle === "Schüler" ? "active" : ""}`} onClick={() => { setRolle("Schüler"); setNumm(""); }}>Schüler/-in</button>
+          <button className={`switch-btn ${rolle === "Prof" ? "active" : ""}`} onClick={() => { setRolle("Prof"); setNumm(""); }}>Prof</button>
+        </div>
+
+        <label className="field">
+          <span className="field-label">Numm</span>
+          <select className="select" value={numm} onChange={(e) => setNumm(e.target.value)}>
+            <option value="">– auswählen –</option>
+            {nimm.map((n) => <option key={n} value={n}>{n}</option>)}
+          </select>
+        </label>
+
+        <label className="field">
+          <span className="field-label">PIN (4 Zuelen)</span>
+          <input
+            type="password" inputMode="numeric" maxLength={4} className="input pin-input"
+            value={pin} onChange={(e) => setPin(e.target.value.replace(/\D/g, "").slice(0, 4))}
+            onKeyDown={(e) => e.key === "Enter" && umellen()}
+          />
+        </label>
+
+        {error && <p className="error">{error}</p>}
+
+        <button className="btn btn-primary" disabled={syncing} onClick={umellen}>
+          {syncing ? "Mellt un…" : "Umellen"}
+        </button>
+
+        <p className="footer-hint">PIN vergiess? Frot Ären Prof, en zréckzesetzen.</p>
+      </div>
+    </div>
+  );
+}
+
+ReactDOM.createRoot(document.getElementById("root")).render(<App />);
+</script>
+<style>
+* { box-sizing: border-box; }
+body { margin: 0; font-family: -apple-system, "Segoe UI", Inter, Arial, sans-serif; color: #1c2621; background: #f6f8f6; display: flex; align-items: center; justify-content: center; min-height: 100vh; }
+.wrap { width: 100%; padding: 20px; }
+.card { max-width: 380px; margin: 0 auto; background: #fff; border: 1px solid #e2e8e3; border-radius: 16px; padding: 32px 28px; box-shadow: 0 4px 20px rgba(28,38,33,0.06); }
+.logo-row { text-align: center; margin-bottom: 8px; }
+.brand-mark { display: inline-block; background: #00A94F; color: #fff; font-weight: 800; font-size: 13px; letter-spacing: 0.08em; padding: 6px 14px; border-radius: 20px; }
+h1 { text-align: center; font-size: 20px; margin: 12px 0 2px; }
+.hint { text-align: center; font-size: 12px; color: #6d7d74; margin: 0 0 22px; }
+.rolle-switch { display: flex; gap: 6px; margin-bottom: 18px; }
+.switch-btn { flex: 1; font-size: 13px; font-weight: 700; padding: 9px; border-radius: 8px; border: 1px solid #c9d5cd; background: #fff; color: #55625a; cursor: pointer; }
+.switch-btn.active { background: #00A94F; border-color: #00A94F; color: #fff; }
+.field { display: flex; flex-direction: column; gap: 5px; margin-bottom: 16px; }
+.field-label { font-size: 12.5px; font-weight: 700; color: #294f3c; }
+.select, .input { border: 1px solid #c9d5cd; border-radius: 8px; padding: 10px 12px; font-size: 14px; font-family: inherit; background: #fff; color: #1c2621; }
+.pin-input { letter-spacing: 8px; font-size: 18px; font-weight: 700; text-align: center; }
+.error { color: #8a2b1f; font-size: 12.5px; background: #fbe4e1; padding: 8px 12px; border-radius: 8px; margin: -4px 0 14px; }
+.btn { width: 100%; font-size: 14px; font-weight: 700; padding: 12px; border-radius: 9px; border: none; cursor: pointer; }
+.btn-primary { background: #00A94F; color: #fff; }
+.btn-primary:disabled { background: #b7c6bd; cursor: not-allowed; }
+.footer-hint { text-align: center; font-size: 11.5px; color: #93a098; margin: 16px 0 0; }
+</style>
+</body>
+</html>
