@@ -4,6 +4,7 @@
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 <title>PPREN Mäin Suivi</title>
+<script src="auth-guard.js"></script>
 <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
 <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
 <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
@@ -50,7 +51,12 @@ function Fortschrittsbar({ prozent, farbe }) {
 }
 
 function App() {
-  const [schuelerId, setSchuelerId] = useState("");
+  const istSchueler = window.PPREN_SESSION?.rolle === "Schüler";
+  const [schuelerId, setSchuelerId] = useState(() => {
+    if (!istSchueler) return "";
+    const numm = window.PPREN_SESSION?.numm;
+    return SCHUELER.find((s) => s.name === numm)?.id || "";
+  });
   const [projekt, setProjekt] = useState(null);
   const [bewertungen, setBewertungen] = useState([]);
   const [loading, setLoading] = useState(false);
@@ -93,13 +99,20 @@ function App() {
 
       <main className="content">
         <section className="card">
-          <label className="field">
-            <span className="field-label">Wie bass du?</span>
-            <select className="select" value={schuelerId} onChange={(e) => setSchuelerId(e.target.value)}>
-              <option value="">– auswählen –</option>
-              {SCHUELER.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
-            </select>
-          </label>
+          {istSchueler ? (
+            <div className="field">
+              <span className="field-label">Ugemellt als</span>
+              <div className="identitaet-box">👤 {currentSchueler?.name} ({currentSchueler?.klasse})</div>
+            </div>
+          ) : (
+            <label className="field">
+              <span className="field-label">Schüler/-in</span>
+              <select className="select" value={schuelerId} onChange={(e) => setSchuelerId(e.target.value)}>
+                <option value="">– auswählen –</option>
+                {SCHUELER.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
+              </select>
+            </label>
+          )}
         </section>
 
         {loading && <div className="empty">Lädt…</div>}
@@ -315,6 +328,7 @@ body { margin: 0; font-family: -apple-system, "Segoe UI", Inter, Arial, sans-ser
 .field { display: flex; flex-direction: column; gap: 4px; }
 .field-label { font-size: 12.5px; font-weight: 700; color: #294f3c; }
 .select { border: 1px solid #c9d5cd; border-radius: 7px; padding: 9px 10px; font-size: 14px; font-family: inherit; background: #fff; width: 100%; }
+.identitaet-box { font-size: 13.5px; font-weight: 700; color: #294f3c; background: #eef3ef; padding: 9px 12px; border-radius: 7px; }
 .status-line { font-size: 13.5px; color: #55625a; margin: 0 0 16px; }
 .link-row { display: flex; gap: 10px; margin-top: 16px; }
 .btn { display: inline-block; font-size: 13.5px; font-weight: 700; padding: 10px 16px; border-radius: 8px; border: none; cursor: pointer; text-decoration: none; }
