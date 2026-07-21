@@ -40,6 +40,44 @@
 
   window.PPREN_SESSION = { token, numm, rolle, klasse };
 
+  /** Mellt of: läscht d'Session um Server, réimt localStorage of, leet op login.html. */
+  window.ppRenOfmellen = function () {
+    const WEB_APP_URL_LOGOUT = "https://script.google.com/macros/s/AKfycbzfyThho8MevoyfSz7NsQ1YxZJO4E-f61GYYzqZyHACIHzxR3bm7SHCwVUkCBJrAEvJ/exec";
+    fetch(WEB_APP_URL_LOGOUT, {
+      method: "POST",
+      headers: { "Content-Type": "text/plain;charset=utf-8" },
+      body: JSON.stringify({ typ: "logout", token }),
+    }).finally(() => {
+      localStorage.removeItem("ppren_token");
+      localStorage.removeItem("ppren_numm");
+      localStorage.removeItem("ppren_rolle");
+      localStorage.removeItem("ppren_klasse");
+      window.location.href = "login.html";
+    });
+  };
+
+  // Klengt Ofmell-Knäppchen um Rand vun der Säit derbäisetzen, sou datt
+  // et automatesch iwwerall do ass, ouni all Säit enzeel upassen ze mussen.
+  function fügOfmellKnäppchenBäi() {
+    const knäppchen = document.createElement("button");
+    knäppchen.textContent = "👤 " + numm + " · Ofmellen";
+    knäppchen.setAttribute("onclick", "window.ppRenOfmellen()");
+    knäppchen.style.cssText = [
+      "position:fixed", "bottom:12px", "right:12px", "z-index:9999",
+      "background:#1c2621", "color:#fff", "border:none", "border-radius:20px",
+      "padding:8px 14px", "font-size:11.5px", "font-weight:700",
+      "font-family:-apple-system,'Segoe UI',Inter,Arial,sans-serif",
+      "cursor:pointer", "box-shadow:0 2px 8px rgba(0,0,0,0.25)", "opacity:0.85",
+    ].join(";");
+    knäppchen.onmouseenter = () => { knäppchen.style.opacity = "1"; };
+    knäppchen.onmouseleave = () => { knäppchen.style.opacity = "0.85"; };
+    document.addEventListener("DOMContentLoaded", () => document.body.appendChild(knäppchen));
+    if (document.readyState === "complete" || document.readyState === "interactive") {
+      setTimeout(() => document.body && document.body.appendChild(knäppchen), 0);
+    }
+  }
+  fügOfmellKnäppchenBäi();
+
   // Session am Hannergrond validéieren (ofgelaf Sessioune erausfannen), ouni
   // d'Säit ze blockéieren — bei Ongëltegkeet gëtt sanft op login.html geleet.
   const WEB_APP_URL = "https://script.google.com/macros/s/AKfycbzfyThho8MevoyfSz7NsQ1YxZJO4E-f61GYYzqZyHACIHzxR3bm7SHCwVUkCBJrAEvJ/exec";
