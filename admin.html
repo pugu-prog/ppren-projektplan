@@ -4,6 +4,8 @@
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 <title>PPREN – Admin (privat)</title>
+<script>window.PPREN_ERFUERDERT_ROLLE = "Prof";</script>
+<script src="auth-guard.js"></script>
 <style>
   * { box-sizing: border-box; }
   body { margin: 0; font-family: -apple-system, "Segoe UI", Inter, Arial, sans-serif; color: #1c2621; background: #f6f8f6; }
@@ -62,7 +64,7 @@
         <div class="status-card status-partial"><span class="status-badge">⚠️</span><span class="status-modul">M7 · Notenexport</span></div>
         <div class="status-card status-partial"><span class="status-badge">⚠️</span><span class="status-modul">M8 · Termine/Erënnerungen</span></div>
         <div class="status-card status-partial"><span class="status-badge">⚠️</span><span class="status-modul">M11 · Auto-Bemierkung</span></div>
-        <div class="status-card status-open"><span class="status-badge">❌</span><span class="status-modul">M1 · Login/Zougrëff</span></div>
+        <div class="status-card status-partial"><span class="status-badge">⚠️</span><span class="status-modul">M1 · Login (Pilot: index.html + admin.html)</span></div>
         <div class="status-card status-open"><span class="status-badge">❌</span><span class="status-modul">M4 · Dokumentatioun</span></div>
       </div>
       <p class="status-legend-note">✅ Fäerdeg &nbsp;·&nbsp; ⚠️ Ugefaangen/deelweis &nbsp;·&nbsp; ❌ Nach net ugepaakt</p>
@@ -82,6 +84,7 @@
         <a class="card" href="https://pugu-prog.github.io/ppren-projektplan/wochenberichte-korrigeieren.html" target="_blank"><span class="card-icon">📋</span><span class="card-label">Wochenberichter korrigéieren</span><span class="card-desc">Prof-Korrektur mat Punkten</span></a>
         <a class="card" href="https://pugu-prog.github.io/ppren-projektplan/bewertung.html" target="_blank"><span class="card-icon">📊</span><span class="card-label">Bewertungsformulaire</span><span class="card-desc">Punkten, Remarquen, Kommentar</span></a>
         <a class="card" href="https://pugu-prog.github.io/ppren-projektplan/fachgespraech.html" target="_blank"><span class="card-icon">🗣️</span><span class="card-label">Fachgespréich</span><span class="card-desc">Timer, Froen a Punkten fir d'Fachgespréich</span></a>
+        <a class="card" href="https://pugu-prog.github.io/ppren-projektplan/zieluewerpreiwung.html" target="_blank"><span class="card-icon">🎯</span><span class="card-label">Ziler iwwerpréiwen</span><span class="card-desc">Kuerz Rendez-vous, dynamesch Skala</span></a>
         <a class="card" href="https://pugu-prog.github.io/ppren-projektplan/dashboard.html" target="_blank"><span class="card-icon">📈</span><span class="card-label">Lehrer-Dashboard</span><span class="card-desc">Iwwersiicht + Status änneren</span></a>
         <a class="card" href="https://pugu-prog.github.io/ppren-projektplan/noten.html" target="_blank"><span class="card-icon">🧮</span><span class="card-label">Notentabell</span><span class="card-desc">CSV/Excel-Export</span></a>
         <a class="card" href="https://pugu-prog.github.io/ppren-projektplan/suivi.html" target="_blank"><span class="card-icon">🎯</span><span class="card-label">Suivi (Schüler-Ansicht)</span><span class="card-desc">Fortschrëtt kucken</span></a>
