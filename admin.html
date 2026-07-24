@@ -28,13 +28,24 @@
   .card-desc { font-size: 12px; color: #6d7d74; line-height: 1.4; }
   .footer-note { font-size: 11.5px; color: #93a098; text-align: center; margin-top: 36px; line-height: 1.6; }
   .status-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(210px, 1fr)); gap: 8px; }
-  .status-card { display: flex; align-items: center; gap: 8px; background: #fff; border: 1px solid #e2e8e3; border-radius: 10px; padding: 10px 14px; }
+  .status-card { display: flex; align-items: center; gap: 8px; background: #fff; border: 1px solid #e2e8e3; border-radius: 10px; padding: 10px 14px; cursor: pointer; position: relative; padding-right: 30px; transition: border-color 0.12s; }
+  .status-card:hover { border-color: #00A94F; }
+  .status-card::after { content: "▾"; position: absolute; right: 10px; color: #93a098; font-size: 11px; transition: transform 0.15s; }
+  .status-card.open::after { transform: rotate(180deg); }
   .status-badge { font-size: 15px; }
   .status-modul { font-size: 12.5px; font-weight: 700; color: #1c2621; }
   .status-done { border-left: 3px solid #00A94F; }
   .status-partial { border-left: 3px solid #F67E1B; }
   .status-open { border-left: 3px solid #93a098; }
   .status-legend-note { font-size: 11px; color: #93a098; margin-top: 8px; }
+  .detail-panel { display: none; grid-column: 1 / -1; background: #fff; border: 1px solid #e2e8e3; border-radius: 10px; padding: 14px 16px; margin-top: -2px; font-size: 12.5px; line-height: 1.6; }
+  .detail-panel.open { display: block; }
+  .detail-panel h4 { margin: 0 0 4px; font-size: 11px; text-transform: uppercase; letter-spacing: 0.03em; }
+  .detail-fertig h4 { color: #00A94F; }
+  .detail-offen h4 { color: #8a5a12; margin-top: 10px; }
+  .detail-panel ul { margin: 0 0 4px; padding-left: 18px; }
+  .detail-panel li { margin-bottom: 2px; }
+  .detail-leer { color: #93a098; font-style: italic; }
 </style>
 </head>
 <body>
@@ -51,21 +62,22 @@
         <span class="rubrik-icon">📋</span>
         <div>
           <div class="rubrik-titel">Status vum Projet</div>
-          <div class="rubrik-sub">Wat ass scho gemaach, wat feelt nach — no der Lastenheft (M1-M11)</div>
+          <div class="rubrik-sub">Wat ass scho gemaach, wat feelt nach — kléckt op e Modul fir Detailer</div>
         </div>
       </div>
-      <div class="status-grid">
-        <div class="status-card status-done"><span class="status-badge">✅</span><span class="status-modul">M2 · Projektplang</span></div>
-        <div class="status-card status-done"><span class="status-badge">✅</span><span class="status-modul">M3 · Suivi</span></div>
-        <div class="status-card status-done"><span class="status-badge">✅</span><span class="status-modul">M5 · Wochenberichter</span></div>
-        <div class="status-card status-done"><span class="status-badge">✅</span><span class="status-modul">M6 · Bewertung</span></div>
-        <div class="status-card status-done"><span class="status-badge">✅</span><span class="status-modul">M10 · Fachgespréicher</span></div>
-        <div class="status-card status-partial"><span class="status-badge">⚠️</span><span class="status-modul">M9 · Planungstool</span></div>
-        <div class="status-card status-partial"><span class="status-badge">⚠️</span><span class="status-modul">M7 · Notenexport</span></div>
-        <div class="status-card status-partial"><span class="status-badge">⚠️</span><span class="status-modul">M8 · Termine/Erënnerungen</span></div>
-        <div class="status-card status-partial"><span class="status-badge">⚠️</span><span class="status-modul">M11 · Auto-Bemierkung</span></div>
-        <div class="status-card status-done"><span class="status-badge">✅</span><span class="status-modul">M1 · Login (PIN, all Säiten)</span></div>
-        <div class="status-card status-open"><span class="status-badge">❌</span><span class="status-modul">M4 · Dokumentatioun</span></div>
+      <div class="status-grid" id="statusGrid">
+        <div class="status-card status-done" data-modul="m2"><span class="status-badge">✅</span><span class="status-modul">M2 · Projektplang</span></div>
+        <div class="status-card status-done" data-modul="m3"><span class="status-badge">✅</span><span class="status-modul">M3 · Suivi</span></div>
+        <div class="status-card status-done" data-modul="m5"><span class="status-badge">✅</span><span class="status-modul">M5 · Wochenberichter</span></div>
+        <div class="status-card status-done" data-modul="m6"><span class="status-badge">✅</span><span class="status-modul">M6 · Bewertung</span></div>
+        <div class="status-card status-done" data-modul="m10"><span class="status-badge">✅</span><span class="status-modul">M10 · Fachgespréicher</span></div>
+        <div class="status-card status-partial" data-modul="m9"><span class="status-badge">⚠️</span><span class="status-modul">M9 · Planungstool</span></div>
+        <div class="status-card status-partial" data-modul="m7"><span class="status-badge">⚠️</span><span class="status-modul">M7 · Notenexport</span></div>
+        <div class="status-card status-partial" data-modul="m8"><span class="status-badge">⚠️</span><span class="status-modul">M8 · Termine/Erënnerungen</span></div>
+        <div class="status-card status-partial" data-modul="m11"><span class="status-badge">⚠️</span><span class="status-modul">M11 · Auto-Bemierkung</span></div>
+        <div class="status-card status-done" data-modul="m1"><span class="status-badge">✅</span><span class="status-modul">M1 · Login (PIN, all Säiten)</span></div>
+        <div class="status-card status-open" data-modul="m4"><span class="status-badge">❌</span><span class="status-modul">M4 · Dokumentatioun</span></div>
+        <div class="detail-panel" id="detailPanel"></div>
       </div>
       <p class="status-legend-note">✅ Fäerdeg &nbsp;·&nbsp; ⚠️ Ugefaangen/deelweis &nbsp;·&nbsp; ❌ Nach net ugepaakt</p>
     </section>
@@ -118,5 +130,155 @@
 
     <p class="footer-note">PPREN-Admin · Sciences Environnementales · Lycée Technique d'Ettelbruck</p>
   </main>
+
+<script>
+const MODUL_DETAILS = {
+  m1: {
+    fertig: [
+      "PIN-Login (4-stellech) fir Schüler a Proffen",
+      "auth-guard.js op all 15 Tool-Säiten agebonnen",
+      "Roll-Trennung: Schüler-only, Prof-only, béid",
+      "Floating Ofmell-Knäppchen automatesch op all Säit",
+      "Session-Token mat 18-Stonne-Gültegkeet, Server-Validatioun",
+      "zréck-Parameter gëtt no Roll validéiert (kee falscht Redirect méi)",
+    ],
+    offen: [
+      "Nach fiktiv Schülernimm — richteg Nimm/Emailen aginn",
+      "PIN-Reset-UI fir Proffen (Backend-Funktioun ass do, Interface feelt nach)",
+      "Echt Email-Adressen fir Guy Putz/Pol Medernach/Sarah Blum androen",
+    ],
+  },
+  m2: {
+    fertig: [
+      "Komplett Formulaire (Grunddaten, Inhalt, Ziler, Meilensteng, Aufgabenteilung, Kostenplang)",
+      "Autosave lokal, Google-Doc-Generatioun beim Areechen",
+      "Meilensteng bidirektional mam Planungstool synchroniséiert",
+      "Status-Flow: Entworf → Areecht → Freegin & gespaart",
+    ],
+    offen: [],
+  },
+  m3: {
+    fertig: [
+      "Schüler-View mat Punkten, Remarquen, Fortschrëtt pro Period",
+      "Budget-Fortschrëttsbar, Meilensteng-Status",
+      "PDF-Link zum ganze Suivi-Dokument",
+    ],
+    offen: [],
+  },
+  m4: {
+    fertig: [],
+    offen: [
+      "Nach guer kee Modul dofir ugefaangen",
+      "Muss nach definéiert ginn: wat genee soll 'Dokumentatioun' hei ëmfaassen",
+    ],
+  },
+  m5: {
+    fertig: [
+      "Wochenbericht-Formulaire mat Dateien-Upload",
+      "Prof-Korrektur mat Punkte-Schema (2+1,5+1+0,5P)",
+      "Automatesch Null bei verpasster Woch (Sonndes 23h)",
+      "Erënnerung un Schüler ouni Bericht (Sonndes 10h)",
+      "Entschëllegung-Funktioun mat Grond",
+    ],
+    offen: [],
+  },
+  m6: {
+    fertig: [
+      "Komplett Bewertungsformulaire fir all Perioden (1GSE + 2GSE)",
+      "Wochenberichter-, Fachgespréich- a Ziler-Punkten automatesch iwwerholl",
+      "Remarquen-Bausteng (positiv/negativ) pro Kategorie",
+      "Finaliséieren-Sperr, PDF/Suivi-Synchroniséierung",
+      "All 5 Perioden géint offiziell PDFen Punkt-fir-Punkt verifizéiert",
+    ],
+    offen: [],
+  },
+  m7: {
+    fertig: [
+      "Notentabell mat allen Noten nieft enee",
+      "CSV-Export (mat ; -Trennzeechen, UTF-8)",
+    ],
+    offen: [
+      "Richtege .xlsx-Export mat Formatéierung (Faarwen, Titelen) — aktuell just CSV",
+    ],
+  },
+  m8: {
+    fertig: [
+      "Automatesch Erënnerung un Schüler ouni Wochebericht",
+    ],
+    offen: [
+      "Keng Erënnerung fir upstoend Fachgespréich- oder Ziler-Rendez-vousen",
+      "Keng Kalenner-Integratioun (Google Calendar asw.)",
+    ],
+  },
+  m9: {
+    fertig: [
+      "Meilensteng-Verwaltung pro Schüler, Gantt-Chart",
+      "Zentral offiziell Zäitplang (Prof ännert, gëllt fir all Schüler)",
+      "Bidirektional mam Projektplang synchroniséiert",
+      "Vakanzen/Feierdeeg als Warnung a Bubbelen/Balken iwwerall integréiert",
+    ],
+    offen: [
+      "Kéint nach weider verfeinert ginn (z.B. méi Detailer pro Meilensteen)",
+    ],
+  },
+  m10: {
+    fertig: [
+      "Fachgespréich-Tool: Timer, Variant A/B, Froen-Import (docx/pdf)",
+      "Ziler-Iwwerpréiwung-Tool: kuerz Rendez-vous ouni Preparatioun",
+      "Béid feieren hir Punkten automatesch an d'Bewertung",
+    ],
+    offen: [],
+  },
+  m11: {
+    fertig: [
+      "Remarquen-Bausteng (positiv/negativ) pro Kategorie am Bewertungsformulaire",
+      "Automatesch Kommentar-Generatioun aus den ausgewielte Remarquen",
+    ],
+    offen: [
+      "Nach keng vollautomatesch Bemierkung ouni manuell Auswiel",
+      "Nach net fir all Kategoritypen (z.B. Sachlech Qualitéit) komplett ofgedeckt",
+    ],
+  },
+};
+
+function baueDetailHtml(modul) {
+  const d = MODUL_DETAILS[modul];
+  if (!d) return "";
+  const fertigHtml = d.fertig.length
+    ? "<ul>" + d.fertig.map((x) => "<li>" + x + "</li>").join("") + "</ul>"
+    : '<p class="detail-leer">Näischt fäerdeg.</p>';
+  const offenHtml = d.offen.length
+    ? "<ul>" + d.offen.map((x) => "<li>" + x + "</li>").join("") + "</ul>"
+    : '<p class="detail-leer">Näischt Bekannt Offen.</p>';
+  return (
+    '<div class="detail-fertig"><h4>✅ Fäerdeg</h4>' + fertigHtml + "</div>" +
+    '<div class="detail-offen"><h4>⏳ Nach ze man</h4>' + offenHtml + "</div>"
+  );
+}
+
+const panel = document.getElementById("detailPanel");
+let aktuellOffen = null;
+
+document.querySelectorAll(".status-card").forEach((card) => {
+  card.addEventListener("click", () => {
+    const modul = card.getAttribute("data-modul");
+    const scho_offen = aktuellOffen === modul && panel.classList.contains("open");
+
+    document.querySelectorAll(".status-card").forEach((c) => c.classList.remove("open"));
+    panel.classList.remove("open");
+
+    if (scho_offen) {
+      aktuellOffen = null;
+      return;
+    }
+
+    card.classList.add("open");
+    panel.innerHTML = baueDetailHtml(modul);
+    card.insertAdjacentElement("afterend", panel);
+    panel.classList.add("open");
+    aktuellOffen = modul;
+  });
+});
+</script>
 </body>
 </html>
