@@ -42,6 +42,8 @@ const LEHRER = [
 const BUDGET_MAX = 500;
 const WEB_APP_URL = "https://script.google.com/macros/s/AKfycbzfyThho8MevoyfSz7NsQ1YxZJO4E-f61GYYzqZyHACIHzxR3bm7SHCwVUkCBJrAEvJ/exec";
 
+const STATUS_ZU_KLASS = { "Erreecht": "greng", "Verspéit": "rout", "Ausstoend": "gro" };
+
 function uid() {
   return Date.now().toString(36) + Math.random().toString(36).slice(2, 8);
 }
@@ -64,7 +66,7 @@ const emptyPlan = () => ({
   inhalt: "",
   motivation: "",
   ziele: "",
-  meilensteine: [{ id: uid(), datum: "", beschreibung: "" }],
+  meilensteine: [{ id: uid(), datum: "", beschreibung: "", status: "Ausstoend" }],
   gruppenarbeit: false,
   partner: "",
   aufgabenteilung: "",
@@ -126,6 +128,7 @@ function App() {
   const [syncing, setSyncing] = useState(false);
   const [syncError, setSyncError] = useState(null);
   const [docUrl, setDocUrl] = useState(null);
+  const [msSyncInfo, setMsSyncInfo] = useState(null);
 
   const storageKey = schuelerId ? `projektplan:${schuelerId}` : null;
   const saving = useDebouncedSave(loaded ? storageKey : null, plan);
@@ -146,6 +149,9 @@ function App() {
 
   // "Vis versa": Meilensteng, déi am Planungstool derbäigesat goufen (quell "Eegen"),
   // an de Projektplang-Formulaire iwwerhuelen, wa se hei nach net stinn (no Titel gepréift).
+  // Zousätzlech: de Status (Ausstoend/Erreecht/Verspéit) vun ALLE Meilensteng (och
+  // Projektplang-Ursprong) fir d'faarweg Uweisung hei iwwerhuelen — de Sync geet
+  // also a béid Richtungen: Titel/Datum *an* Status kommen tëscht deenen zwou Säiten un.
   useEffect(() => {
     if (!schuelerId || !currentSchueler || !loaded) return;
     fetch(WEB_APP_URL)
@@ -155,15 +161,23 @@ function App() {
         if (!eintrag || !eintrag["Meilensteng (JSON)"]) return;
         let gespäichert = [];
         try { gespäichert = JSON.parse(eintrag["Meilensteng (JSON)"]); } catch { return; }
+
+        const statusNoTitel = {};
+        gespäichert.forEach((m) => {
+          if (m.titel) statusNoTitel[m.titel.trim().toLowerCase()] = m.status || "Ausstoend";
+        });
+
         const ausPlanungstool = gespäichert.filter((m) => (m.quell || "Eegen") === "Eegen" && m.titel && m.titel.trim());
+
         setPlan((p) => {
           const bestehendTitelen = new Set(p.meilensteine.map((m) => (m.beschreibung || "").trim().toLowerCase()));
           const nei = ausPlanungstool
             .filter((m) => !bestehendTitelen.has(m.titel.trim().toLowerCase()))
-            .map((m) => ({ id: uid(), datum: m.datum || "", beschreibung: m.titel }));
-          if (nei.length === 0) return p;
-          // Éischt eidel Zeil (ouni Beschreiwung) duerch déi nei ersetzen, dann de Rescht undréinen
-          const ouniEidel = p.meilensteine.filter((m) => m.beschreibung && m.beschreibung.trim());
+            .map((m) => ({ id: uid(), datum: m.datum || "", beschreibung: m.titel, status: m.status || "Ausstoend" }));
+          const ouniEidel = p.meilensteine
+            .filter((m) => m.beschreibung && m.beschreibung.trim())
+            .map((m) => ({ ...m, status: statusNoTitel[m.beschreibung.trim().toLowerCase()] || m.status || "Ausstoend" }));
+          if (nei.length > 0) setMsSyncInfo({ anzuel: nei.length, zäit: new Date() });
           return { ...p, meilensteine: [...ouniEidel, ...nei] };
         });
       })
@@ -176,7 +190,7 @@ function App() {
   const updateMeilenstein = (id, patch) =>
     update({ meilensteine: plan.meilensteine.map((m) => (m.id === id ? { ...m, ...patch } : m)) });
   const addMeilenstein = () =>
-    update({ meilensteine: [...plan.meilensteine, { id: uid(), datum: "", beschreibung: "" }] });
+    update({ meilensteine: [...plan.meilensteine, { id: uid(), datum: "", beschreibung: "", status: "Ausstoend" }] });
   const removeMeilenstein = (id) =>
     update({ meilensteine: plan.meilensteine.filter((m) => m.id !== id) });
 
@@ -309,19 +323,36 @@ function App() {
 
                 <section className="card">
                   <h2>3. Ziele & Meilensteine</h2>
-                  <p className="field-hint" style={{ marginBottom: "10px" }}>Meilensteng hei ginn automatesch am <a href={`planung.html?schueler=${schuelerId}`}>Planungstool</a> ugewisen (Datum/Titel hei änneren). Meilensteng, déi s du am Planungstool derbäisetz, kommen och hei erageluede.</p>
+                  <p className="field-hint" style={{ marginBottom: "10px" }}>
+                    🔄 Bidirektional mam <a href={`planung.html?schueler=${schuelerId}`}>Planungstool</a> verbonnen: Datum/Titel hei änneren, Status (Faarf) kënnt vun do. Meilensteng, déi s du am Planungstool derbäisetz, kommen och hei erageluede.
+                  </p>
+                  {msSyncInfo && (
+                    <p className="notice notice-sync">✅ {msSyncInfo.anzuel} Meilensteen aus dem Planungstool iwwerholl.</p>
+                  )}
                   <Field label="Ziele">
                     <textarea className="textarea" rows={3} value={plan.ziele} onChange={(e) => update({ ziele: e.target.value })} />
                   </Field>
                   <div className="repeat-list">
-                    <span className="field-label">Meilensteine</span>
-                    {plan.meilensteine.map((m, i) => (
-                      <div className="repeat-row" key={m.id}>
-                        <input type="date" className="input input-date" value={m.datum} onChange={(e) => updateMeilenstein(m.id, { datum: e.target.value })} />
-                        <input className="input" placeholder={`Meilenstein ${i + 1}`} value={m.beschreibung} onChange={(e) => updateMeilenstein(m.id, { beschreibung: e.target.value })} />
-                        {plan.meilensteine.length > 1 && <button type="button" className="icon-btn" onClick={() => removeMeilenstein(m.id)}>✕</button>}
-                      </div>
-                    ))}
+                    <div className="ms-legend">
+                      <span className="field-label">Meilensteine</span>
+                      <span className="ms-legend-items">
+                        <span className="ms-legend-item"><span className="ms-dot ms-dot-gro"></span>Ausstoend</span>
+                        <span className="ms-legend-item"><span className="ms-dot ms-dot-greng"></span>Erreecht</span>
+                        <span className="ms-legend-item"><span className="ms-dot ms-dot-rout"></span>Verspéit</span>
+                      </span>
+                    </div>
+                    {plan.meilensteine.map((m, i) => {
+                      const klass = STATUS_ZU_KLASS[m.status] || "gro";
+                      return (
+                        <div className={`ms-row ms-row-${klass}`} key={m.id}>
+                          <span className={`ms-dot ms-dot-${klass}`} title={m.status || "Ausstoend"}></span>
+                          <input type="date" className="input input-date" value={m.datum} onChange={(e) => updateMeilenstein(m.id, { datum: e.target.value })} />
+                          <input className="input ms-titel" placeholder={`Meilenstein ${i + 1}`} value={m.beschreibung} onChange={(e) => updateMeilenstein(m.id, { beschreibung: e.target.value })} />
+                          <span className={`ms-badge ms-badge-${klass}`}>{m.status || "Ausstoend"}</span>
+                          {plan.meilensteine.length > 1 && <button type="button" className="icon-btn" onClick={() => removeMeilenstein(m.id)}>✕</button>}
+                        </div>
+                      );
+                    })}
                     <button type="button" className="add-btn" onClick={addMeilenstein}>+ Meilenstein hinzufügen</button>
                   </div>
                 </section>
@@ -419,6 +450,7 @@ body { margin: 0; font-family: -apple-system, "Segoe UI", Inter, Arial, sans-ser
 .field { display: flex; flex-direction: column; gap: 4px; margin-bottom: 14px; }
 .field-label { font-size: 12.5px; font-weight: 700; color: #294f3c; }
 .field-hint { font-size: 11.5px; color: #6d7d74; margin-top: -2px; }
+.field-hint a { color: #00A94F; font-weight: 600; }
 .select, .input, .textarea { border: 1px solid #c9d5cd; border-radius: 7px; padding: 8px 10px; font-size: 13.5px; font-family: inherit; background: #fff; color: #1c2621; }
 .input:disabled { background: #f1f3f1; color: #7a847e; }
 .textarea { resize: vertical; }
@@ -457,6 +489,24 @@ body { margin: 0; font-family: -apple-system, "Segoe UI", Inter, Arial, sans-ser
 .doc-link { font-size: 13px; font-weight: 700; color: #00A94F; text-decoration: none; }
 .sync-error { color: #8a2b1f; font-size: 12.5px; background: #fbe4e1; padding: 8px 12px; border-radius: 8px; margin: -6px 22px 20px; }
 .toast { position: fixed; bottom: 22px; left: 50%; transform: translateX(-50%); background: #1c2621; color: #fff; padding: 10px 18px; border-radius: 8px; font-size: 13px; }
+.notice { font-size: 11.5px; padding: 8px 12px; border-radius: 8px; margin: 0 0 10px; line-height: 1.4; }
+.notice-sync { background: #d7ecdd; color: #00A94F; }
+.ms-legend { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 6px; margin-bottom: 2px; }
+.ms-legend-items { display: flex; gap: 10px; }
+.ms-legend-item { display: flex; align-items: center; gap: 4px; font-size: 10.5px; color: #93a098; }
+.ms-row { display: flex; gap: 8px; align-items: center; padding: 7px 10px; border-radius: 9px; border-left: 3px solid #93a098; background: #fafbfa; }
+.ms-row-greng { border-left-color: #00A94F; background: #f2faf5; }
+.ms-row-rout { border-left-color: #e8483a; background: #fdf3f2; }
+.ms-row-gro { border-left-color: #93a098; background: #fafbfa; }
+.ms-titel { flex: 1; }
+.ms-dot { width: 9px; height: 9px; border-radius: 50%; flex: none; }
+.ms-dot-greng { background: #00A94F; }
+.ms-dot-rout { background: #e8483a; }
+.ms-dot-gro { background: #93a098; }
+.ms-badge { font-size: 10px; font-weight: 700; padding: 3px 9px; border-radius: 20px; white-space: nowrap; flex: none; }
+.ms-badge-greng { background: #d7ecdd; color: #00A94F; }
+.ms-badge-rout { background: #fbe4e1; color: #99392f; }
+.ms-badge-gro { background: #e6e9e6; color: #55625a; }
 </style>
 </body>
 </html>
