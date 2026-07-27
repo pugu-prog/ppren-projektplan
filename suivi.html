@@ -22,7 +22,7 @@
   });
 </script>
 <script type="text/babel">
-const { useState, useEffect } = React;
+const { useState, useEffect, useMemo } = React;
 
 const WEB_APP_URL = "https://script.google.com/macros/s/AKfycbzfyThho8MevoyfSz7NsQ1YxZJO4E-f61GYYzqZyHACIHzxR3bm7SHCwVUkCBJrAEvJ/exec";
 
@@ -50,6 +50,19 @@ function Fortschrittsbar({ prozent, farbe }) {
   );
 }
 
+/** Extrahéiert den éischte Kalennerdatum aus engem Woche-Label ("dd.mm.yyyy – dd.mm.yyyy"). */
+function ersteDatumVunWoche(wocheLabel) {
+  const m = (wocheLabel || "").match(/(\d{2})\.(\d{2})\.(\d{4})/);
+  if (!m) return null;
+  return `${m[3]}-${m[2]}-${m[1]}`;
+}
+function formatDatumKuerz(iso) {
+  if (!iso) return "–";
+  const d = new Date(iso);
+  if (isNaN(d)) return iso;
+  return d.toLocaleDateString("de-DE", { day: "2-digit", month: "2-digit", year: "numeric" });
+}
+
 function App() {
   const istSchueler = window.PPREN_SESSION?.rolle === "Schüler";
   const [schuelerId, setSchuelerId] = useState(() => {
@@ -59,6 +72,10 @@ function App() {
   });
   const [projekt, setProjekt] = useState(null);
   const [bewertungen, setBewertungen] = useState([]);
+  const [wochenberichte, setWochenberichte] = useState([]);
+  const [meilensteng, setMeilensteng] = useState([]);
+  const [fachgespraeche, setFachgespraeche] = useState([]);
+  const [zieluewerpreiwungen, setZieluewerpreiwungen] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [geladen, setGeladen] = useState(false);
@@ -78,8 +95,26 @@ function App() {
         const alleProjekte = data.projekte || [];
         const meins = alleProjekte.find((p) => p.Schüler === currentSchueler.name);
         setProjekt(meins || null);
-        const meineBewertungen = (data.bewertungen || []).filter((b) => b.Schüler === currentSchueler.name);
-        setBewertungen(meineBewertungen);
+        setBewertungen((data.bewertungen || []).filter((b) => b.Schüler === currentSchueler.name));
+        setWochenberichte((data.wochenberichte || []).filter((w) => w.Schüler === currentSchueler.name));
+        setFachgespraeche((data.fachgespraeche || []).filter((f) => f.Schüler === currentSchueler.name));
+        setZieluewerpreiwungen((data.zieluewerpreiwungen || []).filter((z) => z.Schüler === currentSchueler.name));
+
+        let gespäichert = [];
+        const eintrag = (data.meilensteng || []).find((m) => m.Schüler === currentSchueler.name);
+        if (eintrag && eintrag["Meilensteng (JSON)"]) {
+          try { gespäichert = JSON.parse(eintrag["Meilensteng (JSON)"]); } catch { gespäichert = []; }
+        }
+        const offiziell = (data.offiziellZaitplang || [])
+          .filter((m) => m.Klasse === currentSchueler.klasse)
+          .map((m) => ({ titel: m.Titel, datum: m.Datum, status: "Ausstoend", quell: "Offiziell" }));
+        const eegenUndProjektplang = gespäichert
+          .filter((m) => m.titel && m.datum && m.quell !== "Vakanz")
+          .map((m) => ({ titel: m.titel, datum: m.datum, status: m.status || "Ausstoend", quell: m.quell || "Eegen" }));
+        const alleMeilensteng = [...offiziell, ...eegenUndProjektplang]
+          .filter((m, i, arr) => arr.findIndex((x) => x.titel === m.titel) === i)
+          .sort((a, b) => (a.datum || "").localeCompare(b.datum || ""));
+        setMeilensteng(alleMeilensteng);
       })
       .catch(() => setError("Konnte Daten nicht laden."))
       .finally(() => { setLoading(false); setGeladen(true); });
@@ -87,6 +122,47 @@ function App() {
 
   const bewertungFuer = (periode) => bewertungen.find((b) => b.Periode === periode);
   const planDetails = projekt ? sicherJson(projekt["Projektplan-Details (JSON)"], null) : null;
+
+  // ===== Projet-Journal: alles chronologesch zesummesetzen =====
+  const journal = useMemo(() => {
+    if (meilensteng.length === 0 && wochenberichte.length === 0) return null;
+
+    const findNootstMeilensteen = (isoDatum) => {
+      if (!isoDatum || meilensteng.length === 0) return null;
+      let bescht = null, bestDiff = Infinity;
+      meilensteng.forEach((m) => {
+        const diff = Math.abs(new Date(m.datum) - new Date(isoDatum));
+        if (!isNaN(diff) && diff < bestDiff) { bestDiff = diff; bescht = m.titel; }
+      });
+      return bescht;
+    };
+
+    const wbNoMeilensteen = {};
+    wochenberichte.forEach((w) => {
+      const wocheDatum = ersteDatumVunWoche(w.Woche);
+      const bezug = w.Meilensteen && w.Meilensteen.trim() ? w.Meilensteen.trim() : findNootstMeilensteen(wocheDatum);
+      const schlëssel = bezug || "__ouni__";
+      if (!wbNoMeilensteen[schlëssel]) wbNoMeilensteen[schlëssel] = [];
+      wbNoMeilensteen[schlëssel].push({ ...w, isoDatum: wocheDatum });
+    });
+    Object.keys(wbNoMeilensteen).forEach((k) => wbNoMeilensteen[k].sort((a, b) => (a.isoDatum || "").localeCompare(b.isoDatum || "")));
+
+    const zeitleischt = [
+      ...meilensteng.map((m) => ({ art: "meilensteen", datum: m.datum, titel: m.titel, status: m.status, quell: m.quell })),
+      ...fachgespraeche.map((f) => ({ art: "fachgespraech", datum: f.Datum, titel: `Fachgespréich — ${f.Periode}`, gesamt: f.Gesamt })),
+      ...zieluewerpreiwungen.map((z) => ({ art: "ziler", datum: z.Datum, titel: `Ziel-Iwwerpréiwung Termin ${z.Termin} — ${z.Periode}`, punkte: z.Punkte, max: z.Max })),
+    ]
+      .filter((x) => x.datum)
+      .sort((a, b) => String(a.datum).localeCompare(String(b.datum)));
+
+    return { zeitleischt, wbNoMeilensteen };
+  }, [meilensteng, wochenberichte, fachgespraeche, zieluewerpreiwungen]);
+
+  const drécken = () => {
+    document.body.classList.add("print-journal");
+    window.print();
+    setTimeout(() => document.body.classList.remove("print-journal"), 800);
+  };
 
   return (
     <div className="wrap">
@@ -150,24 +226,6 @@ function App() {
                         <p className="feld-text">{planDetails.ziele || "–"}</p>
                       </div>
                       <div className="feld-block">
-                        <span className="feld-label">Meilensteine</span>
-                        {(planDetails.meilensteine || []).length > 0 ? (
-                          <ul className="meilenstein-liste meilenstein-liste-status">
-                            {planDetails.meilensteine.map((m, i) => {
-                              const heute = new Date().toISOString().slice(0, 10);
-                              const status = !m.datum ? null : (m.datum < heute ? "erreicht" : "ukommend");
-                              return (
-                                <li key={i}>
-                                  <span className={`ms-punkt ${status === "erreicht" ? "ms-erreicht" : status === "ukommend" ? "ms-ukommend" : ""}`} />
-                                  <strong>{m.datum || "–"}</strong> — {m.beschreibung}
-                                  {status && <span className={`ms-tag ms-tag-${status}`}>{status === "erreicht" ? "Erreecht" : "Ukommend"}</span>}
-                                </li>
-                              );
-                            })}
-                          </ul>
-                        ) : <p className="feld-text">–</p>}
-                      </div>
-                      <div className="feld-block">
                         <span className="feld-label">Gruppenarbeit</span>
                         <p className="feld-text">
                           {planDetails.gruppenarbeit ? `Ja, mit ${planDetails.partner || "–"}` : "Nein, Einzelarbeit"}
@@ -209,6 +267,97 @@ function App() {
                     )}
                   </div>
                 </section>
+
+                {/* ===== Projet-Journal: chronologesche Verlaf ===== */}
+                {journal && (
+                  <section className="card journal-card">
+                    <div className="journal-head">
+                      <div>
+                        <span className="kapitel-label">Verlaf</span>
+                        <h2>📖 Projet-Journal</h2>
+                        <p className="journal-sub">All Meilensteng, Wochenberichter, Fachgespréicher a Ziel-Iwwerpréiwungen chronologesch — fir Dokumentatioun oder Iwwerbléck.</p>
+                      </div>
+                      <button className="btn btn-ghost journal-print-btn" onClick={drécken}>🖨️ Als PDF exportéieren</button>
+                    </div>
+
+                    {journal.zeitleischt.length === 0 && (
+                      <p className="notice">Nach keng Meilensteng oder Wochenberichter fir e Journal.</p>
+                    )}
+
+                    <div className="journal-timeline">
+                      {journal.zeitleischt.map((item, i) => {
+                        if (item.art === "meilensteen") {
+                          const wbListe = journal.wbNoMeilensteen[item.titel] || [];
+                          return (
+                            <div className="journal-item journal-item-meilensteen" key={i}>
+                              <div className="journal-marker journal-marker-meilensteen"></div>
+                              <div className="journal-body">
+                                <div className="journal-item-head">
+                                  <span className="journal-datum">{formatDatumKuerz(item.datum)}</span>
+                                  <span className={`journal-status journal-status-${(item.status || "Ausstoend").toLowerCase()}`}>{item.status || "Ausstoend"}</span>
+                                </div>
+                                <strong className="journal-titel">🏁 {item.titel}</strong>
+                                {wbListe.length > 0 && (
+                                  <ul className="journal-wb-liste">
+                                    {wbListe.map((w, j) => (
+                                      <li key={j}>
+                                        <span className="journal-wb-datum">{w.Woche}</span>
+                                        <span className="journal-wb-text">{w.Zusammenfassung}</span>
+                                      </li>
+                                    ))}
+                                  </ul>
+                                )}
+                              </div>
+                            </div>
+                          );
+                        }
+                        if (item.art === "fachgespraech") {
+                          return (
+                            <div className="journal-item journal-item-klengt" key={i}>
+                              <div className="journal-marker journal-marker-klengt"></div>
+                              <div className="journal-body">
+                                <div className="journal-item-head">
+                                  <span className="journal-datum">{formatDatumKuerz(item.datum)}</span>
+                                  <span className="journal-status journal-status-neutral">{item.gesamt} / 30</span>
+                                </div>
+                                <span className="journal-titel-klengt">🗣️ {item.titel}</span>
+                              </div>
+                            </div>
+                          );
+                        }
+                        return (
+                          <div className="journal-item journal-item-klengt" key={i}>
+                            <div className="journal-marker journal-marker-klengt"></div>
+                            <div className="journal-body">
+                              <div className="journal-item-head">
+                                <span className="journal-datum">{formatDatumKuerz(item.datum)}</span>
+                                <span className="journal-status journal-status-neutral">{item.punkte} / {item.max}</span>
+                              </div>
+                              <span className="journal-titel-klengt">🎯 {item.titel}</span>
+                            </div>
+                          </div>
+                        );
+                      })}
+
+                      {journal.wbNoMeilensteen["__ouni__"] && journal.wbNoMeilensteen["__ouni__"].length > 0 && (
+                        <div className="journal-item journal-item-meilensteen">
+                          <div className="journal-marker journal-marker-gro"></div>
+                          <div className="journal-body">
+                            <strong className="journal-titel">📝 Wochenberichter ouni Meilensteen-Bezuch</strong>
+                            <ul className="journal-wb-liste">
+                              {journal.wbNoMeilensteen["__ouni__"].map((w, j) => (
+                                <li key={j}>
+                                  <span className="journal-wb-datum">{w.Woche}</span>
+                                  <span className="journal-wb-text">{w.Zusammenfassung}</span>
+                                </li>
+                              ))}
+                            </ul>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  </section>
+                )}
 
                 {/* ===== Bewertungsperioden ===== */}
                 {perioden.map((periode) => {
@@ -342,15 +491,7 @@ body { margin: 0; font-family: -apple-system, "Segoe UI", Inter, Arial, sans-ser
 .feld-label { display: block; font-size: 11px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.03em; color: #294f3c; margin-bottom: 4px; }
 .feld-text { font-size: 13.5px; line-height: 1.5; margin: 0; white-space: pre-wrap; }
 .feld-text-sub { color: #55625a; margin-top: 4px; }
-.meilenstein-liste, .kosten-liste, .positionen-liste { margin: 4px 0 0; padding-left: 18px; font-size: 13px; line-height: 1.6; }
-.meilenstein-liste-status { list-style: none; padding-left: 0; }
-.meilenstein-liste-status li { display: flex; align-items: center; gap: 8px; margin-bottom: 4px; }
-.ms-punkt { width: 8px; height: 8px; border-radius: 50%; background: #ccc; flex-shrink: 0; }
-.ms-punkt.ms-erreicht { background: #00A94F; }
-.ms-punkt.ms-ukommend { background: #d4922a; }
-.ms-tag { font-size: 10.5px; font-weight: 700; padding: 2px 8px; border-radius: 10px; margin-left: auto; flex-shrink: 0; }
-.ms-tag-erreicht { background: #d7ecdd; color: #00A94F; }
-.ms-tag-ukommend { background: #f9e6c8; color: #8a5a12; }
+.kosten-liste, .positionen-liste { margin: 4px 0 0; padding-left: 18px; font-size: 13px; line-height: 1.6; }
 .budget-block { margin-top: 8px; }
 .budget-text { font-size: 12px; color: #55625a; margin: 4px 0 0; }
 
@@ -380,6 +521,43 @@ body { margin: 0; font-family: -apple-system, "Segoe UI", Inter, Arial, sans-ser
 .allgemeiner-kommentar { background: #eef3ef; padding: 12px 14px; border-radius: 8px; margin-top: 4px; }
 .ak-label { font-size: 11px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.03em; color: #294f3c; }
 .allgemeiner-kommentar p { font-size: 13px; margin: 6px 0 0; line-height: 1.5; }
+
+/* ===== Projet-Journal ===== */
+.journal-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; flex-wrap: wrap; margin-bottom: 12px; }
+.journal-sub { font-size: 12px; color: #6d7d74; margin: 2px 0 0; line-height: 1.5; }
+.journal-print-btn { flex-shrink: 0; white-space: nowrap; }
+.journal-timeline { display: flex; flex-direction: column; gap: 4px; margin-top: 10px; }
+.journal-item { display: flex; gap: 12px; }
+.journal-marker { width: 10px; height: 10px; border-radius: 50%; margin-top: 5px; flex-shrink: 0; }
+.journal-marker-meilensteen { background: #00A94F; width: 13px; height: 13px; }
+.journal-marker-klengt { background: #b3d9e8; }
+.journal-marker-gro { background: #93a098; width: 13px; height: 13px; }
+.journal-item { position: relative; padding-bottom: 14px; }
+.journal-item:not(:last-child)::before { content: ""; position: absolute; left: 5px; top: 16px; bottom: -2px; width: 1px; background: #e2e8e3; }
+.journal-item-meilensteen:not(:last-child)::before { left: 6px; }
+.journal-body { flex: 1; }
+.journal-item-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 2px; }
+.journal-datum { font-size: 11px; color: #93a098; font-weight: 600; }
+.journal-status { font-size: 10px; font-weight: 700; padding: 2px 8px; border-radius: 10px; }
+.journal-status-erreecht { background: #d7ecdd; color: #00A94F; }
+.journal-status-verspéit { background: #fbe4e1; color: #99392f; }
+.journal-status-ausstoend { background: #e6e9e6; color: #55625a; }
+.journal-status-neutral { background: #e7eef7; color: #4576B5; }
+.journal-titel { font-size: 13.5px; color: #1c2621; }
+.journal-titel-klengt { font-size: 12.5px; color: #55625a; }
+.journal-wb-liste { list-style: none; margin: 6px 0 0; padding: 0 0 0 4px; border-left: 2px solid #eef1ef; }
+.journal-wb-liste li { padding: 4px 0 4px 10px; font-size: 12px; line-height: 1.5; }
+.journal-wb-datum { display: block; font-size: 10.5px; color: #93a098; font-weight: 700; }
+.journal-wb-text { color: #55625a; }
+
+/* ===== Drock: nëmmen d'Journal weisen ===== */
+@media print {
+  body.print-journal .topbar,
+  body.print-journal .card:not(.journal-card),
+  body.print-journal .journal-print-btn { display: none !important; }
+  body.print-journal .content { max-width: 100%; }
+  body.print-journal .journal-card { border: none; box-shadow: none; padding: 0; }
+}
 </style>
 </body>
 </html>
