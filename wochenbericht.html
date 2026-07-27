@@ -53,6 +53,12 @@ function heutigeWocheLabel() {
   sonntag.setDate(montag.getDate() + 6);
   return `${formatDatum(montag)} – ${formatDatum(sonntag)}`;
 }
+/** Extrahéiert den éischte Kalennerdatum aus engem Woche-Label ("dd.mm.yyyy – dd.mm.yyyy"). */
+function ersteDatumVunWoche(wocheLabel) {
+  const m = (wocheLabel || "").match(/(\d{2})\.(\d{2})\.(\d{4})/);
+  if (!m) return null;
+  return new Date(`${m[3]}-${m[2]}-${m[1]}`);
+}
 
 function uid() { return Date.now().toString(36) + Math.random().toString(36).slice(2, 8); }
 
@@ -72,6 +78,7 @@ const leererBericht = () => ({
   zusammenfassung: "",
   fortschritt: "",
   anhaenge: "",
+  meilensteen: "",
 });
 
 function App() {
@@ -83,6 +90,8 @@ function App() {
   const [bericht, setBericht] = useState(leererBericht());
   const [dateien, setDateien] = useState([]);
   const [meng, setMeng] = useState([]);
+  const [meilensteng, setMeilensteng] = useState([]); // fir d'Optional-Verlinkung
+  const [meilensteenManuellGewielt, setMeilensteenManuellGewielt] = useState(false);
   const [loading, setLoading] = useState(false);
   const [syncing, setSyncing] = useState(false);
   const [error, setError] = useState(null);
@@ -101,12 +110,49 @@ function App() {
       .then((data) => {
         const eegen = (data.wochenberichte || []).filter((w) => w.Schüler === currentSchueler.name);
         setMeng(eegen);
+
+        // Meilensteng zesummesammelen (offiziell + eegen + Projektplang) fir d'Verlinkung
+        let gespäichert = [];
+        const eintrag = (data.meilensteng || []).find((m) => m.Schüler === currentSchueler.name);
+        if (eintrag && eintrag["Meilensteng (JSON)"]) {
+          try { gespäichert = JSON.parse(eintrag["Meilensteng (JSON)"]); } catch { gespäichert = []; }
+        }
+        const offiziell = (data.offiziellZaitplang || [])
+          .filter((m) => m.Klasse === currentSchueler.klasse)
+          .map((m) => ({ titel: m.Titel, datum: m.Datum }));
+        const eegenUndProjektplang = gespäichert
+          .filter((m) => m.titel && m.datum)
+          .map((m) => ({ titel: m.titel, datum: m.datum }));
+        const alleMeilensteng = [...offiziell, ...eegenUndProjektplang]
+          .filter((m, i, arr) => arr.findIndex((x) => x.titel === m.titel) === i)
+          .sort((a, b) => (a.datum || "").localeCompare(b.datum || ""));
+        setMeilensteng(alleMeilensteng);
       })
       .catch(() => setError("Konnte Berichter net lueden."))
       .finally(() => setLoading(false));
   };
 
   useEffect(() => { if (schuelerId) lade(); }, [schuelerId]);
+
+  // Automatesche Virschlag: dee Meilensteen, deem säin Datum am nootste bei der
+  // Woch läit (léiwer nach net erreechten, soss dee lescht vergaangenen). De
+  // Schüler kann dëse Virschlag ëmmer manuell änneren — d'Aarbecht leeft jo net
+  // ëmmer genau esou zäitlech of, wéi geplangt.
+  useEffect(() => {
+    if (meilensteenManuellGewielt || meilensteng.length === 0) return;
+    const wocheDatum = ersteDatumVunWoche(bericht.woche);
+    if (!wocheDatum) return;
+    let bescht = null;
+    let besachtDiff = Infinity;
+    meilensteng.forEach((m) => {
+      const d = new Date(m.datum);
+      if (isNaN(d)) return;
+      const diff = Math.abs(d - wocheDatum);
+      if (diff < besachtDiff) { besachtDiff = diff; bescht = m.titel; }
+    });
+    if (bescht) setBericht((b) => ({ ...b, meilensteen: bescht }));
+    // eslint-disable-next-line
+  }, [meilensteng, bericht.woche]);
 
   // Ass déi aktuell Woch fir dës Period scho ofginn? Dann ass se gespaart
   // (nëmmen änneren méiglech, wann nach net bewäert).
@@ -145,12 +191,14 @@ function App() {
           fortschritt: bericht.fortschritt,
           anhaenge: bericht.anhaenge,
           anhaengeDateien,
+          meilensteen: bericht.meilensteen || "",
         }),
       });
       const data = await res.json();
       if (!data.ok) throw new Error(data.error || "Onbekannte Feeler");
       setToast("Wochebericht ofginn.");
       setBericht(leererBericht());
+      setMeilensteenManuellGewielt(false);
       setDateien([]);
       lade();
     } catch (e) {
@@ -169,7 +217,9 @@ function App() {
       zusammenfassung: w.Zusammenfassung,
       fortschritt: w.Fortschritt,
       anhaenge: w["Anhänge"] || "",
+      meilensteen: w.Meilensteen || "",
     });
+    setMeilensteenManuellGewielt(!!w.Meilensteen);
     setDateien([]);
     setPeriode(w.Periode);
   };
@@ -220,6 +270,23 @@ function App() {
                 <p className="notice">ℹ️ Du hues fir dës Woch scho e (nach net bewäerte) Bericht ofginn — mat Späicheren ännerss du en.</p>
               )}
 
+              {meilensteng.length > 0 && (
+                <label className="field">
+                  <span className="field-label">Bezitt sech op Meilensteen <em>(optional — automatesch virgeschloen no Datum)</em></span>
+                  <select
+                    className="select"
+                    value={bericht.meilensteen}
+                    onChange={(e) => { setBericht({ ...bericht, meilensteen: e.target.value }); setMeilensteenManuellGewielt(true); }}
+                  >
+                    <option value="">– kee Bezuch –</option>
+                    {meilensteng.map((m) => <option key={m.titel} value={m.titel}>{m.titel} ({m.datum})</option>)}
+                  </select>
+                  {!meilensteenManuellGewielt && bericht.meilensteen && (
+                    <span className="field-hint">🔄 Automatesch virgeschloen — änner et hei, wann d'Aarbecht net genau esou geplangt gelaf ass.</span>
+                  )}
+                </label>
+              )}
+
               <label className="field">
                 <span className="field-label">Wochenzesummefaassung <em>(mindestens 5 Zeilen)</em></span>
                 <textarea className="textarea" rows={5} placeholder="Duerchgefouert Aktivitéiten... Opgetruede Problemer..." value={bericht.zusammenfassung} onChange={(e) => setBericht({ ...bericht, zusammenfassung: e.target.value })} />
@@ -260,7 +327,7 @@ function App() {
                 <p className="notice">Nach kee Bericht fir dës Period ofginn.</p>
               )}
               <table className="tabelle">
-                <thead><tr><th>Woch</th><th>Status</th><th>Punkte</th><th></th></tr></thead>
+                <thead><tr><th>Woch</th><th>Meilensteen</th><th>Status</th><th>Punkte</th><th></th></tr></thead>
                 <tbody>
                   {meng.filter((w) => w.Periode === periode).map((w) => {
                     let summe = null;
@@ -273,6 +340,7 @@ function App() {
                     return (
                       <tr key={w.ID}>
                         <td>{w.Woche}</td>
+                        <td className="cell-muted">{w.Meilensteen || "–"}</td>
                         <td><span className={`pill ${w.Status === "Bewäert" ? "pill-done" : "pill-pending"}`}>{w.Status}</span></td>
                         <td>{summe !== null ? `${summe} / 5` : "–"}</td>
                         <td>{w.Status !== "Bewäert" && <button className="btn-gen" onClick={() => bearbechten(w)}>Änneren</button>}</td>
@@ -307,6 +375,7 @@ body { margin: 0; font-family: -apple-system, "Segoe UI", Inter, Arial, sans-ser
 .field { display: flex; flex-direction: column; gap: 4px; margin-bottom: 14px; }
 .field-label { font-size: 12.5px; font-weight: 700; color: #294f3c; }
 .field-label em { font-weight: 400; color: #93a098; }
+.field-hint { font-size: 11px; color: #4576B5; }
 .select, .textarea { border: 1px solid #c9d5cd; border-radius: 7px; padding: 8px 10px; font-size: 13.5px; font-family: inherit; background: #fff; color: #1c2621; width: 100%; }
 .textarea { resize: vertical; }
 .identitaet-box { font-size: 13.5px; font-weight: 700; color: #294f3c; background: #eef3ef; padding: 9px 12px; border-radius: 7px; }
@@ -321,6 +390,7 @@ body { margin: 0; font-family: -apple-system, "Segoe UI", Inter, Arial, sans-ser
 .tabelle { width: 100%; border-collapse: collapse; margin-top: 8px; }
 .tabelle th { text-align: left; font-size: 11px; text-transform: uppercase; color: #6d7d74; padding: 6px 8px; border-bottom: 1px solid #eef1ef; }
 .tabelle td { padding: 7px 8px; font-size: 13px; border-bottom: 1px solid #f4f6f4; }
+.cell-muted { color: #93a098; font-size: 12px; }
 .pill { font-size: 11px; font-weight: 700; padding: 3px 9px; border-radius: 20px; }
 .pill-pending { background: #e6e9e6; color: #55625a; }
 .pill-done { background: #d7ecdd; color: #00A94F; }
