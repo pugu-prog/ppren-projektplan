@@ -197,263 +197,260 @@ function App() {
         {geladen && !loading && !error && (
           <>
             {!projekt && (
-              <div className="card"><p className="notice">Für dich wurde noch kein Projektplan eingereicht.</p></div>
+              <div className="card"><p className="notice">Für dich wurde noch kein Projektplan eingereicht. Wochenberichter, Meilensteng a Journal ginn hei drënner scho ugewisen, wa se existéieren.</p></div>
             )}
 
             {projekt && (
-              <>
-                {/* ===== Kapitel 1: Projektplan ===== */}
-                <section className="card">
-                  <span className="kapitel-label">Kapitel 1</span>
-                  <h2>{projekt.Titel || "(noch kein Titel)"}</h2>
-                  <p className="status-line">
-                    Status: <strong>{projekt.Status}</strong>
-                    {" · "}Betreuer/-in: <strong>{projekt.Betreuer}</strong>
-                  </p>
+              <section className="card">
+                <span className="kapitel-label">Kapitel 1</span>
+                <h2>{projekt.Titel || "(noch kein Titel)"}</h2>
+                <p className="status-line">
+                  Status: <strong>{projekt.Status}</strong>
+                  {" · "}Betreuer/-in: <strong>{projekt.Betreuer}</strong>
+                </p>
 
-                  {planDetails ? (
+                {planDetails ? (
+                  <>
+                    <div className="feld-block">
+                      <span className="feld-label">Inhalt / Beschreibung</span>
+                      <p className="feld-text">{planDetails.inhalt || "–"}</p>
+                    </div>
+                    <div className="feld-block">
+                      <span className="feld-label">Motivation</span>
+                      <p className="feld-text">{planDetails.motivation || "–"}</p>
+                    </div>
+                    <div className="feld-block">
+                      <span className="feld-label">Ziele</span>
+                      <p className="feld-text">{planDetails.ziele || "–"}</p>
+                    </div>
+                    <div className="feld-block">
+                      <span className="feld-label">Gruppenarbeit</span>
+                      <p className="feld-text">
+                        {planDetails.gruppenarbeit ? `Ja, mit ${planDetails.partner || "–"}` : "Nein, Einzelarbeit"}
+                      </p>
+                      {planDetails.gruppenarbeit && planDetails.aufgabenteilung && (
+                        <p className="feld-text feld-text-sub">{planDetails.aufgabenteilung}</p>
+                      )}
+                    </div>
+                    <div className="feld-block">
+                      <span className="feld-label">Kostenplan (max. 500 €)</span>
+                      {planDetails.kostenplanNoetig && (planDetails.kosten || []).length > 0 ? (
+                        <>
+                          <ul className="kosten-liste">
+                            {planDetails.kosten.map((k, i) => (
+                              <li key={i}>{k.bezeichnung}: <strong>{k.betrag} €</strong></li>
+                            ))}
+                          </ul>
+                          {(() => {
+                            const summe = planDetails.kosten.reduce((s, k) => s + (parseFloat(k.betrag) || 0), 0);
+                            const prozent = Math.round((summe / 500) * 100);
+                            return (
+                              <div className="budget-block">
+                                <Fortschrittsbar prozent={prozent} farbe={prozent > 100 ? "#c0392b" : "#4576B5"} />
+                                <p className="budget-text">{summe.toFixed(2)} € von 500 € verwendet ({prozent}%)</p>
+                              </div>
+                            );
+                          })()}
+                        </>
+                      ) : <p className="feld-text">nicht erforderlich</p>}
+                    </div>
+                  </>
+                ) : (
+                  <p className="notice">Details werden geladen, sobald der Projektplan komplett eingereicht ist.</p>
+                )}
+
+                <div className="link-row">
+                  {projekt["Projektplan-Link"] && (
+                    <a className="btn btn-ghost" href={projekt["Projektplan-Link"]} target="_blank" rel="noreferrer">📝 Projektplan als Word öffnen</a>
+                  )}
+                </div>
+              </section>
+            )}
+
+            {/* ===== Projet-Journal: chronologesche Verlaf — onofhängeg vum Projektplang-Status ===== */}
+            {journal && (
+              <section className="card journal-card">
+                <div className="journal-head">
+                  <div>
+                    <span className="kapitel-label">Verlaf</span>
+                    <h2>📖 Projet-Journal</h2>
+                    <p className="journal-sub">All Meilensteng, Wochenberichter, Fachgespréicher a Ziel-Iwwerpréiwungen chronologesch — fir Dokumentatioun oder Iwwerbléck.</p>
+                  </div>
+                  <button className="btn btn-ghost journal-print-btn" onClick={drécken}>🖨️ Als PDF exportéieren</button>
+                </div>
+
+                {journal.zeitleischt.length === 0 && (
+                  <p className="notice">Nach keng Meilensteng oder Wochenberichter fir e Journal.</p>
+                )}
+
+                <div className="journal-timeline">
+                  {journal.zeitleischt.map((item, i) => {
+                    if (item.art === "meilensteen") {
+                      const wbListe = journal.wbNoMeilensteen[item.titel] || [];
+                      return (
+                        <div className="journal-item journal-item-meilensteen" key={i}>
+                          <div className="journal-marker journal-marker-meilensteen"></div>
+                          <div className="journal-body">
+                            <div className="journal-item-head">
+                              <span className="journal-datum">{formatDatumKuerz(item.datum)}</span>
+                              <span className={`journal-status journal-status-${(item.status || "Ausstoend").toLowerCase()}`}>{item.status || "Ausstoend"}</span>
+                            </div>
+                            <strong className="journal-titel">🏁 {item.titel}</strong>
+                            {wbListe.length > 0 && (
+                              <ul className="journal-wb-liste">
+                                {wbListe.map((w, j) => (
+                                  <li key={j}>
+                                    <span className="journal-wb-datum">{w.Woche}</span>
+                                    <span className="journal-wb-text">{w.Zusammenfassung}</span>
+                                  </li>
+                                ))}
+                              </ul>
+                            )}
+                          </div>
+                        </div>
+                      );
+                    }
+                    if (item.art === "fachgespraech") {
+                      return (
+                        <div className="journal-item journal-item-klengt" key={i}>
+                          <div className="journal-marker journal-marker-klengt"></div>
+                          <div className="journal-body">
+                            <div className="journal-item-head">
+                              <span className="journal-datum">{formatDatumKuerz(item.datum)}</span>
+                              <span className="journal-status journal-status-neutral">{item.gesamt} / 30</span>
+                            </div>
+                            <span className="journal-titel-klengt">🗣️ {item.titel}</span>
+                          </div>
+                        </div>
+                      );
+                    }
+                    return (
+                      <div className="journal-item journal-item-klengt" key={i}>
+                        <div className="journal-marker journal-marker-klengt"></div>
+                        <div className="journal-body">
+                          <div className="journal-item-head">
+                            <span className="journal-datum">{formatDatumKuerz(item.datum)}</span>
+                            <span className="journal-status journal-status-neutral">{item.punkte} / {item.max}</span>
+                          </div>
+                          <span className="journal-titel-klengt">🎯 {item.titel}</span>
+                        </div>
+                      </div>
+                    );
+                  })}
+
+                  {journal.wbNoMeilensteen["__ouni__"] && journal.wbNoMeilensteen["__ouni__"].length > 0 && (
+                    <div className="journal-item journal-item-meilensteen">
+                      <div className="journal-marker journal-marker-gro"></div>
+                      <div className="journal-body">
+                        <strong className="journal-titel">📝 Wochenberichter ouni Meilensteen-Bezuch</strong>
+                        <ul className="journal-wb-liste">
+                          {journal.wbNoMeilensteen["__ouni__"].map((w, j) => (
+                            <li key={j}>
+                              <span className="journal-wb-datum">{w.Woche}</span>
+                              <span className="journal-wb-text">{w.Zusammenfassung}</span>
+                            </li>
+                          ))}
+                        </ul>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </section>
+            )}
+
+            {/* ===== Bewertungsperioden — onofhängeg vum Projektplang-Status ===== */}
+            {perioden.map((periode) => {
+              const b = bewertungFuer(periode);
+              const prozent = b ? Math.round((Number(b.Note) / 60) * 100) : 0;
+              const kategorien = b ? sicherJson(b["Kategorien (JSON)"], []) : [];
+              const gruppenBemerkungen = b ? sicherJson(b["Gruppenbemerkungen (JSON)"], []) : [];
+
+              const gruppiert = {};
+              kategorien.forEach((k) => {
+                const teile = (k.name || "").split(" — ");
+                const gruppe = teile[0];
+                const pos = teile.slice(1).join(" — ") || k.name;
+                if (!gruppiert[gruppe]) gruppiert[gruppe] = [];
+                gruppiert[gruppe].push({ name: pos, punkte: k.punkte, max: k.max });
+              });
+
+              return (
+                <section className="card" key={periode}>
+                  <span className="kapitel-label">{periode}</span>
+                  <div className="periode-head">
+                    <h2 className="periode-h2">Bewertung &amp; Kommentar</h2>
+                    {!b && <span className="pill pill-offen">Nach net bewäert</span>}
+                    {b && <span className="pill pill-fertig">Note {b.Note} / 60</span>}
+                  </div>
+
+                  {!b && <p className="notice">Fir dës Period läit nach keng Bewertung vir.</p>}
+
+                  {b && (
                     <>
-                      <div className="feld-block">
-                        <span className="feld-label">Inhalt / Beschreibung</span>
-                        <p className="feld-text">{planDetails.inhalt || "–"}</p>
-                      </div>
-                      <div className="feld-block">
-                        <span className="feld-label">Motivation</span>
-                        <p className="feld-text">{planDetails.motivation || "–"}</p>
-                      </div>
-                      <div className="feld-block">
-                        <span className="feld-label">Ziele</span>
-                        <p className="feld-text">{planDetails.ziele || "–"}</p>
-                      </div>
-                      <div className="feld-block">
-                        <span className="feld-label">Gruppenarbeit</span>
-                        <p className="feld-text">
-                          {planDetails.gruppenarbeit ? `Ja, mit ${planDetails.partner || "–"}` : "Nein, Einzelarbeit"}
-                        </p>
-                        {planDetails.gruppenarbeit && planDetails.aufgabenteilung && (
-                          <p className="feld-text feld-text-sub">{planDetails.aufgabenteilung}</p>
-                        )}
-                      </div>
-                      <div className="feld-block">
-                        <span className="feld-label">Kostenplan (max. 500 €)</span>
-                        {planDetails.kostenplanNoetig && (planDetails.kosten || []).length > 0 ? (
-                          <>
-                            <ul className="kosten-liste">
-                              {planDetails.kosten.map((k, i) => (
-                                <li key={i}>{k.bezeichnung}: <strong>{k.betrag} €</strong></li>
+                      <Fortschrittsbar prozent={prozent} farbe={prozent >= 50 ? "#00A94F" : "#c0392b"} />
+                      <p className="punkte-summe">Gesamt: {b.Punkte} / {b.Max} Punkte</p>
+
+                      {Object.keys(gruppiert).map((gruppe) => {
+                        const items = gruppiert[gruppe];
+                        const gSumme = items.reduce((s, i) => s + (Number(i.punkte) || 0), 0);
+                        const gMax = items.reduce((s, i) => s + (Number(i.max) || 0), 0);
+                        const gProzent = gMax > 0 ? Math.round((gSumme / gMax) * 100) : 0;
+                        const gBem = gruppenBemerkungen.find((g) => g.titel === gruppe);
+                        return (
+                          <div className="gruppe-block" key={gruppe}>
+                            <div className="gruppe-head">
+                              <span className="gruppe-name">{gruppe}</span>
+                              <span className="gruppe-punkte">{gSumme} / {gMax}</span>
+                            </div>
+                            <Fortschrittsbar prozent={gProzent} farbe="#4576B5" />
+                            <ul className="positionen-liste">
+                              {items.map((i, idx) => (
+                                <li key={idx}>{i.name}: <strong>{i.punkte} / {i.max}</strong></li>
                               ))}
                             </ul>
-                            {(() => {
-                              const summe = planDetails.kosten.reduce((s, k) => s + (parseFloat(k.betrag) || 0), 0);
-                              const prozent = Math.round((summe / 500) * 100);
-                              return (
-                                <div className="budget-block">
-                                  <Fortschrittsbar prozent={prozent} farbe={prozent > 100 ? "#c0392b" : "#4576B5"} />
-                                  <p className="budget-text">{summe.toFixed(2)} € von 500 € verwendet ({prozent}%)</p>
-                                </div>
-                              );
-                            })()}
-                          </>
-                        ) : <p className="feld-text">nicht erforderlich</p>}
-                      </div>
-                    </>
-                  ) : (
-                    <p className="notice">Details werden geladen, sobald der Projektplan komplett eingereicht ist.</p>
-                  )}
-
-                  <div className="link-row">
-                    {projekt["Projektplan-Link"] && (
-                      <a className="btn btn-ghost" href={projekt["Projektplan-Link"]} target="_blank" rel="noreferrer">📝 Projektplan als Word öffnen</a>
-                    )}
-                  </div>
-                </section>
-
-                {/* ===== Projet-Journal: chronologesche Verlaf ===== */}
-                {journal && (
-                  <section className="card journal-card">
-                    <div className="journal-head">
-                      <div>
-                        <span className="kapitel-label">Verlaf</span>
-                        <h2>📖 Projet-Journal</h2>
-                        <p className="journal-sub">All Meilensteng, Wochenberichter, Fachgespréicher a Ziel-Iwwerpréiwungen chronologesch — fir Dokumentatioun oder Iwwerbléck.</p>
-                      </div>
-                      <button className="btn btn-ghost journal-print-btn" onClick={drécken}>🖨️ Als PDF exportéieren</button>
-                    </div>
-
-                    {journal.zeitleischt.length === 0 && (
-                      <p className="notice">Nach keng Meilensteng oder Wochenberichter fir e Journal.</p>
-                    )}
-
-                    <div className="journal-timeline">
-                      {journal.zeitleischt.map((item, i) => {
-                        if (item.art === "meilensteen") {
-                          const wbListe = journal.wbNoMeilensteen[item.titel] || [];
-                          return (
-                            <div className="journal-item journal-item-meilensteen" key={i}>
-                              <div className="journal-marker journal-marker-meilensteen"></div>
-                              <div className="journal-body">
-                                <div className="journal-item-head">
-                                  <span className="journal-datum">{formatDatumKuerz(item.datum)}</span>
-                                  <span className={`journal-status journal-status-${(item.status || "Ausstoend").toLowerCase()}`}>{item.status || "Ausstoend"}</span>
-                                </div>
-                                <strong className="journal-titel">🏁 {item.titel}</strong>
-                                {wbListe.length > 0 && (
-                                  <ul className="journal-wb-liste">
-                                    {wbListe.map((w, j) => (
-                                      <li key={j}>
-                                        <span className="journal-wb-datum">{w.Woche}</span>
-                                        <span className="journal-wb-text">{w.Zusammenfassung}</span>
-                                      </li>
-                                    ))}
-                                  </ul>
-                                )}
-                              </div>
-                            </div>
-                          );
-                        }
-                        if (item.art === "fachgespraech") {
-                          return (
-                            <div className="journal-item journal-item-klengt" key={i}>
-                              <div className="journal-marker journal-marker-klengt"></div>
-                              <div className="journal-body">
-                                <div className="journal-item-head">
-                                  <span className="journal-datum">{formatDatumKuerz(item.datum)}</span>
-                                  <span className="journal-status journal-status-neutral">{item.gesamt} / 30</span>
-                                </div>
-                                <span className="journal-titel-klengt">🗣️ {item.titel}</span>
-                              </div>
-                            </div>
-                          );
-                        }
-                        return (
-                          <div className="journal-item journal-item-klengt" key={i}>
-                            <div className="journal-marker journal-marker-klengt"></div>
-                            <div className="journal-body">
-                              <div className="journal-item-head">
-                                <span className="journal-datum">{formatDatumKuerz(item.datum)}</span>
-                                <span className="journal-status journal-status-neutral">{item.punkte} / {item.max}</span>
-                              </div>
-                              <span className="journal-titel-klengt">🎯 {item.titel}</span>
-                            </div>
+                            {gBem && (gBem.positiv || []).map((r) => (
+                              <div className="remarque remarque-pos" key={r}>✓ {r}</div>
+                            ))}
+                            {gBem && (gBem.negativ || []).map((r) => (
+                              <div className="remarque remarque-neg" key={r}>✗ {r}</div>
+                            ))}
+                            {gBem && gBem.kommentar && <div className="remarque-kommentar">{gBem.kommentar}</div>}
                           </div>
                         );
                       })}
 
-                      {journal.wbNoMeilensteen["__ouni__"] && journal.wbNoMeilensteen["__ouni__"].length > 0 && (
-                        <div className="journal-item journal-item-meilensteen">
-                          <div className="journal-marker journal-marker-gro"></div>
-                          <div className="journal-body">
-                            <strong className="journal-titel">📝 Wochenberichter ouni Meilensteen-Bezuch</strong>
-                            <ul className="journal-wb-liste">
-                              {journal.wbNoMeilensteen["__ouni__"].map((w, j) => (
-                                <li key={j}>
-                                  <span className="journal-wb-datum">{w.Woche}</span>
-                                  <span className="journal-wb-text">{w.Zusammenfassung}</span>
-                                </li>
-                              ))}
-                            </ul>
+                      {(() => {
+                        const allgemein = sicherJson(b["Allgemeine Remarquen (JSON)"], { positiv: [], negativ: [] });
+                        const hatAllgemein = (allgemein.positiv || []).length > 0 || (allgemein.negativ || []).length > 0;
+                        return hatAllgemein ? (
+                          <div className="allgemeine-remarquen">
+                            {(allgemein.positiv || []).map((r) => (
+                              <div className="remarque remarque-pos" key={r}>✓ {r}</div>
+                            ))}
+                            {(allgemein.negativ || []).map((r) => (
+                              <div className="remarque remarque-neg" key={r}>✗ {r}</div>
+                            ))}
                           </div>
+                        ) : null;
+                      })()}
+
+                      {b.Kommentar && (
+                        <div className="allgemeiner-kommentar">
+                          <span className="ak-label">Kommentar der Lehrperson</span>
+                          <p>{b.Kommentar}</p>
                         </div>
                       )}
-                    </div>
-                  </section>
-                )}
 
-                {/* ===== Bewertungsperioden ===== */}
-                {perioden.map((periode) => {
-                  const b = bewertungFuer(periode);
-                  const prozent = b ? Math.round((Number(b.Note) / 60) * 100) : 0;
-                  const kategorien = b ? sicherJson(b["Kategorien (JSON)"], []) : [];
-                  const gruppenBemerkungen = b ? sicherJson(b["Gruppenbemerkungen (JSON)"], []) : [];
-
-                  const gruppiert = {};
-                  kategorien.forEach((k) => {
-                    const teile = (k.name || "").split(" — ");
-                    const gruppe = teile[0];
-                    const pos = teile.slice(1).join(" — ") || k.name;
-                    if (!gruppiert[gruppe]) gruppiert[gruppe] = [];
-                    gruppiert[gruppe].push({ name: pos, punkte: k.punkte, max: k.max });
-                  });
-
-                  return (
-                    <section className="card" key={periode}>
-                      <span className="kapitel-label">{periode}</span>
-                      <div className="periode-head">
-                        <h2 className="periode-h2">Bewertung &amp; Kommentar</h2>
-                        {!b && <span className="pill pill-offen">Nach net bewäert</span>}
-                        {b && <span className="pill pill-fertig">Note {b.Note} / 60</span>}
-                      </div>
-
-                      {!b && <p className="notice">Fir dës Period läit nach keng Bewertung vir.</p>}
-
-                      {b && (
-                        <>
-                          <Fortschrittsbar prozent={prozent} farbe={prozent >= 50 ? "#00A94F" : "#c0392b"} />
-                          <p className="punkte-summe">Gesamt: {b.Punkte} / {b.Max} Punkte</p>
-
-                          {Object.keys(gruppiert).map((gruppe) => {
-                            const items = gruppiert[gruppe];
-                            const gSumme = items.reduce((s, i) => s + (Number(i.punkte) || 0), 0);
-                            const gMax = items.reduce((s, i) => s + (Number(i.max) || 0), 0);
-                            const gProzent = gMax > 0 ? Math.round((gSumme / gMax) * 100) : 0;
-                            const gBem = gruppenBemerkungen.find((g) => g.titel === gruppe);
-                            return (
-                              <div className="gruppe-block" key={gruppe}>
-                                <div className="gruppe-head">
-                                  <span className="gruppe-name">{gruppe}</span>
-                                  <span className="gruppe-punkte">{gSumme} / {gMax}</span>
-                                </div>
-                                <Fortschrittsbar prozent={gProzent} farbe="#4576B5" />
-                                <ul className="positionen-liste">
-                                  {items.map((i, idx) => (
-                                    <li key={idx}>{i.name}: <strong>{i.punkte} / {i.max}</strong></li>
-                                  ))}
-                                </ul>
-                                {gBem && (gBem.positiv || []).map((r) => (
-                                  <div className="remarque remarque-pos" key={r}>✓ {r}</div>
-                                ))}
-                                {gBem && (gBem.negativ || []).map((r) => (
-                                  <div className="remarque remarque-neg" key={r}>✗ {r}</div>
-                                ))}
-                                {gBem && gBem.kommentar && <div className="remarque-kommentar">{gBem.kommentar}</div>}
-                              </div>
-                            );
-                          })}
-
-                          {(() => {
-                            const allgemein = sicherJson(b["Allgemeine Remarquen (JSON)"], { positiv: [], negativ: [] });
-                            const hatAllgemein = (allgemein.positiv || []).length > 0 || (allgemein.negativ || []).length > 0;
-                            return hatAllgemein ? (
-                              <div className="allgemeine-remarquen">
-                                {(allgemein.positiv || []).map((r) => (
-                                  <div className="remarque remarque-pos" key={r}>✓ {r}</div>
-                                ))}
-                                {(allgemein.negativ || []).map((r) => (
-                                  <div className="remarque remarque-neg" key={r}>✗ {r}</div>
-                                ))}
-                              </div>
-                            ) : null;
-                          })()}
-
-                          {b.Kommentar && (
-                            <div className="allgemeiner-kommentar">
-                              <span className="ak-label">Kommentar der Lehrperson</span>
-                              <p>{b.Kommentar}</p>
-                            </div>
-                          )}
-
-                          {b["Suivi-PDF-Link (Schüler)"] && (
-                            <a className="btn btn-primary" href={b["Suivi-PDF-Link (Schüler)"]} target="_blank" rel="noreferrer">
-                              📄 Ganzen Suivi als PDF opmaachen
-                            </a>
-                          )}
-                        </>
+                      {b["Suivi-PDF-Link (Schüler)"] && (
+                        <a className="btn btn-primary" href={b["Suivi-PDF-Link (Schüler)"]} target="_blank" rel="noreferrer">
+                          📄 Ganzen Suivi als PDF opmaachen
+                        </a>
                       )}
-                    </section>
-                  );
-                })}
-              </>
-            )}
+                    </>
+                  )}
+                </section>
+              );
+            })}
           </>
         )}
       </main>
