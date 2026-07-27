@@ -37,6 +37,11 @@ const SCHUELER = [
 const PERIODEN_2GSE = ["Trimester 1", "Trimester 2", "Trimester 3"];
 const PERIODEN_1GSE = ["Semester 1", "Semester 2"];
 
+// Déiselwecht Faarfpalett wéi am Planungstool/Gantt-Chart, fir konsequent Faarwen
+// iwwerall wou Meilensteng-Kategorien ugewisen ginn.
+const KATEGORIE_FARWEN = { "Event": "#f0ec3a", "Iwwerpréiwung": "#d9d3f5", "Praktesch Phase": "#1ecdc4", "Ofgab": "#a9d92d", "Eegen": "#F67E1B", "Projektplang": "#5b9bd5" };
+const KATEGORIE_TEXT = { "Event": "#1c2621", "Iwwerpréiwung": "#1c2621", "Praktesch Phase": "#04342c", "Ofgab": "#1c2621", "Eegen": "#ffffff", "Projektplang": "#ffffff" };
+
 function sicherJson(text, fallback) {
   if (!text) return fallback;
   try { return JSON.parse(text); } catch { return fallback; }
@@ -107,10 +112,10 @@ function App() {
         }
         const offiziell = (data.offiziellZaitplang || [])
           .filter((m) => m.Klasse === currentSchueler.klasse)
-          .map((m) => ({ titel: m.Titel, datum: m.Datum, status: "Ausstoend", quell: "Offiziell" }));
+          .map((m) => ({ titel: m.Titel, datum: m.Datum, status: "Ausstoend", quell: "Offiziell", kategorie: m.Kategorie || "Event" }));
         const eegenUndProjektplang = gespäichert
           .filter((m) => m.titel && m.datum && m.quell !== "Vakanz")
-          .map((m) => ({ titel: m.titel, datum: m.datum, status: m.status || "Ausstoend", quell: m.quell || "Eegen" }));
+          .map((m) => ({ titel: m.titel, datum: m.datum, status: m.status || "Ausstoend", quell: m.quell || "Eegen", kategorie: m.quell === "Projektplang" ? "Projektplang" : "Eegen" }));
         const alleMeilensteng = [...offiziell, ...eegenUndProjektplang]
           .filter((m, i, arr) => arr.findIndex((x) => x.titel === m.titel) === i)
           .sort((a, b) => (a.datum || "").localeCompare(b.datum || ""));
@@ -148,7 +153,7 @@ function App() {
     Object.keys(wbNoMeilensteen).forEach((k) => wbNoMeilensteen[k].sort((a, b) => (a.isoDatum || "").localeCompare(b.isoDatum || "")));
 
     const zeitleischt = [
-      ...meilensteng.map((m) => ({ art: "meilensteen", datum: m.datum, titel: m.titel, status: m.status, quell: m.quell })),
+      ...meilensteng.map((m) => ({ art: "meilensteen", datum: m.datum, titel: m.titel, status: m.status, quell: m.quell, kategorie: m.kategorie })),
       ...fachgespraeche.map((f) => ({ art: "fachgespraech", datum: f.Datum, titel: `Fachgespréich — ${f.Periode}`, gesamt: f.Gesamt })),
       ...zieluewerpreiwungen.map((z) => ({ art: "ziler", datum: z.Datum, titel: `Ziel-Iwwerpréiwung Termin ${z.Termin} — ${z.Periode}`, punkte: z.Punkte, max: z.Max })),
     ]
@@ -279,6 +284,14 @@ function App() {
                   <button className="btn btn-ghost journal-print-btn" onClick={drécken}>🖨️ Als PDF exportéieren</button>
                 </div>
 
+                {journal.zeitleischt.length > 0 && (
+                  <div className="journal-legend">
+                    {Object.keys(KATEGORIE_FARWEN).map((k) => (
+                      <span key={k} className="journal-legend-item"><span className="journal-legend-dot" style={{ background: KATEGORIE_FARWEN[k] }} />{k}</span>
+                    ))}
+                  </div>
+                )}
+
                 {journal.zeitleischt.length === 0 && (
                   <p className="notice">Nach keng Meilensteng oder Wochenberichter fir e Journal.</p>
                 )}
@@ -287,13 +300,18 @@ function App() {
                   {journal.zeitleischt.map((item, i) => {
                     if (item.art === "meilensteen") {
                       const wbListe = journal.wbNoMeilensteen[item.titel] || [];
+                      const kFarw = KATEGORIE_FARWEN[item.kategorie] || "#93a098";
+                      const kText = KATEGORIE_TEXT[item.kategorie] || "#1c2621";
                       return (
                         <div className="journal-item journal-item-meilensteen" key={i}>
-                          <div className="journal-marker journal-marker-meilensteen"></div>
+                          <div className="journal-marker" style={{ background: kFarw, width: "13px", height: "13px" }}></div>
                           <div className="journal-body">
                             <div className="journal-item-head">
                               <span className="journal-datum">{formatDatumKuerz(item.datum)}</span>
-                              <span className={`journal-status journal-status-${(item.status || "Ausstoend").toLowerCase()}`}>{item.status || "Ausstoend"}</span>
+                              <span className="journal-badges">
+                                <span className="journal-kategorie-badge" style={{ background: kFarw, color: kText }}>{item.kategorie}</span>
+                                <span className={`journal-status journal-status-${(item.status || "Ausstoend").toLowerCase()}`}>{item.status || "Ausstoend"}</span>
+                              </span>
                             </div>
                             <strong className="journal-titel">🏁 {item.titel}</strong>
                             {wbListe.length > 0 && (
@@ -523,18 +541,22 @@ body { margin: 0; font-family: -apple-system, "Segoe UI", Inter, Arial, sans-ser
 .journal-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; flex-wrap: wrap; margin-bottom: 12px; }
 .journal-sub { font-size: 12px; color: #6d7d74; margin: 2px 0 0; line-height: 1.5; }
 .journal-print-btn { flex-shrink: 0; white-space: nowrap; }
+.journal-legend { display: flex; gap: 12px; flex-wrap: wrap; margin-bottom: 12px; padding-bottom: 10px; border-bottom: 1px solid #eef1ef; }
+.journal-legend-item { display: flex; align-items: center; gap: 5px; font-size: 10.5px; color: #6d7d74; }
+.journal-legend-dot { width: 9px; height: 9px; border-radius: 50%; display: inline-block; }
 .journal-timeline { display: flex; flex-direction: column; gap: 4px; margin-top: 10px; }
 .journal-item { display: flex; gap: 12px; }
 .journal-marker { width: 10px; height: 10px; border-radius: 50%; margin-top: 5px; flex-shrink: 0; }
-.journal-marker-meilensteen { background: #00A94F; width: 13px; height: 13px; }
 .journal-marker-klengt { background: #b3d9e8; }
 .journal-marker-gro { background: #93a098; width: 13px; height: 13px; }
 .journal-item { position: relative; padding-bottom: 14px; }
 .journal-item:not(:last-child)::before { content: ""; position: absolute; left: 5px; top: 16px; bottom: -2px; width: 1px; background: #e2e8e3; }
 .journal-item-meilensteen:not(:last-child)::before { left: 6px; }
 .journal-body { flex: 1; }
-.journal-item-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 2px; }
+.journal-item-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 2px; flex-wrap: wrap; }
 .journal-datum { font-size: 11px; color: #93a098; font-weight: 600; }
+.journal-badges { display: flex; align-items: center; gap: 5px; }
+.journal-kategorie-badge { font-size: 9.5px; font-weight: 700; padding: 2px 8px; border-radius: 10px; }
 .journal-status { font-size: 10px; font-weight: 700; padding: 2px 8px; border-radius: 10px; }
 .journal-status-erreecht { background: #d7ecdd; color: #00A94F; }
 .journal-status-verspéit { background: #fbe4e1; color: #99392f; }
