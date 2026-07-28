@@ -24,6 +24,8 @@
 const { useState, useEffect } = React;
 
 const WEB_APP_URL = "https://script.google.com/macros/s/AKfycbzfyThho8MevoyfSz7NsQ1YxZJO4E-f61GYYzqZyHACIHzxR3bm7SHCwVUkCBJrAEvJ/exec";
+const SE_LOGO_URL = "https://raw.githubusercontent.com/pugu-prog/ppren-projektplan/main/LogoSE_weisHintergrund.png";
+const LTETT_LOGO_URL = "https://raw.githubusercontent.com/pugu-prog/ppren-projektplan/main/LTEtt_Logo.png";
 
 const SCHUELER = [
   { id: "lea_muller", name: "Léa Muller", klasse: "1GSE" },
@@ -99,44 +101,67 @@ function App() {
   };
 
   return (
-    <div className="wrap">
-      <div className="card">
-        <div className="logo-row">
-          <span className="brand-mark">PPREN</span>
+    <div className="page">
+      {/* ===== Deckblatt-inspiréierten Header ===== */}
+      <header className="hero">
+        <img className="hero-logo-top" src={SE_LOGO_URL} alt="" />
+        <div className="hero-inner">
+          <div className="wordmark">
+            <span className="wordmark-line">SCIENCES</span>
+            <span className="wordmark-line">ENVIRONNEMENTALES</span>
+          </div>
+          <div className="subwordmark">ËMWELTWËSSENSCHAFTEN</div>
+          <div className="bar bar-orange"></div>
+          <div className="ppren-line">PROJET PERSONNEL ENCADRÉ (PPREN)</div>
+          <div className="typ-line">Umeldung</div>
         </div>
-        <h1>Umeldung</h1>
-        <p className="hint">Sciences Environnementales · Lycée Technique d'Ettelbruck</p>
+      </header>
 
-        <div className="rolle-switch">
-          <button className={`switch-btn ${rolle === "Schüler" ? "active" : ""}`} onClick={() => { setRolle("Schüler"); setNumm(""); }}>Schüler/-in</button>
-          <button className={`switch-btn ${rolle === "Prof" ? "active" : ""}`} onClick={() => { setRolle("Prof"); setNumm(""); }}>Prof</button>
+      {/* ===== Login-Kaart ===== */}
+      <main className="main">
+        <div className="card">
+          <div className="rolle-switch">
+            <button className={`switch-btn ${rolle === "Schüler" ? "active" : ""}`} onClick={() => { setRolle("Schüler"); setNumm(""); }}>Schüler/-in</button>
+            <button className={`switch-btn ${rolle === "Prof" ? "active" : ""}`} onClick={() => { setRolle("Prof"); setNumm(""); }}>Prof</button>
+          </div>
+
+          <label className="field">
+            <span className="field-label">Numm</span>
+            <select className="select" value={numm} onChange={(e) => setNumm(e.target.value)}>
+              <option value="">– auswählen –</option>
+              {nimm.map((n) => <option key={n} value={n}>{n}</option>)}
+            </select>
+          </label>
+
+          <label className="field">
+            <span className="field-label">PIN (4 Zuelen)</span>
+            <input
+              type="password" inputMode="numeric" maxLength={4} className="input pin-input"
+              value={pin} onChange={(e) => setPin(e.target.value.replace(/\D/g, "").slice(0, 4))}
+              onKeyDown={(e) => e.key === "Enter" && umellen()}
+            />
+          </label>
+
+          {error && <p className="error">{error}</p>}
+
+          <button className="btn btn-primary" disabled={syncing} onClick={umellen}>
+            {syncing ? "Mellt un…" : "Umellen"}
+          </button>
+
+          <p className="footer-hint">PIN vergiess? Frot Ären Prof, en zréckzesetzen.</p>
         </div>
+      </main>
 
-        <label className="field">
-          <span className="field-label">Numm</span>
-          <select className="select" value={numm} onChange={(e) => setNumm(e.target.value)}>
-            <option value="">– auswählen –</option>
-            {nimm.map((n) => <option key={n} value={n}>{n}</option>)}
-          </select>
-        </label>
-
-        <label className="field">
-          <span className="field-label">PIN (4 Zuelen)</span>
-          <input
-            type="password" inputMode="numeric" maxLength={4} className="input pin-input"
-            value={pin} onChange={(e) => setPin(e.target.value.replace(/\D/g, "").slice(0, 4))}
-            onKeyDown={(e) => e.key === "Enter" && umellen()}
-          />
-        </label>
-
-        {error && <p className="error">{error}</p>}
-
-        <button className="btn btn-primary" disabled={syncing} onClick={umellen}>
-          {syncing ? "Mellt un…" : "Umellen"}
-        </button>
-
-        <p className="footer-hint">PIN vergiess? Frot Ären Prof, en zréckzesetzen.</p>
-      </div>
+      {/* ===== Deckblatt-inspiréierten Footer mat Logoen ===== */}
+      <footer className="foot">
+        <div className="foot-logos">
+          <img className="foot-logo-se" src={SE_LOGO_URL} alt="Sciences Environnementales" />
+          <div className="foot-ltett-block">
+            <img className="foot-logo-ltett" src={LTETT_LOGO_URL} alt="Lycée Technique d'Ettelbruck" />
+            <div className="bar bar-teal"></div>
+          </div>
+        </div>
+      </footer>
     </div>
   );
 }
@@ -145,25 +170,50 @@ ReactDOM.createRoot(document.getElementById("root")).render(<App />);
 </script>
 <style>
 * { box-sizing: border-box; }
-body { margin: 0; font-family: -apple-system, "Segoe UI", Inter, Arial, sans-serif; color: #1c2621; background: #f6f8f6; display: flex; align-items: center; justify-content: center; min-height: 100vh; }
-.wrap { width: 100%; padding: 20px; }
-.card { max-width: 380px; margin: 0 auto; background: #fff; border: 1px solid #e2e8e3; border-radius: 16px; padding: 32px 28px; box-shadow: 0 4px 20px rgba(28,38,33,0.06); }
-.logo-row { text-align: center; margin-bottom: 8px; }
-.brand-mark { display: inline-block; background: #00A94F; color: #fff; font-weight: 800; font-size: 13px; letter-spacing: 0.08em; padding: 6px 14px; border-radius: 20px; }
-h1 { text-align: center; font-size: 20px; margin: 12px 0 2px; }
-.hint { text-align: center; font-size: 12px; color: #6d7d74; margin: 0 0 22px; }
+body { margin: 0; font-family: -apple-system, "Segoe UI", Inter, Arial, sans-serif; color: #1c2621; background: #ffffff; }
+.page { min-height: 100vh; display: flex; flex-direction: column; overflow-x: hidden; }
+
+/* ===== Header (Deckblatt-Wordmark) ===== */
+.hero { position: relative; padding: 44px 24px 30px; overflow: hidden; }
+.hero-logo-top { position: absolute; top: -60px; right: -40px; width: 220px; opacity: 0.94; pointer-events: none; }
+.hero-inner { position: relative; max-width: 460px; margin: 0 auto; text-align: left; }
+.wordmark { display: flex; flex-direction: column; line-height: 1; }
+.wordmark-line { font-weight: 800; font-size: clamp(26px, 7vw, 34px); color: #00A94F; letter-spacing: 0.01em; }
+.subwordmark { font-weight: 700; font-size: clamp(15px, 4vw, 18px); color: #1c2621; margin-top: 10px; }
+.bar { height: 7px; border-radius: 2px; }
+.bar-orange { width: 130px; background: #F67E1B; margin: 16px 0 14px; }
+.bar-teal { width: 130px; background: #48B5CA; margin-top: 10px; }
+.ppren-line { font-weight: 700; font-size: 12px; color: #4576B5; letter-spacing: 0.03em; margin-bottom: 4px; }
+.typ-line { font-weight: 800; font-size: clamp(20px, 5vw, 24px); color: #4576B5; }
+
+/* ===== Login-Kaart ===== */
+.main { flex: 1; display: flex; align-items: flex-start; justify-content: center; padding: 4px 24px 30px; }
+.card { width: 100%; max-width: 400px; background: #fff; border: 1px solid #e2e8e3; border-radius: 16px; padding: 26px 26px 22px; box-shadow: 0 4px 20px rgba(28,38,33,0.06); }
 .rolle-switch { display: flex; gap: 6px; margin-bottom: 18px; }
 .switch-btn { flex: 1; font-size: 13px; font-weight: 700; padding: 9px; border-radius: 8px; border: 1px solid #c9d5cd; background: #fff; color: #55625a; cursor: pointer; }
 .switch-btn.active { background: #00A94F; border-color: #00A94F; color: #fff; }
 .field { display: flex; flex-direction: column; gap: 5px; margin-bottom: 16px; }
 .field-label { font-size: 12.5px; font-weight: 700; color: #294f3c; }
-.select, .input { border: 1px solid #c9d5cd; border-radius: 8px; padding: 10px 12px; font-size: 14px; font-family: inherit; background: #fff; color: #1c2621; }
+.select, .input { border: 1px solid #c9d5cd; border-radius: 8px; padding: 10px 12px; font-size: 14px; font-family: inherit; background: #fff; color: #1c2621; width: 100%; }
 .pin-input { letter-spacing: 8px; font-size: 18px; font-weight: 700; text-align: center; }
 .error { color: #8a2b1f; font-size: 12.5px; background: #fbe4e1; padding: 8px 12px; border-radius: 8px; margin: -4px 0 14px; }
 .btn { width: 100%; font-size: 14px; font-weight: 700; padding: 12px; border-radius: 9px; border: none; cursor: pointer; }
 .btn-primary { background: #00A94F; color: #fff; }
 .btn-primary:disabled { background: #b7c6bd; cursor: not-allowed; }
 .footer-hint { text-align: center; font-size: 11.5px; color: #93a098; margin: 16px 0 0; }
+
+/* ===== Footer (Deckblatt-Logoen) ===== */
+.foot { position: relative; padding: 30px 0 40px; overflow: hidden; }
+.foot-logos { position: relative; display: flex; align-items: flex-end; gap: 34px; padding-left: 24px; }
+.foot-logo-se { width: 190px; margin-left: -60px; opacity: 0.95; }
+.foot-ltett-block { display: flex; flex-direction: column; padding-bottom: 6px; }
+.foot-logo-ltett { width: 130px; }
+
+@media (max-width: 420px) {
+  .hero-logo-top { width: 150px; top: -46px; right: -30px; }
+  .foot-logo-se { width: 130px; margin-left: -48px; }
+  .foot-logo-ltett { width: 100px; }
+}
 </style>
 </body>
 </html>
