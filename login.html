@@ -42,7 +42,7 @@ const SCHUELER_SÄITEN = ["index.html", "wochenbericht.html", "schueler.html"];
 
 /** Gëtt eng sécher Ziel-Säit zréck: benotzt "zréck" nëmmen, wann d'Roll do och Zougrëff huet. */
 function sécherZiel(zréckParam, rolle) {
-  const standard = rolle === "Prof" ? "dashboard.html" : "schueler.html";
+  const standard = rolle === "Prof" ? "proffen.html" : "schueler.html";
   if (!zréckParam) return standard;
   const seitenNumm = zréckParam.split("?")[0];
   if (rolle === "Prof" && SCHUELER_SÄITEN.includes(seitenNumm)) return standard;
