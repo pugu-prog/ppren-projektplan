@@ -201,18 +201,17 @@ body { margin: 0; font-family: -apple-system, "Segoe UI", Inter, Arial, sans-ser
 .footer-hint { text-align: center; font-size: 11.5px; color: #93a098; margin: 16px 0 0; }
 
 /* ===== Footer (Deckblatt-Logoen) =====
-   Proportiounen orientéiert um richtege Deckblatt: do ass de grousse SE-Logo
-   755.91px breet op enger 794px-breeder Säit (≈95%) an hänkt ≈208px (≈26%)
-   iwwer de lénksen Rand eraus. Hei op d'Viewport-Breet ugepasst. */
-.foot { position: relative; height: 230px; margin-top: 10px; overflow: hidden; }
-.foot-logo-se { position: absolute; left: -24vw; bottom: -34px; width: 92vw; max-width: 620px; opacity: 0.96; pointer-events: none; }
+   Mat clamp() begrenzt, sou datt de Logo op kengem Bildschierm (och ganz
+   breed Écranen) komplett aus dem siichtbaren Beräich erausrutscht. */
+.foot { position: relative; height: 220px; margin-top: 10px; overflow: hidden; background: #fafbfa; }
+.foot-logo-se { position: absolute; left: clamp(-140px, -14vw, -50px); bottom: -18px; width: min(80vw, 520px); opacity: 0.96; pointer-events: none; }
 .foot-ltett-block { position: absolute; top: 22px; right: 24px; display: flex; flex-direction: column; align-items: flex-end; z-index: 2; }
 .foot-logo-ltett { width: 128px; }
 
 @media (max-width: 420px) {
   .hero-logo-top { width: 150px; top: -46px; right: -30px; }
   .foot { height: 190px; }
-  .foot-logo-se { left: -30vw; bottom: -26px; width: 100vw; }
+  .foot-logo-se { left: clamp(-110px, -18vw, -40px); bottom: -14px; width: min(90vw, 400px); }
   .foot-logo-ltett { width: 100px; }
 }
 </style>
