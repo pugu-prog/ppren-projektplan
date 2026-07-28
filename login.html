@@ -38,11 +38,11 @@ const PROFFEN = ["Guy Putz", "Pol Medernach", "Sarah Blum", "Tania Ludwig", "Tom
 // de "zréck"-Parameter ze préiwen, sou datt kee mat der falscher Roll op
 // eng gespaart Säit geleet gëtt (och net iwwer en ale Link).
 const PROF_SÄITEN = ["admin.html", "bewertung.html", "dashboard.html", "fachgespraech.html", "zieluewerpreiwung.html", "wochenberichte-korrigeieren.html", "zeitplang-verwalten.html", "noten.html"];
-const SCHUELER_SÄITEN = ["index.html", "wochenbericht.html"];
+const SCHUELER_SÄITEN = ["index.html", "wochenbericht.html", "schueler.html"];
 
 /** Gëtt eng sécher Ziel-Säit zréck: benotzt "zréck" nëmmen, wann d'Roll do och Zougrëff huet. */
 function sécherZiel(zréckParam, rolle) {
-  const standard = rolle === "Prof" ? "dashboard.html" : "links.html";
+  const standard = rolle === "Prof" ? "dashboard.html" : "schueler.html";
   if (!zréckParam) return standard;
   const seitenNumm = zréckParam.split("?")[0];
   if (rolle === "Prof" && SCHUELER_SÄITEN.includes(seitenNumm)) return standard;
