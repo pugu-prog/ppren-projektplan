@@ -157,7 +157,7 @@ function App() {
           <table className="table">
             <thead>
               <tr>
-                <th>Schüler/-in</th><th>Klasse</th><th>Betreuer/-in</th><th>Titel</th><th>Status</th><th>Zuletzt aktualisiert</th><th>Projektplan</th><th>Suivi</th>
+                <th>Schüler/-in</th><th>Klasse</th><th>Betreuer/-in</th><th>Titel</th><th>Status</th><th>Zuletzt aktualisiert</th><th>Projektplan</th><th>Suivi</th><th>Dokumentatioun</th>
               </tr>
             </thead>
             <tbody>
@@ -173,6 +173,7 @@ function App() {
                     <td className="cell-muted">{p["Zuletzt aktualisiert"]}</td>
                     <td>{p["Projektplan-Link"] ? <a className="link" href={p["Projektplan-Link"]} target="_blank" rel="noreferrer">Öffnen ↗</a> : <span className="cell-muted">–</span>}</td>
                     <td>{p["Suivi-Link"] ? <a className="link" href={p["Suivi-Link"]} target="_blank" rel="noreferrer">Öffnen ↗</a> : <span className="cell-muted">–</span>}</td>
+                    <td>{p["Dokumentatioun-Link"] ? <a className="link" href={p["Dokumentatioun-Link"]} target="_blank" rel="noreferrer">SharePoint ↗</a> : <span className="cell-muted">–</span>}</td>
                   </tr>
                 );
               })}
