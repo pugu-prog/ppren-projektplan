@@ -1,0 +1,289 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>PPREN Dokumentatioun</title>
+<script src="auth-guard.js"></script>
+<script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+<script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+<script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+</head>
+<body>
+<div id="root"></div>
+<script>
+  window.addEventListener("error", function (e) {
+    document.getElementById("root").innerHTML =
+      '<div style="padding:40px;font-family:sans-serif;color:#8a2b1f;white-space:pre-wrap;">' +
+      '<h2 style="margin-top:0;">Fehler beim Laden</h2>' +
+      (e.message || "Unbekannter Fehler") +
+      (e.filename ? "\n\nDatei: " + e.filename + " Zeile " + e.lineno : "") +
+      "</div>";
+  });
+</script>
+<script type="text/babel">
+const { useState, useEffect, useMemo } = React;
+
+const WEB_APP_URL = "https://script.google.com/macros/s/AKfycbzfyThho8MevoyfSz7NsQ1YxZJO4E-f61GYYzqZyHACIHzxR3bm7SHCwVUkCBJrAEvJ/exec";
+
+const SCHUELER = [
+  { id: "lea_muller", name: "Léa Muller", klasse: "1GSE" },
+  { id: "ben_weber", name: "Ben Weber", klasse: "2GSE" },
+  { id: "noah_schmit", name: "Noah Schmit", klasse: "1GSE" },
+  { id: "mia_reuter", name: "Mia Reuter", klasse: "2GSE" },
+  { id: "tom_klein", name: "Tom Klein", klasse: "2GSE" },
+];
+
+function ersteDatumVunWoche(wocheLabel) {
+  const m = (wocheLabel || "").match(/(\d{2})\.(\d{2})\.(\d{4})/);
+  if (!m) return null;
+  return `${m[3]}-${m[2]}-${m[1]}`;
+}
+function formatDatumKuerz(iso) {
+  if (!iso) return "–";
+  const d = new Date(iso);
+  if (isNaN(d)) return iso;
+  return d.toLocaleDateString("de-DE", { day: "2-digit", month: "2-digit", year: "numeric" });
+}
+
+function App() {
+  const istSchueler = window.PPREN_SESSION?.rolle === "Schüler";
+  const [schuelerId, setSchuelerId] = useState(() => {
+    if (!istSchueler) return "";
+    const numm = window.PPREN_SESSION?.numm;
+    return SCHUELER.find((s) => s.name === numm)?.id || "";
+  });
+  const [projekt, setProjekt] = useState(null);
+  const [wochenberichte, setWochenberichte] = useState([]);
+  const [meilensteng, setMeilensteng] = useState([]);
+  const [link, setLink] = useState("");
+  const [gespäichertLink, setGespäichertLink] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [syncing, setSyncing] = useState(false);
+  const [error, setError] = useState(null);
+  const [toast, setToast] = useState(null);
+  const [kopéiert, setKopéiert] = useState(false);
+  const [geladen, setGeladen] = useState(false);
+
+  const currentSchueler = SCHUELER.find((s) => s.id === schuelerId);
+
+  useEffect(() => {
+    if (!schuelerId || !currentSchueler) return;
+    setLoading(true);
+    setError(null);
+    setGeladen(false);
+    fetch(WEB_APP_URL)
+      .then((res) => res.json())
+      .then((data) => {
+        const meins = (data.projekte || []).find((p) => p.Schüler === currentSchueler.name);
+        setProjekt(meins || null);
+        const bestehendLink = meins?.["Dokumentatioun-Link"] || "";
+        setLink(bestehendLink);
+        setGespäichertLink(bestehendLink);
+        setWochenberichte((data.wochenberichte || []).filter((w) => w.Schüler === currentSchueler.name));
+
+        let gespäichert = [];
+        const eintrag = (data.meilensteng || []).find((m) => m.Schüler === currentSchueler.name);
+        if (eintrag && eintrag["Meilensteng (JSON)"]) {
+          try { gespäichert = JSON.parse(eintrag["Meilensteng (JSON)"]); } catch { gespäichert = []; }
+        }
+        const offiziell = (data.offiziellZaitplang || [])
+          .filter((m) => m.Klasse === currentSchueler.klasse)
+          .map((m) => ({ titel: m.Titel, datum: m.Datum, status: "Ausstoend" }));
+        const eegenUndProjektplang = gespäichert
+          .filter((m) => m.titel && m.datum && m.quell !== "Vakanz")
+          .map((m) => ({ titel: m.titel, datum: m.datum, status: m.status || "Ausstoend" }));
+        const alleMeilensteng = [...offiziell, ...eegenUndProjektplang]
+          .filter((m, i, arr) => arr.findIndex((x) => x.titel === m.titel) === i)
+          .sort((a, b) => (a.datum || "").localeCompare(b.datum || ""));
+        setMeilensteng(alleMeilensteng);
+      })
+      .catch(() => setError("Konnte Daten net lueden."))
+      .finally(() => { setLoading(false); setGeladen(true); });
+  }, [schuelerId]);
+
+  const linkSpäicheren = async () => {
+    if (!currentSchueler) return;
+    setSyncing(true);
+    setError(null);
+    try {
+      const res = await fetch(WEB_APP_URL, {
+        method: "POST",
+        headers: { "Content-Type": "text/plain;charset=utf-8" },
+        body: JSON.stringify({ typ: "dokumentatiounLink", schueler: currentSchueler.name, klasse: currentSchueler.klasse, link }),
+      });
+      const data = await res.json();
+      if (!data.ok) throw new Error(data.error || "Onbekannte Feeler");
+      setGespäichertLink(link);
+      setToast("Link gespäichert — de Prof gesäit en elo och.");
+    } catch (e) {
+      setError("Konnte net späicheren: " + e.message);
+    } finally {
+      setSyncing(false);
+      setTimeout(() => setToast(null), 3000);
+    }
+  };
+
+  // Generéiert e Klodextt aus de Meilensteng + Wochenberichter, deen de
+  // Schüler an säin SharePoint-Word-Dokument era kopéieren kann.
+  const generéiertenText = useMemo(() => {
+    if (meilensteng.length === 0 && wochenberichte.length === 0) return "";
+
+    const findNootstMeilensteen = (isoDatum) => {
+      if (!isoDatum || meilensteng.length === 0) return null;
+      let bescht = null, bestDiff = Infinity;
+      meilensteng.forEach((m) => {
+        const diff = Math.abs(new Date(m.datum) - new Date(isoDatum));
+        if (!isNaN(diff) && diff < bestDiff) { bestDiff = diff; bescht = m.titel; }
+      });
+      return bescht;
+    };
+    const wbNoMeilensteen = {};
+    wochenberichte.forEach((w) => {
+      const wocheDatum = ersteDatumVunWoche(w.Woche);
+      const bezug = w.Meilensteen && w.Meilensteen.trim() ? w.Meilensteen.trim() : findNootstMeilensteen(wocheDatum);
+      const schlëssel = bezug || "Ouni Meilensteen-Bezuch";
+      if (!wbNoMeilensteen[schlëssel]) wbNoMeilensteen[schlëssel] = [];
+      wbNoMeilensteen[schlëssel].push(w);
+    });
+
+    const zeilen = [];
+    zeilen.push(`VERGANG DES PROJEKTS — ${currentSchueler?.name || ""}`);
+    zeilen.push("");
+    meilensteng.forEach((m) => {
+      zeilen.push(`## ${formatDatumKuerz(m.datum)} — ${m.titel} (${m.status || "Ausstoend"})`);
+      const wbListe = wbNoMeilensteen[m.titel] || [];
+      wbListe.forEach((w) => {
+        zeilen.push(`  Woch ${w.Woche}:`);
+        zeilen.push(`  ${w.Zusammenfassung}`);
+        zeilen.push("");
+      });
+      if (wbListe.length === 0) zeilen.push("");
+    });
+    if (wbNoMeilensteen["Ouni Meilensteen-Bezuch"]) {
+      zeilen.push("## Ouni Meilensteen-Bezuch");
+      wbNoMeilensteen["Ouni Meilensteen-Bezuch"].forEach((w) => {
+        zeilen.push(`  Woch ${w.Woche}:`);
+        zeilen.push(`  ${w.Zusammenfassung}`);
+        zeilen.push("");
+      });
+    }
+    return zeilen.join("\n");
+  }, [meilensteng, wochenberichte, currentSchueler]);
+
+  const textKopéieren = () => {
+    navigator.clipboard.writeText(generéiertenText).then(() => {
+      setKopéiert(true);
+      setTimeout(() => setKopéiert(false), 2500);
+    });
+  };
+
+  return (
+    <div className="wrap">
+      <header className="topbar">
+        <div className="brand">
+          <span className="brand-mark">PPREN</span>
+          <span className="brand-sub">Dokumentatioun · Sciences Environnementales</span>
+        </div>
+      </header>
+
+      <main className="content">
+        <section className="card">
+          {istSchueler ? (
+            <div className="field">
+              <span className="field-label">Ugemellt als</span>
+              <div className="identitaet-box">👤 {currentSchueler?.name} ({currentSchueler?.klasse})</div>
+            </div>
+          ) : (
+            <label className="field">
+              <span className="field-label">Schüler/-in</span>
+              <select className="select" value={schuelerId} onChange={(e) => setSchuelerId(e.target.value)}>
+                <option value="">– auswählen –</option>
+                {SCHUELER.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
+              </select>
+            </label>
+          )}
+        </section>
+
+        {schuelerId && (
+          <>
+            <section className="card">
+              <h2>1. SharePoint-Link vun denger Dokumentatioun</h2>
+              <p className="hint">
+                Deng Dokumentatioun (Word-Virlag) läit op eisem Schoul-SharePoint. Kopéier hei de Link zu
+                denger Datei era — de Prof kann duerno jidderzäit driwwer kucken, wéi wäit s du bass, ouni
+                nach eng Kéier ze froen.
+              </p>
+              <label className="field">
+                <span className="field-label">Link (SharePoint/OneDrive)</span>
+                <input
+                  className="input" placeholder="https://schule.sharepoint.com/…"
+                  value={link} onChange={(e) => setLink(e.target.value)}
+                />
+              </label>
+              <div className="link-row">
+                <button className="btn btn-primary" disabled={syncing || link === gespäichertLink} onClick={linkSpäicheren}>
+                  {syncing ? "Späichert…" : "💾 Link späicheren"}
+                </button>
+                {gespäichertLink && (
+                  <a className="btn btn-ghost" href={gespäichertLink} target="_blank" rel="noreferrer">📄 Dokument opmaachen ↗</a>
+                )}
+              </div>
+              {error && <div className="sync-error">{error}</div>}
+            </section>
+
+            <section className="card">
+              <h2>2. Inhalt fir an d'Dokumentatioun ze kopéieren</h2>
+              <p className="hint">
+                Hei ass eng automatesch generéiert Zesummefaassung aus dengem Projet-Journal (Meilensteng +
+                Wochenberichter). Kopéier de Text an setz en an de passenden Ofschnitt vun denger
+                Word-Virlag (z.B. "Vorgehensweise" oder "Werdegang") — pass en dono un, wéi s de brauchs.
+              </p>
+              {loading && <p className="notice">Lädt…</p>}
+              {!loading && !generéiertenText && <p className="notice">Nach näischt zum Generéieren — fëll éischt Meilensteng oder Wochenberichter aus.</p>}
+              {!loading && generéiertenText && (
+                <>
+                  <textarea className="textarea-vorschau" readOnly rows={12} value={generéiertenText} />
+                  <button className="btn btn-primary" onClick={textKopéieren} style={{ marginTop: "10px" }}>
+                    {kopéiert ? "✓ Kopéiert!" : "📋 Text kopéieren"}
+                  </button>
+                </>
+              )}
+            </section>
+          </>
+        )}
+      </main>
+      {toast && <div className="toast">{toast}</div>}
+    </div>
+  );
+}
+
+ReactDOM.createRoot(document.getElementById("root")).render(<App />);
+</script>
+<style>
+* { box-sizing: border-box; }
+body { margin: 0; font-family: -apple-system, "Segoe UI", Inter, Arial, sans-serif; color: #1c2621; background: #f6f8f6; }
+.topbar { padding: 14px 22px; background: #00A94F; color: #fff; }
+.brand { display: flex; align-items: baseline; gap: 10px; }
+.brand-mark { font-weight: 800; font-size: 15px; letter-spacing: 0.06em; }
+.brand-sub { font-size: 13px; opacity: 0.85; }
+.content { max-width: 680px; margin: 0 auto; padding: 24px 20px 60px; }
+.card { background: #fff; border: 1px solid #e2e8e3; border-radius: 12px; padding: 20px 22px; margin-bottom: 16px; }
+.card h2 { font-size: 15px; margin: 0 0 8px; color: #00A94F; }
+.field { display: flex; flex-direction: column; gap: 5px; margin-bottom: 14px; }
+.field-label { font-size: 12.5px; font-weight: 700; color: #294f3c; }
+.select, .input { border: 1px solid #c9d5cd; border-radius: 8px; padding: 10px 12px; font-size: 14px; font-family: inherit; background: #fff; color: #1c2621; width: 100%; }
+.identitaet-box { font-size: 13.5px; font-weight: 700; color: #294f3c; background: #eef3ef; padding: 9px 12px; border-radius: 7px; }
+.hint { font-size: 12.5px; color: #6d7d74; line-height: 1.6; margin: 0 0 14px; }
+.notice { background: #fbe8c6; color: #8a5a12; font-size: 12.5px; padding: 10px 14px; border-radius: 8px; }
+.link-row { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.btn { font-size: 13.5px; font-weight: 700; padding: 10px 18px; border-radius: 8px; border: none; cursor: pointer; text-decoration: none; display: inline-block; }
+.btn-primary { background: #00A94F; color: #fff; }
+.btn-primary:disabled { background: #b7c6bd; cursor: not-allowed; }
+.btn-ghost { background: #eef3ef; color: #00A94F; }
+.sync-error { color: #8a2b1f; font-size: 12.5px; background: #fbe4e1; padding: 8px 12px; border-radius: 8px; margin-top: 10px; }
+.textarea-vorschau { width: 100%; font-family: ui-monospace, monospace; font-size: 12px; line-height: 1.6; border: 1px solid #c9d5cd; border-radius: 8px; padding: 12px; background: #fafbfa; color: #1c2621; resize: vertical; }
+.toast { position: fixed; bottom: 22px; left: 50%; transform: translateX(-50%); background: #1c2621; color: #fff; padding: 10px 18px; border-radius: 8px; font-size: 13px; }
+</style>
+</body>
+</html>
