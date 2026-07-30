@@ -9,6 +9,7 @@
 <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
 <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
 <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/xlsx-js-style@1.2.0/dist/xlsx.bundle.js"></script>
 </head>
 <body>
 <div id="root"></div>
@@ -26,6 +27,21 @@
 const { useState, useEffect, useMemo } = React;
 
 const WEB_APP_URL = "https://script.google.com/macros/s/AKfycbzfyThho8MevoyfSz7NsQ1YxZJO4E-f61GYYzqZyHACIHzxR3bm7SHCwVUkCBJrAEvJ/exec";
+
+// ===== Excel-Zellestiler (xlsx-js-style Format) =====
+const STIL_KOPF = {
+  fill: { fgColor: { rgb: "00A94F" } },
+  font: { bold: true, color: { rgb: "FFFFFF" }, sz: 11 },
+  alignment: { horizontal: "center", vertical: "center", wrapText: true },
+  border: { bottom: { style: "thin", color: { rgb: "FFFFFF" } } },
+};
+const STIL_KOPF_LINKS = { ...STIL_KOPF, alignment: { horizontal: "left", vertical: "center" } };
+const STIL_ZEILE_STANDARD = { font: { sz: 11 }, alignment: { vertical: "center" }, border: { bottom: { style: "thin", color: { rgb: "EEF1EF" } } } };
+const STIL_ZEILE_STARK = { ...STIL_ZEILE_STANDARD, font: { bold: true, sz: 11 } };
+const STIL_NOTE_GUT = { fill: { fgColor: { rgb: "D7ECDD" } }, font: { bold: true, color: { rgb: "00763A" }, sz: 11 }, alignment: { horizontal: "center", vertical: "center" }, border: STIL_ZEILE_STANDARD.border };
+const STIL_NOTE_SCHLECHT = { fill: { fgColor: { rgb: "FBE4E1" } }, font: { bold: true, color: { rgb: "8A2B1F" }, sz: 11 }, alignment: { horizontal: "center", vertical: "center" }, border: STIL_ZEILE_STANDARD.border };
+const STIL_NOTE_LEER = { fill: { fgColor: { rgb: "F4F6F4" } }, font: { color: { rgb: "B0B8B3" }, sz: 11 }, alignment: { horizontal: "center", vertical: "center" }, border: STIL_ZEILE_STANDARD.border };
+const STIL_SCHNITT = { fill: { fgColor: { rgb: "EEF3EF" } }, font: { bold: true, sz: 11 }, alignment: { horizontal: "center", vertical: "center" }, border: STIL_ZEILE_STANDARD.border };
 
 function App() {
   const [projekte, setProjekte] = useState([]);
@@ -69,6 +85,12 @@ function App() {
     return b ? b.Note : null;
   };
 
+  const schnittFuer = (schueler) => {
+    const noten = vorhandenePerioden.map((p) => noteFuer(schueler, p));
+    const gueltig = noten.filter((n) => n !== null && n !== "");
+    return gueltig.length > 0 ? (gueltig.reduce((a, b) => a + Number(b), 0) / gueltig.length) : null;
+  };
+
   const csvExport = () => {
     const kopf = ["Schüler", "Klasse", "Betreuer", ...vorhandenePerioden, "Durchschnitt"];
     const zeilen = gefilterteSchueler.map((s) => {
@@ -85,6 +107,73 @@ function App() {
     a.download = "PPREN_Notenuebersicht.csv";
     a.click();
     URL.revokeObjectURL(url);
+  };
+
+  /** Bauttt en einzel formatéiert Sheet (AOA + Stiler) fir eng Lëscht Schüler. */
+  const baueSheet = (schuelerListe) => {
+    const kopf = ["Schüler/-in", "Klasse", "Betreuer/-in", ...vorhandenePerioden, "Ø"];
+    const aoa = [kopf];
+    schuelerListe.forEach((s) => {
+      const noten = vorhandenePerioden.map((p) => noteFuer(s.Schüler, p));
+      const schnitt = schnittFuer(s.Schüler);
+      aoa.push([s.Schüler, s.Klasse, s.Betreuer, ...noten.map((n) => (n !== null && n !== "" ? Number(n) : "")), schnitt !== null ? Math.round(schnitt * 10) / 10 : ""]);
+    });
+
+    const ws = XLSX.utils.aoa_to_sheet(aoa);
+
+    // Kopfzeil stilistéieren
+    kopf.forEach((_, ci) => {
+      const adr = XLSX.utils.encode_cell({ r: 0, c: ci });
+      if (ws[adr]) ws[adr].s = ci < 3 ? STIL_KOPF_LINKS : STIL_KOPF;
+    });
+
+    // Datenzeilen stilistéieren
+    schuelerListe.forEach((s, ri) => {
+      const zeil = ri + 1;
+      [0, 1, 2].forEach((ci) => {
+        const adr = XLSX.utils.encode_cell({ r: zeil, c: ci });
+        if (ws[adr]) ws[adr].s = ci === 0 ? STIL_ZEILE_STARK : STIL_ZEILE_STANDARD;
+      });
+      vorhandenePerioden.forEach((p, pi) => {
+        const ci = 3 + pi;
+        const adr = XLSX.utils.encode_cell({ r: zeil, c: ci });
+        const wert = noteFuer(s.Schüler, p);
+        if (!ws[adr]) return;
+        if (wert === null || wert === "") ws[adr].s = STIL_NOTE_LEER;
+        else ws[adr].s = Number(wert) >= 30 ? STIL_NOTE_GUT : STIL_NOTE_SCHLECHT;
+      });
+      const schnittCi = 3 + vorhandenePerioden.length;
+      const schnittAdr = XLSX.utils.encode_cell({ r: zeil, c: schnittCi });
+      if (ws[schnittAdr]) ws[schnittAdr].s = STIL_SCHNITT;
+    });
+
+    ws["!cols"] = [
+      { wch: 20 }, { wch: 9 }, { wch: 16 },
+      ...vorhandenePerioden.map(() => ({ wch: 13 })),
+      { wch: 8 },
+    ];
+    ws["!freeze"] = { xSplit: 0, ySplit: 1 };
+    ws["!autofilter"] = { ref: XLSX.utils.encode_range({ s: { r: 0, c: 0 }, e: { r: 0, c: kopf.length - 1 } }) };
+    return ws;
+  };
+
+  const xlsxExport = () => {
+    const wb = XLSX.utils.book_new();
+
+    // Haaptblat: genee déi Schüler, déi aktuell gefiltert sinn
+    XLSX.utils.book_append_sheet(wb, baueSheet(gefilterteSchueler), filterKlasse === "alle" ? "Alleguer" : filterKlasse);
+
+    // Wa "Alle Klassen" gewielt ass: zousätzlech e Blat pro Klass fir méi einfach Verdeelung
+    if (filterKlasse === "alle") {
+      const echtKlassen = klassen.filter((k) => k !== "alle");
+      echtKlassen.forEach((k) => {
+        const listeFuerKlass = projekte.filter((p) => p.Klasse === k).sort((a, b) => (a.Schüler || "").localeCompare(b.Schüler || ""));
+        if (listeFuerKlass.length > 0) XLSX.utils.book_append_sheet(wb, baueSheet(listeFuerKlass), k);
+      });
+    }
+
+    const datum = new Date().toISOString().slice(0, 10);
+    XLSX.writeFile(wb, `PPREN_Notenuebersicht_${datum}.xlsx`);
   };
 
   return (
@@ -104,8 +193,14 @@ function App() {
           <select className="select" value={filterKlasse} onChange={(e) => setFilterKlasse(e.target.value)}>
             {klassen.map((k) => <option key={k} value={k}>{k === "alle" ? "Alle Klassen" : k}</option>)}
           </select>
-          <button className="btn btn-primary" onClick={csvExport}>⬇️ Als Excel/CSV exportieren</button>
+          <div className="export-btns">
+            <button className="btn btn-primary" onClick={xlsxExport}>📊 Als Excel (.xlsx) exportéieren</button>
+            <button className="btn btn-ghost" onClick={csvExport}>⬇️ CSV</button>
+          </div>
         </div>
+        {filterKlasse === "alle" && (
+          <p className="hinweis hinweis-top">💡 Beim Export mat "Alle Klassen" kritt d'Excel-Datei zousätzlech e separat Blat pro Klass.</p>
+        )}
 
         {loading && <div className="empty">Lädt…</div>}
         {error && <div className="empty error">{error}</div>}
@@ -168,11 +263,13 @@ body { margin: 0; font-family: -apple-system, "Segoe UI", Inter, Arial, sans-ser
 .brand-sub { font-size: 13px; opacity: 0.85; }
 .refresh-btn { background: rgba(255,255,255,0.15); border: 1px solid rgba(255,255,255,0.3); color: #fff; font-size: 12.5px; font-weight: 700; padding: 7px 14px; border-radius: 8px; cursor: pointer; }
 .content { padding: 20px 22px 60px; max-width: 1000px; margin: 0 auto; }
-.controls { display: flex; justify-content: space-between; align-items: center; gap: 10px; margin-bottom: 16px; flex-wrap: wrap; }
+.controls { display: flex; justify-content: space-between; align-items: center; gap: 10px; margin-bottom: 8px; flex-wrap: wrap; }
+.export-btns { display: flex; gap: 8px; }
 .select { border: 1px solid #c9d5cd; border-radius: 8px; padding: 9px 12px; font-size: 13.5px; font-family: inherit; background: #fff; }
 .btn { font-size: 13px; font-weight: 700; padding: 9px 16px; border-radius: 8px; border: none; cursor: pointer; }
 .btn-primary { background: #00A94F; color: #fff; }
-.table-wrap { overflow-x: auto; background: #fff; border-radius: 12px; border: 1px solid #e2e8e3; }
+.btn-ghost { background: #eef3ef; color: #294f3c; border: 1px solid #c9d5cd; }
+.table-wrap { overflow-x: auto; background: #fff; border-radius: 12px; border: 1px solid #e2e8e3; margin-top: 8px; }
 .table { width: 100%; border-collapse: collapse; }
 .table th { text-align: left; font-size: 11.5px; text-transform: uppercase; letter-spacing: 0.04em; color: #6d7d74; background: #eef3ef; padding: 10px 14px; font-weight: 700; white-space: nowrap; }
 .th-note { text-align: center !important; }
@@ -187,6 +284,7 @@ body { margin: 0; font-family: -apple-system, "Segoe UI", Inter, Arial, sans-ser
 .empty-row { text-align: center; color: #6d7d74; padding: 30px; }
 .error { color: #8a2b1f; }
 .hinweis { font-size: 11.5px; color: #6d7d74; margin-top: 12px; }
+.hinweis-top { margin: 0 0 12px; background: #eef3ef; padding: 8px 12px; border-radius: 8px; }
 </style>
 </body>
 </html>
