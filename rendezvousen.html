@@ -67,7 +67,7 @@ function App() {
     fetch(WEB_APP_URL)
       .then((res) => res.json())
       .then((data) => setRendezvousen(data.rendezvousen || []))
-      .catch(() => setError("Konnte Rendez-vousen net lueden."))
+      .catch(() => setError("Konnte Rendez-vous'er net lueden."))
       .finally(() => setLoading(false));
   };
   useEffect(() => { lade(); }, []);
@@ -136,7 +136,7 @@ function App() {
       <header className="topbar">
         <div className="brand">
           <span className="brand-mark">PPREN</span>
-          <span className="brand-sub">Rendez-vousen plangen · Sciences Environnementales</span>
+          <span className="brand-sub">Rendez-vous'er plangen · Sciences Environnementales</span>
         </div>
       </header>
 
@@ -180,7 +180,7 @@ function App() {
         </section>
 
         <section className="card">
-          <h2>Upstoend Rendez-vousen</h2>
+          <h2>Opstoend Rendez-vous'er</h2>
           {loading && <p className="notice">Lädt…</p>}
           {!loading && nurZukunft.length === 0 && <p className="notice">Nach keng geplangt.</p>}
           {!loading && nurZukunft.length > 0 && (
