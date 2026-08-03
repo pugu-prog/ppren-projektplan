@@ -37,13 +37,14 @@ const SCHUELER = [
 const TYPEN = ["Fachgespréich", "Ziel-Iwwerpréiwung"];
 
 function heutegDatumIso() { return new Date().toISOString().slice(0, 10); }
-function formatDatumKuerz(dmy) {
-  // dmy kënnt aus Google Sheets meeschtens scho als "dd.MM.yyyy" String
-  return dmy || "–";
-}
 function isoZuDmy(iso) {
   const [j, m, t] = iso.split("-");
   return `${t}.${m}.${j}`;
+}
+function dmyZuIso(dmy) {
+  if (!dmy) return "";
+  const [t, m, j] = String(dmy).split(".");
+  return `${j}-${m}-${t}`;
 }
 
 function App() {
@@ -71,23 +72,14 @@ function App() {
   };
   useEffect(() => { lade(); }, []);
 
-  const heutegDmy = isoZuDmy(heutegDatumIso());
-  const kommend = useMemo(
-    () => rendezvousen
-      .filter((r) => r.Datum >= heutegDmy.split(".").reverse().join("-") || true) // einfache Sortéierung duerch String-Vergläich hei riskant, mir sortéieren op iso-Basis drënner
-      .sort((a, b) => dmyZuIso(a.Datum).localeCompare(dmyZuIso(b.Datum))),
+  const sortéiert = useMemo(
+    () => [...rendezvousen].sort((a, b) => dmyZuIso(a.Datum).localeCompare(dmyZuIso(b.Datum))),
     [rendezvousen]
   );
 
-  function dmyZuIso(dmy) {
-    if (!dmy) return "";
-    const [t, m, j] = String(dmy).split(".");
-    return `${j}-${m}-${t}`;
-  }
-
-  const heiligIso = heutegDatumIso();
-  const nurZukunft = kommend.filter((r) => dmyZuIso(r.Datum) >= heiligIso);
-  const vergaangen = kommend.filter((r) => dmyZuIso(r.Datum) < heiligIso);
+  const heidegIso = heutegDatumIso();
+  const nurZukunft = sortéiert.filter((r) => dmyZuIso(r.Datum) >= heidegIso);
+  const vergaangen = sortéiert.filter((r) => dmyZuIso(r.Datum) < heidegIso);
 
   const canSubmit = schuelerId && datum;
 
@@ -103,21 +95,6 @@ function App() {
           typ: "rendezvousPlangen",
           schueler: currentSchueler.name,
           klasse: currentSchueler.klasse,
-          typ2: undefined, // Feldnumm "typ" ass schonn duerch d'Routen-Typ belegt — mir schécken drënner separat
-        }),
-      });
-    } catch {}
-    // Eigentlecher API-Call (mat richtegem Feldnumm "typ" fir de Rendez-vous-Typ,
-    // an "requestTyp" fir d'Routen-Ënnerscheedung, gëtt hei nach eng Kéier gemaach,
-    // well den Numm "typ" am Payload zweemol gebraucht gëtt).
-    try {
-      const res2 = await fetch(WEB_APP_URL, {
-        method: "POST",
-        headers: { "Content-Type": "text/plain;charset=utf-8" },
-        body: JSON.stringify({
-          typ: "rendezvousPlangen",
-          schueler: currentSchueler.name,
-          klasse: currentSchueler.klasse,
           rvTyp: typ,
           datum: isoZuDmy(datum),
           zaeit,
@@ -125,7 +102,7 @@ function App() {
           erstalltVum: window.PPREN_SESSION?.numm || "",
         }),
       });
-      const data = await res2.json();
+      const data = await res.json();
       if (!data.ok) throw new Error(data.error || "Onbekannte Feeler");
       setToast("Rendez-vous geplangt — Schüler kritt 2 Deeg virdrun eng Erënnerung.");
       setNotiz("");
@@ -212,7 +189,7 @@ function App() {
               <tbody>
                 {nurZukunft.map((r, i) => (
                   <tr key={i}>
-                    <td>{formatDatumKuerz(r.Datum)}</td>
+                    <td>{r.Datum || "–"}</td>
                     <td>{r.Zäit || "–"}</td>
                     <td>{r.Schüler}</td>
                     <td>{r.Typ}</td>
@@ -232,7 +209,7 @@ function App() {
               <thead><tr><th>Datum</th><th>Schüler/-in</th><th>Typ</th></tr></thead>
               <tbody>
                 {vergaangen.slice(-10).map((r, i) => (
-                  <tr key={i}><td>{formatDatumKuerz(r.Datum)}</td><td>{r.Schüler}</td><td>{r.Typ}</td></tr>
+                  <tr key={i}><td>{r.Datum || "–"}</td><td>{r.Schüler}</td><td>{r.Typ}</td></tr>
                 ))}
               </tbody>
             </table>
