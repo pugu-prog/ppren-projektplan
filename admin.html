@@ -73,7 +73,7 @@
         <div class="status-card status-done" data-modul="m10"><span class="status-badge">✅</span><span class="status-modul">M10 · Fachgespréicher</span></div>
         <div class="status-card status-done" data-modul="m9"><span class="status-badge">✅</span><span class="status-modul">M9 · Planungstool</span></div>
         <div class="status-card status-done" data-modul="m7"><span class="status-badge">✅</span><span class="status-modul">M7 · Notenexport</span></div>
-        <div class="status-card status-partial" data-modul="m8"><span class="status-badge">⚠️</span><span class="status-modul">M8 · Termine/Erënnerungen</span></div>
+        <div class="status-card status-done" data-modul="m8"><span class="status-badge">✅</span><span class="status-modul">M8 · Termine/Erënnerungen</span></div>
         <div class="status-card status-done" data-modul="m11"><span class="status-badge">✅</span><span class="status-modul">M11 · Auto-Bemierkung</span></div>
         <div class="status-card status-done" data-modul="m1"><span class="status-badge">✅</span><span class="status-modul">M1 · Login (PIN, all Säiten)</span></div>
         <div class="status-card status-partial" data-modul="m4"><span class="status-badge">⚠️</span><span class="status-modul">M4 · Dokumentatioun</span></div>
@@ -99,6 +99,7 @@
         <a class="card" href="https://pugu-prog.github.io/ppren-projektplan/bewertung.html" target="_blank"><span class="card-icon">📊</span><span class="card-label">Bewertungsformulaire</span><span class="card-desc">Punkten, Remarquen, Kommentar</span></a>
         <a class="card" href="https://pugu-prog.github.io/ppren-projektplan/fachgespraech.html" target="_blank"><span class="card-icon">🗣️</span><span class="card-label">Fachgespréich</span><span class="card-desc">Timer, Froen a Punkten fir d'Fachgespréich</span></a>
         <a class="card" href="https://pugu-prog.github.io/ppren-projektplan/zieluewerpreiwung.html" target="_blank"><span class="card-icon">🎯</span><span class="card-label">Ziler iwwerpréiwen</span><span class="card-desc">Kuerz Rendez-vous, dynamesch Skala</span></a>
+        <a class="card" href="https://pugu-prog.github.io/ppren-projektplan/rendezvousen.html" target="_blank"><span class="card-icon">📅</span><span class="card-label">Rendez-vousen plangen</span><span class="card-desc">Fachgespréich/Ziel-Iwwerpréiwung plangen + Erënnerung</span></a>
         <a class="card" href="https://pugu-prog.github.io/ppren-projektplan/dashboard.html" target="_blank"><span class="card-icon">📈</span><span class="card-label">Lehrer-Dashboard</span><span class="card-desc">Iwwersiicht + Status änneren</span></a>
         <a class="card" href="https://pugu-prog.github.io/ppren-projektplan/noten.html" target="_blank"><span class="card-icon">🧮</span><span class="card-label">Notentabell</span><span class="card-desc">CSV/Excel-Export</span></a>
         <a class="card" href="https://pugu-prog.github.io/ppren-projektplan/suivi.html" target="_blank"><span class="card-icon">🎯</span><span class="card-label">Suivi (Schüler-Ansicht)</span><span class="card-desc">Fortschrëtt kucken</span></a>
@@ -210,11 +211,15 @@ const MODUL_DETAILS = {
   },
   m8: {
     fertig: [
-      "Automatesch Erënnerung un Schüler ouni Wochebericht",
+      "Automatesch Erënnerung un Schüler ouni Wochebericht (Sonndes 10h)",
+      "rendezvousen.html: Prof plangt Fachgespréich-/Ziel-Iwwerpréiwung-Rendez-vousen (Datum, Zäit, Notiz)",
+      "Automatesch E-Mail-Erënnerung un de Schüler 2 Deeg virum geplangten Rendez-vous (Trigger all Dag ~7.00h)",
+      "Upstoend/vergaangen Rendez-vousen-Iwwersiicht, mat Läsch-Funktioun",
+      "Verlinkt op dashboard.html a proffen.html",
     ],
     offen: [
-      "Keng Erënnerung fir upstoend Fachgespréich- oder Ziler-Rendez-vousen",
-      "Keng Kalenner-Integratioun (Google Calendar asw.)",
+      "Keng Kalenner-Integratioun (Google Calendar, .ics-Export asw.)",
+      "Keng Erënnerung un de Prof selwer (nëmmen un de Schüler)",
     ],
   },
   m9: {
