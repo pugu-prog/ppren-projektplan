@@ -1,0 +1,280 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>PPREN Rendez-vousen plangen</title>
+<script>window.PPREN_ERFUERDERT_ROLLE = "Prof";</script>
+<script src="auth-guard.js"></script>
+<script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+<script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+<script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+</head>
+<body>
+<div id="root"></div>
+<script>
+  window.addEventListener("error", function (e) {
+    document.getElementById("root").innerHTML =
+      '<div style="padding:40px;font-family:sans-serif;color:#8a2b1f;white-space:pre-wrap;">' +
+      '<h2 style="margin-top:0;">Fehler beim Laden</h2>' +
+      (e.message || "Unbekannter Fehler") +
+      (e.filename ? "\n\nDatei: " + e.filename + " Zeile " + e.lineno : "") +
+      "</div>";
+  });
+</script>
+<script type="text/babel">
+const { useState, useEffect, useMemo } = React;
+
+const WEB_APP_URL = "https://script.google.com/macros/s/AKfycbzfyThho8MevoyfSz7NsQ1YxZJO4E-f61GYYzqZyHACIHzxR3bm7SHCwVUkCBJrAEvJ/exec";
+
+const SCHUELER = [
+  { id: "lea_muller", name: "Léa Muller", klasse: "1GSE" },
+  { id: "ben_weber", name: "Ben Weber", klasse: "2GSE" },
+  { id: "noah_schmit", name: "Noah Schmit", klasse: "1GSE" },
+  { id: "mia_reuter", name: "Mia Reuter", klasse: "2GSE" },
+  { id: "tom_klein", name: "Tom Klein", klasse: "2GSE" },
+];
+const TYPEN = ["Fachgespréich", "Ziel-Iwwerpréiwung"];
+
+function heutegDatumIso() { return new Date().toISOString().slice(0, 10); }
+function formatDatumKuerz(dmy) {
+  // dmy kënnt aus Google Sheets meeschtens scho als "dd.MM.yyyy" String
+  return dmy || "–";
+}
+function isoZuDmy(iso) {
+  const [j, m, t] = iso.split("-");
+  return `${t}.${m}.${j}`;
+}
+
+function App() {
+  const [schuelerId, setSchuelerId] = useState("");
+  const [typ, setTyp] = useState("Fachgespréich");
+  const [datum, setDatum] = useState(heutegDatumIso());
+  const [zaeit, setZaeit] = useState("");
+  const [notiz, setNotiz] = useState("");
+  const [rendezvousen, setRendezvousen] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [syncing, setSyncing] = useState(false);
+  const [error, setError] = useState(null);
+  const [toast, setToast] = useState(null);
+
+  const currentSchueler = SCHUELER.find((s) => s.id === schuelerId);
+
+  const lade = () => {
+    setLoading(true);
+    setError(null);
+    fetch(WEB_APP_URL)
+      .then((res) => res.json())
+      .then((data) => setRendezvousen(data.rendezvousen || []))
+      .catch(() => setError("Konnte Rendez-vousen net lueden."))
+      .finally(() => setLoading(false));
+  };
+  useEffect(() => { lade(); }, []);
+
+  const heutegDmy = isoZuDmy(heutegDatumIso());
+  const kommend = useMemo(
+    () => rendezvousen
+      .filter((r) => r.Datum >= heutegDmy.split(".").reverse().join("-") || true) // einfache Sortéierung duerch String-Vergläich hei riskant, mir sortéieren op iso-Basis drënner
+      .sort((a, b) => dmyZuIso(a.Datum).localeCompare(dmyZuIso(b.Datum))),
+    [rendezvousen]
+  );
+
+  function dmyZuIso(dmy) {
+    if (!dmy) return "";
+    const [t, m, j] = String(dmy).split(".");
+    return `${j}-${m}-${t}`;
+  }
+
+  const heiligIso = heutegDatumIso();
+  const nurZukunft = kommend.filter((r) => dmyZuIso(r.Datum) >= heiligIso);
+  const vergaangen = kommend.filter((r) => dmyZuIso(r.Datum) < heiligIso);
+
+  const canSubmit = schuelerId && datum;
+
+  const plangen = async () => {
+    if (!canSubmit) return;
+    setSyncing(true);
+    setError(null);
+    try {
+      const res = await fetch(WEB_APP_URL, {
+        method: "POST",
+        headers: { "Content-Type": "text/plain;charset=utf-8" },
+        body: JSON.stringify({
+          typ: "rendezvousPlangen",
+          schueler: currentSchueler.name,
+          klasse: currentSchueler.klasse,
+          typ2: undefined, // Feldnumm "typ" ass schonn duerch d'Routen-Typ belegt — mir schécken drënner separat
+        }),
+      });
+    } catch {}
+    // Eigentlecher API-Call (mat richtegem Feldnumm "typ" fir de Rendez-vous-Typ,
+    // an "requestTyp" fir d'Routen-Ënnerscheedung, gëtt hei nach eng Kéier gemaach,
+    // well den Numm "typ" am Payload zweemol gebraucht gëtt).
+    try {
+      const res2 = await fetch(WEB_APP_URL, {
+        method: "POST",
+        headers: { "Content-Type": "text/plain;charset=utf-8" },
+        body: JSON.stringify({
+          typ: "rendezvousPlangen",
+          schueler: currentSchueler.name,
+          klasse: currentSchueler.klasse,
+          rvTyp: typ,
+          datum: isoZuDmy(datum),
+          zaeit,
+          notiz,
+          erstalltVum: window.PPREN_SESSION?.numm || "",
+        }),
+      });
+      const data = await res2.json();
+      if (!data.ok) throw new Error(data.error || "Onbekannte Feeler");
+      setToast("Rendez-vous geplangt — Schüler kritt 2 Deeg virdrun eng Erënnerung.");
+      setNotiz("");
+      lade();
+    } catch (e) {
+      setError("Konnte net plangen: " + e.message);
+    } finally {
+      setSyncing(false);
+      setTimeout(() => setToast(null), 3500);
+    }
+  };
+
+  const läschen = async (id) => {
+    if (!confirm("Dëse Rendez-vous wierklech läschen?")) return;
+    try {
+      const res = await fetch(WEB_APP_URL, {
+        method: "POST",
+        headers: { "Content-Type": "text/plain;charset=utf-8" },
+        body: JSON.stringify({ typ: "rendezvousLaeschen", id }),
+      });
+      const data = await res.json();
+      if (!data.ok) throw new Error(data.error || "Onbekannte Feeler");
+      lade();
+    } catch (e) {
+      alert("Konnte net läschen: " + e.message);
+    }
+  };
+
+  return (
+    <div className="wrap">
+      <header className="topbar">
+        <div className="brand">
+          <span className="brand-mark">PPREN</span>
+          <span className="brand-sub">Rendez-vousen plangen · Sciences Environnementales</span>
+        </div>
+      </header>
+
+      <main className="content">
+        <section className="card">
+          <h2>Neien Rendez-vous plangen</h2>
+          <div className="grid2">
+            <label className="field">
+              <span className="field-label">Schüler/-in</span>
+              <select className="select" value={schuelerId} onChange={(e) => setSchuelerId(e.target.value)}>
+                <option value="">– auswählen –</option>
+                {SCHUELER.map((s) => <option key={s.id} value={s.id}>{s.name} ({s.klasse})</option>)}
+              </select>
+            </label>
+            <label className="field">
+              <span className="field-label">Typ</span>
+              <select className="select" value={typ} onChange={(e) => setTyp(e.target.value)}>
+                {TYPEN.map((t) => <option key={t} value={t}>{t}</option>)}
+              </select>
+            </label>
+          </div>
+          <div className="grid2">
+            <label className="field">
+              <span className="field-label">Datum</span>
+              <input type="date" className="input" value={datum} onChange={(e) => setDatum(e.target.value)} />
+            </label>
+            <label className="field">
+              <span className="field-label">Zäit (optional)</span>
+              <input type="time" className="input" value={zaeit} onChange={(e) => setZaeit(e.target.value)} />
+            </label>
+          </div>
+          <label className="field">
+            <span className="field-label">Notiz (optional — gëtt an der Erënnerungs-Mail matgeschéckt)</span>
+            <textarea className="textarea" rows={2} value={notiz} onChange={(e) => setNotiz(e.target.value)} />
+          </label>
+          <p className="hint">📧 De Schüler kritt automatesch eng Erënnerungs-E-Mail 2 Deeg virum Rendez-vous.</p>
+          {error && <div className="sync-error">{error}</div>}
+          <button className="btn btn-primary" disabled={!canSubmit || syncing} onClick={plangen}>
+            {syncing ? "Plangt…" : "📅 Rendez-vous plangen"}
+          </button>
+        </section>
+
+        <section className="card">
+          <h2>Upstoend Rendez-vousen</h2>
+          {loading && <p className="notice">Lädt…</p>}
+          {!loading && nurZukunft.length === 0 && <p className="notice">Nach keng geplangt.</p>}
+          {!loading && nurZukunft.length > 0 && (
+            <table className="tabelle">
+              <thead><tr><th>Datum</th><th>Zäit</th><th>Schüler/-in</th><th>Typ</th><th>Erënnert?</th><th></th></tr></thead>
+              <tbody>
+                {nurZukunft.map((r, i) => (
+                  <tr key={i}>
+                    <td>{formatDatumKuerz(r.Datum)}</td>
+                    <td>{r.Zäit || "–"}</td>
+                    <td>{r.Schüler}</td>
+                    <td>{r.Typ}</td>
+                    <td><span className={`pill ${r.Erënnert === "Jo" ? "pill-done" : "pill-pending"}`}>{r.Erënnert === "Jo" ? "Jo" : "Nach net"}</span></td>
+                    <td><button className="icon-btn" onClick={() => läschen(r.ID)}>✕</button></td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          )}
+        </section>
+
+        {vergaangen.length > 0 && (
+          <section className="card">
+            <h2>Vergaangen</h2>
+            <table className="tabelle">
+              <thead><tr><th>Datum</th><th>Schüler/-in</th><th>Typ</th></tr></thead>
+              <tbody>
+                {vergaangen.slice(-10).map((r, i) => (
+                  <tr key={i}><td>{formatDatumKuerz(r.Datum)}</td><td>{r.Schüler}</td><td>{r.Typ}</td></tr>
+                ))}
+              </tbody>
+            </table>
+          </section>
+        )}
+      </main>
+      {toast && <div className="toast">{toast}</div>}
+    </div>
+  );
+}
+
+ReactDOM.createRoot(document.getElementById("root")).render(<App />);
+</script>
+<style>
+* { box-sizing: border-box; }
+body { margin: 0; font-family: -apple-system, "Segoe UI", Inter, Arial, sans-serif; color: #1c2621; background: #f6f8f6; }
+.topbar { padding: 14px 22px; background: #00A94F; color: #fff; }
+.brand { display: flex; align-items: baseline; gap: 10px; }
+.brand-mark { font-weight: 800; font-size: 15px; letter-spacing: 0.06em; }
+.brand-sub { font-size: 13px; opacity: 0.85; }
+.content { max-width: 720px; margin: 0 auto; padding: 24px 20px 60px; }
+.card { background: #fff; border: 1px solid #e2e8e3; border-radius: 12px; padding: 18px 20px; margin-bottom: 16px; }
+.card h2 { font-size: 15px; margin: 0 0 12px; color: #00A94F; }
+.grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+.field { display: flex; flex-direction: column; gap: 4px; margin-bottom: 14px; }
+.field-label { font-size: 12.5px; font-weight: 700; color: #294f3c; }
+.select, .input, .textarea { border: 1px solid #c9d5cd; border-radius: 7px; padding: 8px 10px; font-size: 13.5px; font-family: inherit; background: #fff; color: #1c2621; width: 100%; }
+.textarea { resize: vertical; }
+.hint { font-size: 11.5px; color: #6d7d74; background: #eef3ef; padding: 8px 12px; border-radius: 7px; margin-bottom: 12px; }
+.notice { font-size: 12.5px; color: #6d7d74; }
+.sync-error { color: #8a2b1f; font-size: 12.5px; background: #fbe4e1; padding: 8px 12px; border-radius: 8px; margin-bottom: 12px; }
+.btn { font-size: 13.5px; font-weight: 700; padding: 10px 18px; border-radius: 8px; border: none; cursor: pointer; }
+.btn-primary { background: #00A94F; color: #fff; }
+.btn-primary:disabled { background: #b7c6bd; cursor: not-allowed; }
+.tabelle { width: 100%; border-collapse: collapse; margin-top: 4px; }
+.tabelle th { text-align: left; font-size: 11px; text-transform: uppercase; color: #6d7d74; padding: 6px 8px; border-bottom: 1px solid #eef1ef; }
+.tabelle td { padding: 7px 8px; font-size: 13px; border-bottom: 1px solid #f4f6f4; }
+.pill { font-size: 11px; font-weight: 700; padding: 3px 9px; border-radius: 20px; }
+.pill-pending { background: #e6e9e6; color: #55625a; }
+.pill-done { background: #d7ecdd; color: #00A94F; }
+.icon-btn { border: none; background: transparent; color: #99392f; cursor: pointer; font-size: 13px; width: 24px; height: 24px; border-radius: 6px; }
+.toast { position: fixed; bottom: 22px; left: 50%; transform: translateX(-50%); background: #1c2621; color: #fff; padding: 10px 18px; border-radius: 8px; font-size: 13px; }
+</style>
+</body>
+</html>
