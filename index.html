@@ -158,7 +158,7 @@ function App() {
   // also a béid Richtungen: Titel/Datum *an* Status kommen tëscht deenen zwou Säiten un.
   useEffect(() => {
     if (!schuelerId || !currentSchueler || !loaded) return;
-    fetch(WEB_APP_URL)
+    fetch(WEB_APP_URL + "?token=" + encodeURIComponent(window.PPREN_SESSION?.token || ""))
       .then((res) => res.json())
       .then((data) => {
         const eintrag = (data.meilensteng || []).find((m) => m.Schüler === currentSchueler.name);
