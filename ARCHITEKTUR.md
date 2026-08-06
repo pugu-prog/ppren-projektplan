@@ -12,20 +12,20 @@ Kuerz Iwwersiicht wou wat läit — als Orientéierung, well d'System iwwer méi
 
 ## 2. Back-End — Google Apps Script
 
-- **Projet**: "PPREN web" ([Editor](https://script.google.com/d/15wHdRVZP8jz3y6fp09N6POn3DMJcvZHsc00UbPb0_JWQrN4pAJQidp-4/edit))
-- **Deployte Web-App-URL** (déi d'Front-End benotzt): `https://script.google.com/macros/s/AKfycbzfyThho8MevoyfSz7NsQ1YxZJO4E-f61GYYzqZyHACIHzxR3bm7SHCwVUkCBJrAEvJ/exec`
+- **Projet**: "PPREN web" (Editor iwwer [script.google.com/home](https://script.google.com/home) am `gseltett@gmail.com`-Konto opmaachen)
+- **Deployte Web-App-URL** (déi d'Front-End benotzt): `https://script.google.com/macros/s/AKfycbwNDO4bJv1lYKvwg57TnHzVHxLIJJikxD0ey7RHlraqa9nUSs8liBJycF38p4X--t_6/exec`
 - Eng eenzeg Datei `Code.gs` (~2300 Zeilen): Login/PIN/Session-Verwaltung, `doGet`/`doPost`-Router fir all Aktioun, Google-Doc-Generatioun (Projektplang, Suivi, Bewertung), E-Mail-Versand
 - **Wichteg**: no all Ännerung um Code muss iwwer *Deploy → Manage deployments → ✏️ Edit → New version* nei deployt ginn — de rohen Editor-Stand gëllt net automatesch fir déi live URL
 
 ## 3. Datebank — Eng Google Sheet
 
-- **Sheet-ID**: `1QBXpCGR_t9Y7sXiKcsZTyVCJ8F_psTSc5LQxIcX9x1k`
+- **Sheet-ID**: `1eAdAoDkiQMnowCV2sl1mrmTh3GT6W-_946uI06L3JAQ`
 - Enthält all Daten als Tabs (Apps Script erstellt feelend Tabs automatesch): Iwwersiicht (Projeten/Status), `Bewertungen`, `Meilensteng`, `Wochenberichte`, `OffiziellZaitplang`, `Fachgespraeche`, `Zieluewerpreiwungen`, `Rendezvousen`, `Login` (Numm/Roll/PIN-Hash), `Sessions` (aktiv Tokens)
 - Keng richteg Datebank-Motor — all Zeil gëtt bei all Ufro komplett gelies/duerchsicht (funktionéiert gutt bei där Gréisst, awer skaléiert net onendlech)
 
 ## 4. Späicherung — Google Drive
 
-- **Ordner** "PPREN Projekte" (ID `1BCDR9nQobYAcuswrKThyPQChqHi0aW1L`)
+- **Ordner** "PPREN Projekte" (ID `12eeECkttG0U1-zRHM__age2FdZp3MOmy`)
 - Dran: automatesch generéiert Google Docs pro Schüler (Projektplang, Suivi, Bewertung), d'Word-/Doc-Virlag, d'Logoen, an eropgelueden Ahänk aus de Wochenberichter
 
 ## 5. E-Mail — Gmail (`MailApp`)
