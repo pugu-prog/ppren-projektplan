@@ -38,12 +38,15 @@ function App() {
   const [projekte, setProjekte] = useState([]);
   const [bewertungen, setBewertungen] = useState([]);
   const [wochenberichte, setWochenberichte] = useState([]);
+  const [budget, setBudget] = useState([]);
+  const [ausgaben, setAusgaben] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [filterKlasse, setFilterKlasse] = useState("alle");
   const [filterBetreuer, setFilterBetreuer] = useState("alle");
   const [suche, setSuche] = useState("");
   const [aendernId, setAendernId] = useState(null);
+  const [genehmegId, setGenehmegId] = useState(null);
 
   const lade = () => {
     setLoading(true);
@@ -54,12 +57,34 @@ function App() {
         setProjekte(data.projekte || []);
         setBewertungen(data.bewertungen || []);
         setWochenberichte(data.wochenberichte || []);
+        setBudget(data.budget || []);
+        setAusgaben(data.ausgaben || []);
       })
       .catch(() => setError("Konnte Übersicht nicht laden."))
       .finally(() => setLoading(false));
   };
 
   useEffect(() => { lade(); }, []);
+
+  const kostenplanGenehmegen = async (schueler, klasse) => {
+    setGenehmegId(schueler);
+    try {
+      const res = await fetch(WEB_APP_URL, {
+        method: "POST",
+        headers: { "Content-Type": "text/plain;charset=utf-8" },
+        body: JSON.stringify({ typ: "kostenplanGenehmegen", token: window.PPREN_SESSION?.token || "", schueler, klasse }),
+      });
+      const data = await res.json();
+      if (!data.ok) throw new Error(data.error || "Unbekannter Fehler");
+      lade();
+    } catch (e) {
+      alert("Konnte net genehmegen: " + e.message);
+    } finally {
+      setGenehmegId(null);
+    }
+  };
+
+  const ausgiFuer = (schueler) => ausgaben.filter((a) => a.Schüler === schueler).reduce((s, a) => s + (Number(a.Betrag) || 0), 0);
 
   const statusAendern = async (schueler, periode, neuerStatus) => {
     const id = `${schueler}__${periode}`;
@@ -214,6 +239,41 @@ function App() {
                       </select>
                     </td>
                     <td>{b["Suivi-Link"] ? <a className="link" href={b["Suivi-Link"]} target="_blank" rel="noreferrer">Öffnen ↗</a> : <span className="cell-muted">–</span>}</td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        )}
+      </main>
+
+      <h2 className="section-titel">💰 Budget / Kostepläng</h2>
+      <main className="table-wrap">
+        {!loading && !error && budget.length === 0 && <div className="empty">Nach keng Kostepläng ugefrot.</div>}
+        {!loading && !error && budget.length > 0 && (
+          <table className="table">
+            <thead>
+              <tr>
+                <th>Schüler/-in</th><th>Klasse</th><th>Status</th><th>Ausgi / Max</th><th></th>
+              </tr>
+            </thead>
+            <tbody>
+              {budget.map((b, i) => {
+                const ausgi = ausgiFuer(b.Schüler);
+                const max = Number(b.Max) || 500;
+                return (
+                  <tr key={i}>
+                    <td className="cell-strong">{b.Schüler}</td>
+                    <td>{b.Klasse}</td>
+                    <td><span className={`pill pill-${b.Status === "Genehmegt" ? "done" : "pending"}`}>{b.Status}</span></td>
+                    <td className="cell-muted">{b.Status === "Genehmegt" ? `${ausgi.toFixed(2)} € / ${max} €` : "–"}</td>
+                    <td>
+                      {b.Status === "Ageraecht" && (
+                        <button className="btn-gen" disabled={genehmegId === b.Schüler} onClick={() => kostenplanGenehmegen(b.Schüler, b.Klasse)}>
+                          {genehmegId === b.Schüler ? "…" : "✅ Genehmegen"}
+                        </button>
+                      )}
+                    </td>
                   </tr>
                 );
               })}
