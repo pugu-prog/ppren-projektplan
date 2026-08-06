@@ -41,7 +41,7 @@ function App() {
   const lade = () => {
     setLoading(true);
     setError(null);
-    fetch(WEB_APP_URL)
+    fetch(WEB_APP_URL + "?token=" + encodeURIComponent(window.PPREN_SESSION?.token || ""))
       .then((res) => res.json())
       .then((data) => setAlle(data.wochenberichte || []))
       .catch(() => setError("Konnte Berichter net lueden."))
