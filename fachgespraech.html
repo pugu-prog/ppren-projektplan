@@ -108,7 +108,7 @@ function App() {
   const lade = () => {
     if (!currentSchueler) return;
     setLoading(true);
-    fetch(WEB_APP_URL)
+    fetch(WEB_APP_URL + "?token=" + encodeURIComponent(window.PPREN_SESSION?.token || ""))
       .then((res) => res.json())
       .then((data) => setBisherig((data.fachgespraeche || []).filter((f) => f.Schüler === currentSchueler.name)))
       .catch(() => setError("Konnte Historique net lueden."))
