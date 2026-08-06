@@ -393,7 +393,7 @@ function App() {
     if (!schuelerName || !p) return;
     setPruefeLaden(true);
     try {
-      const res = await fetch(WEB_APP_URL);
+      const res = await fetch(WEB_APP_URL + "?token=" + encodeURIComponent(window.PPREN_SESSION?.token || ""));
       const data = await res.json();
       const bestehend = (data.bewertungen || []).find((b) => b.Schüler === schuelerName && b.Periode === p);
       if (bestehend && bestehend.Status === "Finalisiert") {
