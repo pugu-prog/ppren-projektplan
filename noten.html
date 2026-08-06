@@ -53,7 +53,7 @@ function App() {
   const lade = () => {
     setLoading(true);
     setError(null);
-    fetch(WEB_APP_URL)
+    fetch(WEB_APP_URL + "?token=" + encodeURIComponent(window.PPREN_SESSION?.token || ""))
       .then((res) => res.json())
       .then((data) => {
         setProjekte(data.projekte || []);
@@ -100,7 +100,7 @@ function App() {
       return [s.Schüler, s.Klasse, s.Betreuer, ...noten.map((n) => n ?? ""), schnitt];
     });
     const csv = [kopf, ...zeilen].map((r) => r.map((c) => `"${String(c).replace(/"/g, '""')}"`).join(";")).join("\n");
-    const blob = new Blob(["\ufeff" + csv], { type: "text/csv;charset=utf-8;" });
+    const blob = new Blob(["﻿" + csv], { type: "text/csv;charset=utf-8;" });
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = url;
