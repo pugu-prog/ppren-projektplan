@@ -94,7 +94,7 @@ function App() {
     setLoading(true);
     setError(null);
     setGeladen(false);
-    fetch(WEB_APP_URL)
+    fetch(WEB_APP_URL + "?token=" + encodeURIComponent(window.PPREN_SESSION?.token || ""))
       .then((res) => res.json())
       .then((data) => {
         const alleProjekte = data.projekte || [];
