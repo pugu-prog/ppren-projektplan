@@ -48,7 +48,7 @@ function App() {
   const lade = () => {
     setLoading(true);
     setError(null);
-    fetch(WEB_APP_URL)
+    fetch(WEB_APP_URL + "?token=" + encodeURIComponent(window.PPREN_SESSION?.token || ""))
       .then((res) => res.json())
       .then((data) => {
         setProjekte(data.projekte || []);
