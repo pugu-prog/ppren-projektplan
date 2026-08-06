@@ -80,6 +80,10 @@
 
   // Session am Hannergrond validéieren (ofgelaf Sessioune erausfannen), ouni
   // d'Säit ze blockéieren — bei Ongëltegkeet gëtt sanft op login.html geleet.
+  // De Server ass déi eenzeg authoritativ Quell fir d'Roll: den initialen Check
+  // hei driwwer baséiert nëmmen op localStorage, dat kann ëmgeängt ginn (z.B. iwwer
+  // DevTools). Dofir gëtt d'Roll hei mat der Server-Äntwert ofgeglach a lokal
+  // korrigéiert/geläscht, wann se net iwwerteneestëmmen.
   const WEB_APP_URL = "https://script.google.com/macros/s/AKfycbzfyThho8MevoyfSz7NsQ1YxZJO4E-f61GYYzqZyHACIHzxR3bm7SHCwVUkCBJrAEvJ/exec";
   fetch(WEB_APP_URL, {
     method: "POST",
@@ -94,6 +98,24 @@
         localStorage.removeItem("ppren_rolle");
         localStorage.removeItem("ppren_klasse");
         laafBassNoLogin();
+        return;
+      }
+      if (data.rolle && data.rolle !== rolle) {
+        // Lokal gespäichert Roll stëmmt net mat där um Server iwwereneen —
+        // lokal Wäert war entweder ëmgeängt oder ass veraltet. Ëmmer der
+        // Server-Wourecht vertrauen; wa se net méi op dëser Säit erlaabt ass,
+        // direkt erausschmeisen amplaz just d'localStorage ze aktualiséieren.
+        if (erfuerdertRolle && data.rolle !== erfuerdertRolle) {
+          localStorage.removeItem("ppren_token");
+          localStorage.removeItem("ppren_numm");
+          localStorage.removeItem("ppren_rolle");
+          localStorage.removeItem("ppren_klasse");
+          window.location.href = "login.html";
+          return;
+        }
+        localStorage.setItem("ppren_numm", data.numm || numm);
+        localStorage.setItem("ppren_rolle", data.rolle);
+        localStorage.setItem("ppren_klasse", data.klasse || "");
       }
     })
     .catch(() => {}); // Bei Netzwerkfehler: Säit bleift nutzbar, näischt blockéieren
