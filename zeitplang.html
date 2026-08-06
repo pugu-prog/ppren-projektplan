@@ -212,7 +212,7 @@ function show2GSE(){
 btn1.addEventListener('click', show1GSE);
 btn2.addEventListener('click', show2GSE);
 
-fetch(WEB_APP_URL)
+fetch(WEB_APP_URL + "?token=" + encodeURIComponent(window.PPREN_SESSION?.token || ""))
   .then((res) => res.json())
   .then((data) => {
     const alle = (data.offiziellZaitplang || []).slice().sort((a,b) => (a.Datum||"").localeCompare(b.Datum||""));
