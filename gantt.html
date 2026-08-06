@@ -84,7 +84,7 @@ function App() {
     const s = SCHUELER.find((x) => x.id === schuelerId);
     setLoading(true);
     setError(null);
-    fetch(WEB_APP_URL)
+    fetch(WEB_APP_URL + "?token=" + encodeURIComponent(window.PPREN_SESSION?.token || ""))
       .then((res) => res.json())
       .then((data) => {
         let gespäichert = [];
