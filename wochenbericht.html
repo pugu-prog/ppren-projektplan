@@ -105,7 +105,7 @@ function App() {
     if (!currentSchueler) return;
     setLoading(true);
     setError(null);
-    fetch(WEB_APP_URL)
+    fetch(WEB_APP_URL + "?token=" + encodeURIComponent(window.PPREN_SESSION?.token || ""))
       .then((res) => res.json())
       .then((data) => {
         const eegen = (data.wochenberichte || []).filter((w) => w.Schüler === currentSchueler.name);
