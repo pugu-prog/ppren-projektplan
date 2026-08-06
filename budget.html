@@ -1,0 +1,373 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>PPREN Budget</title>
+<script>window.PPREN_ERFUERDERT_ROLLE = "Schüler";</script>
+<script src="auth-guard.js"></script>
+<script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+<script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+<script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+</head>
+<body>
+<div id="root"></div>
+<script>
+  window.addEventListener("error", function (e) {
+    document.getElementById("root").innerHTML =
+      '<div style="padding:40px;font-family:sans-serif;color:#8a2b1f;white-space:pre-wrap;">' +
+      '<h2 style="margin-top:0;">Fehler beim Laden</h2>' +
+      (e.message || "Unbekannter Fehler") +
+      (e.filename ? "\n\nDatei: " + e.filename + " Zeile " + e.lineno : "") +
+      "</div>";
+  });
+</script>
+<script type="text/babel">
+const { useState, useEffect, useMemo } = React;
+
+const WEB_APP_URL = "https://script.google.com/macros/s/AKfycbzfyThho8MevoyfSz7NsQ1YxZJO4E-f61GYYzqZyHACIHzxR3bm7SHCwVUkCBJrAEvJ/exec";
+
+const SCHUELER = [
+  { id: "lea_muller", name: "Léa Muller", klasse: "1GSE" },
+  { id: "ben_weber", name: "Ben Weber", klasse: "2GSE" },
+  { id: "noah_schmit", name: "Noah Schmit", klasse: "1GSE" },
+  { id: "mia_reuter", name: "Mia Reuter", klasse: "2GSE" },
+  { id: "tom_klein", name: "Tom Klein", klasse: "2GSE" },
+];
+
+const WARNUNGS_SCHWELL = 0.9; // F9.9: Warnung ab 90%
+
+function dateiZuBase64(datei) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(reader.result.split(",")[1]);
+    reader.onerror = reject;
+    reader.readAsDataURL(datei);
+  });
+}
+
+function App() {
+  const [schuelerId] = useState(() => {
+    const numm = window.PPREN_SESSION?.numm;
+    return SCHUELER.find((s) => s.name === numm)?.id || "";
+  });
+  const currentSchueler = SCHUELER.find((s) => s.id === schuelerId);
+
+  const [geplangtKosten, setGeplangtKosten] = useState([]);
+  const [budgetStatus, setBudgetStatus] = useState(null); // null | "Ageraecht" | "Genehmegt"
+  const [budgetMax, setBudgetMax] = useState(500);
+  const [ausgaben, setAusgaben] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [syncing, setSyncing] = useState(false);
+  const [error, setError] = useState(null);
+  const [toast, setToast] = useState(null);
+
+  const [bezeechnung, setBezeechnung] = useState("");
+  const [betrag, setBetrag] = useState("");
+  const [datum, setDatum] = useState(new Date().toISOString().slice(0, 10));
+  const [kategorie, setKategorie] = useState("");
+  const [beleg, setBeleg] = useState(null);
+
+  useEffect(() => {
+    // Geplangte Käschten aus dem eegene Projektplang-Entworf liesen (nëmmen
+    // als Referenz — d'Ausgaben hei sinn eng separat, tatsächlech Lëscht).
+    if (!schuelerId) return;
+    try {
+      const raw = localStorage.getItem(`projektplan:${schuelerId}`);
+      if (raw) {
+        const plan = JSON.parse(raw);
+        if (plan.kostenplanNoetig) setGeplangtKosten(plan.kosten || []);
+      }
+    } catch {}
+  }, [schuelerId]);
+
+  const lade = () => {
+    setLoading(true);
+    setError(null);
+    fetch(WEB_APP_URL + "?token=" + encodeURIComponent(window.PPREN_SESSION?.token || ""))
+      .then((res) => res.json())
+      .then((data) => {
+        const meng = (data.budget || []).find((b) => b.Schüler === currentSchueler?.name);
+        setBudgetStatus(meng ? meng.Status : null);
+        setBudgetMax(meng && meng.Max ? Number(meng.Max) : 500);
+        setAusgaben((data.ausgaben || []).filter((a) => a.Schüler === currentSchueler?.name));
+      })
+      .catch(() => setError("Konnte Budget-Info net lueden."))
+      .finally(() => setLoading(false));
+  };
+  useEffect(() => { if (schuelerId) lade(); }, [schuelerId]);
+
+  const summeAusgi = useMemo(() => ausgaben.reduce((s, a) => s + (Number(a.Betrag) || 0), 0), [ausgaben]);
+  const prozent = budgetMax > 0 ? (summeAusgi / budgetMax) * 100 : 0;
+  const iwwerschratt = summeAusgi > budgetMax;
+  const noProzentWarnung = !iwwerschratt && prozent >= WARNUNGS_SCHWELL * 100;
+
+  const genehmegungUfroen = async () => {
+    setSyncing(true);
+    setError(null);
+    try {
+      const res = await fetch(WEB_APP_URL, {
+        method: "POST",
+        headers: { "Content-Type": "text/plain;charset=utf-8" },
+        body: JSON.stringify({
+          typ: "kostenplanAgereechen",
+          token: window.PPREN_SESSION?.token || "",
+          schueler: currentSchueler?.name,
+          klasse: currentSchueler?.klasse,
+        }),
+      });
+      const data = await res.json();
+      if (!data.ok) throw new Error(data.error || "Onbekannte Feeler");
+      setToast("Genehmegung ugefrot — de Prof gëtt informéiert.");
+      lade();
+    } catch (e) {
+      setError("Konnte net ufroen: " + e.message);
+    } finally {
+      setSyncing(false);
+      setTimeout(() => setToast(null), 3500);
+    }
+  };
+
+  const canSubmit = bezeechnung.trim() && betrag !== "" && datum;
+
+  const ausgabSpäicheren = async () => {
+    if (!canSubmit) return;
+    setSyncing(true);
+    setError(null);
+    try {
+      let belegBase64 = null, belegDateiName = null, belegMimeType = null;
+      if (beleg) {
+        belegBase64 = await dateiZuBase64(beleg);
+        belegDateiName = beleg.name;
+        belegMimeType = beleg.type || "application/octet-stream";
+      }
+      const res = await fetch(WEB_APP_URL, {
+        method: "POST",
+        headers: { "Content-Type": "text/plain;charset=utf-8" },
+        body: JSON.stringify({
+          typ: "ausgabSpäicheren",
+          token: window.PPREN_SESSION?.token || "",
+          schueler: currentSchueler?.name,
+          klasse: currentSchueler?.klasse,
+          bezeechnung, betrag, datum, kategorie,
+          belegBase64, belegDateiName, belegMimeType,
+        }),
+      });
+      const data = await res.json();
+      if (!data.ok) throw new Error(data.error || "Onbekannte Feeler");
+      setToast("Ausgab gespäichert.");
+      setBezeechnung(""); setBetrag(""); setKategorie(""); setBeleg(null);
+      lade();
+    } catch (e) {
+      setError("Konnte net späicheren: " + e.message);
+    } finally {
+      setSyncing(false);
+      setTimeout(() => setToast(null), 3000);
+    }
+  };
+
+  const ausgabLaeschen = async (id) => {
+    if (!confirm("Dës Ausgab wierklech läschen?")) return;
+    try {
+      const res = await fetch(WEB_APP_URL, {
+        method: "POST",
+        headers: { "Content-Type": "text/plain;charset=utf-8" },
+        body: JSON.stringify({ typ: "ausgabLaeschen", id, token: window.PPREN_SESSION?.token || "" }),
+      });
+      const data = await res.json();
+      if (!data.ok) throw new Error(data.error || "Onbekannte Feeler");
+      lade();
+    } catch (e) {
+      alert("Konnte net läschen: " + e.message);
+    }
+  };
+
+  const csvExport = () => {
+    const kopf = ["Datum", "Bezeechnung", "Kategorie", "Betrag"];
+    const zeilen = ausgaben.map((a) => [a.Datum, a.Bezeechnung, a.Kategorie || "", a.Betrag]);
+    const csv = [kopf, ...zeilen].map((r) => r.map((c) => `"${String(c).replace(/"/g, '""')}"`).join(";")).join("\n");
+    const blob = new Blob(["﻿" + csv], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `Ausgaben_${currentSchueler?.name || ""}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+
+  return (
+    <div className="wrap">
+      <header className="topbar">
+        <div className="brand">
+          <span className="brand-mark">PPREN</span>
+          <span className="brand-sub">Budget · Sciences Environnementales</span>
+        </div>
+      </header>
+
+      <main className="content">
+        <section className="card">
+          <label className="field">
+            <span className="field-label">Ugemellt als</span>
+            <div className="identitaet-box">👤 {currentSchueler?.name} ({currentSchueler?.klasse})</div>
+          </label>
+        </section>
+
+        {loading && <div className="empty">Lädt…</div>}
+        {error && <div className="sync-error">{error}</div>}
+
+        {!loading && (
+          <>
+            {geplangtKosten.length > 0 && (
+              <section className="card">
+                <h2>Geplangte Käschten (aus dengem Projektplang)</h2>
+                <ul className="plang-liste">
+                  {geplangtKosten.filter((k) => k.bezeichnung).map((k, i) => (
+                    <li key={i}><span>{k.bezeichnung}</span><strong>{k.betrag || 0} €</strong></li>
+                  ))}
+                </ul>
+              </section>
+            )}
+
+            {(!budgetStatus) && (
+              <section className="card">
+                <h2>Kostenplang genehmegen loossen</h2>
+                <p className="hint">Ier s du Ausgaben aginn kanns, muss den Prof de Kostenplang aus dengem Projektplang genehmegen (500 € Standard-Budget).</p>
+                <button className="btn btn-primary" disabled={syncing} onClick={genehmegungUfroen}>
+                  {syncing ? "Freet un…" : "📨 Genehmegung ufroen"}
+                </button>
+              </section>
+            )}
+
+            {budgetStatus === "Ageraecht" && (
+              <section className="card">
+                <div className="notice notice-pending">⏳ Genehmegung ugefrot — waart op de Prof, ier s du Ausgaben aginn kanns.</div>
+              </section>
+            )}
+
+            {budgetStatus === "Genehmegt" && (
+              <>
+                <section className="card">
+                  <h2>Budget-Iwwersiicht</h2>
+                  <div className="budget-bar-track">
+                    <div className={`budget-bar-fill ${iwwerschratt ? "over" : noProzentWarnung ? "warn" : ""}`} style={{ width: `${Math.min(100, prozent)}%` }} />
+                  </div>
+                  <div className="budget-zeilen">
+                    <span>Ausgi: <strong>{summeAusgi.toFixed(2)} €</strong></span>
+                    <span>Restbudget: <strong>{(budgetMax - summeAusgi).toFixed(2)} €</strong></span>
+                    <span className="cell-muted">/ {budgetMax} €</span>
+                  </div>
+                  {iwwerschratt && <p className="notice notice-error">⚠️ Budget iwwerschratt!</p>}
+                  {noProzentWarnung && <p className="notice notice-warn">⚠️ Iwwer 90% vum Budget ausginn.</p>}
+                </section>
+
+                <section className="card">
+                  <h2>Nei Ausgab aginn</h2>
+                  <div className="grid2">
+                    <label className="field">
+                      <span className="field-label">Bezeechnung</span>
+                      <input className="input" value={bezeechnung} onChange={(e) => setBezeechnung(e.target.value)} placeholder="z.B. Sensor, Fahrkaart..." />
+                    </label>
+                    <label className="field">
+                      <span className="field-label">Betrag (€)</span>
+                      <input type="number" step="0.01" min="0" className="input" value={betrag} onChange={(e) => setBetrag(e.target.value)} />
+                    </label>
+                  </div>
+                  <div className="grid2">
+                    <label className="field">
+                      <span className="field-label">Datum</span>
+                      <input type="date" className="input" value={datum} onChange={(e) => setDatum(e.target.value)} />
+                    </label>
+                    <label className="field">
+                      <span className="field-label">Kategorie (optional)</span>
+                      <input className="input" value={kategorie} onChange={(e) => setKategorie(e.target.value)} placeholder="z.B. Material, Transport..." />
+                    </label>
+                  </div>
+                  <label className="field">
+                    <span className="field-label">Beleg / Foto (optional)</span>
+                    <input type="file" accept="image/*,.pdf" onChange={(e) => setBeleg(e.target.files[0] || null)} />
+                  </label>
+                  <button className="btn btn-primary" disabled={!canSubmit || syncing} onClick={ausgabSpäicheren}>
+                    {syncing ? "Späichert…" : "💾 Ausgab späicheren"}
+                  </button>
+                </section>
+
+                <section className="card">
+                  <div className="card-head-row">
+                    <h2>Meng Ausgaben</h2>
+                    {ausgaben.length > 0 && <button className="btn-gen" onClick={csvExport}>⬇️ CSV</button>}
+                  </div>
+                  {ausgaben.length === 0 && <p className="hint">Nach keng Ausgaben ageginn.</p>}
+                  {ausgaben.length > 0 && (
+                    <table className="tabelle">
+                      <thead><tr><th>Datum</th><th>Bezeechnung</th><th>Kategorie</th><th>Betrag</th><th>Beleg</th><th></th></tr></thead>
+                      <tbody>
+                        {ausgaben.map((a, i) => (
+                          <tr key={i}>
+                            <td>{a.Datum}</td>
+                            <td>{a.Bezeechnung}</td>
+                            <td className="cell-muted">{a.Kategorie || "–"}</td>
+                            <td>{Number(a.Betrag).toFixed(2)} €</td>
+                            <td>{a["Beleg-Link"] ? <a href={a["Beleg-Link"]} target="_blank" rel="noreferrer">📎</a> : "–"}</td>
+                            <td><button className="icon-btn" onClick={() => ausgabLaeschen(a.ID)}>✕</button></td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  )}
+                </section>
+              </>
+            )}
+          </>
+        )}
+      </main>
+      {toast && <div className="toast">{toast}</div>}
+    </div>
+  );
+}
+
+ReactDOM.createRoot(document.getElementById("root")).render(<App />);
+</script>
+<style>
+* { box-sizing: border-box; }
+body { margin: 0; font-family: -apple-system, "Segoe UI", Inter, Arial, sans-serif; color: #1c2621; background: #f6f8f6; }
+.topbar { padding: 14px 22px; background: #00A94F; color: #fff; }
+.brand { display: flex; align-items: baseline; gap: 10px; }
+.brand-mark { font-weight: 800; font-size: 15px; letter-spacing: 0.06em; }
+.brand-sub { font-size: 13px; opacity: 0.85; }
+.content { max-width: 720px; margin: 0 auto; padding: 24px 20px 60px; }
+.card { background: #fff; border: 1px solid #e2e8e3; border-radius: 12px; padding: 18px 20px; margin-bottom: 16px; }
+.card h2 { font-size: 15px; margin: 0 0 12px; color: #00A94F; }
+.card-head-row { display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px; }
+.card-head-row h2 { margin: 0; }
+.grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+.field { display: flex; flex-direction: column; gap: 4px; margin-bottom: 14px; }
+.field-label { font-size: 12.5px; font-weight: 700; color: #294f3c; }
+.select, .input, .textarea { border: 1px solid #c9d5cd; border-radius: 7px; padding: 8px 10px; font-size: 13.5px; font-family: inherit; background: #fff; color: #1c2621; width: 100%; }
+.identitaet-box { font-size: 13.5px; font-weight: 700; color: #294f3c; background: #eef3ef; padding: 9px 12px; border-radius: 7px; }
+.hint { font-size: 11.5px; color: #6d7d74; background: #eef3ef; padding: 8px 12px; border-radius: 7px; margin-bottom: 12px; line-height: 1.5; }
+.notice { font-size: 12.5px; padding: 10px 14px; border-radius: 8px; margin: 0; }
+.notice-pending { background: #fbe8c6; color: #8a5a12; }
+.notice-error { background: #fbe4e1; color: #99392f; margin-top: 10px; }
+.notice-warn { background: #fbe8c6; color: #8a5a12; margin-top: 10px; }
+.sync-error { color: #8a2b1f; font-size: 12.5px; background: #fbe4e1; padding: 8px 12px; border-radius: 8px; margin-bottom: 12px; }
+.empty { padding: 30px; text-align: center; color: #6d7d74; font-size: 14px; background: #fff; border-radius: 12px; border: 1px solid #e2e8e3; }
+.btn { font-size: 13.5px; font-weight: 700; padding: 10px 18px; border-radius: 8px; border: none; cursor: pointer; }
+.btn-primary { background: #00A94F; color: #fff; }
+.btn-primary:disabled { background: #b7c6bd; cursor: not-allowed; }
+.btn-gen { font-size: 11.5px; font-weight: 700; color: #00A94F; background: #eef3ef; border: 1px solid #c9d5cd; padding: 6px 12px; border-radius: 7px; cursor: pointer; }
+.plang-liste { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 6px; }
+.plang-liste li { display: flex; justify-content: space-between; font-size: 13px; padding: 6px 0; border-bottom: 1px solid #f4f6f4; }
+.budget-bar-track { height: 12px; background: #eef1ef; border-radius: 6px; overflow: hidden; margin-bottom: 8px; }
+.budget-bar-fill { height: 100%; background: #00A94F; transition: width 0.3s; }
+.budget-bar-fill.warn { background: #F67E1B; }
+.budget-bar-fill.over { background: #99392f; }
+.budget-zeilen { display: flex; gap: 16px; flex-wrap: wrap; font-size: 13.5px; }
+.cell-muted { color: #6d7d74; font-size: 12px; }
+.tabelle { width: 100%; border-collapse: collapse; margin-top: 4px; }
+.tabelle th { text-align: left; font-size: 11px; text-transform: uppercase; color: #6d7d74; padding: 6px 8px; border-bottom: 1px solid #eef1ef; }
+.tabelle td { padding: 7px 8px; font-size: 13px; border-bottom: 1px solid #f4f6f4; }
+.icon-btn { border: none; background: transparent; color: #99392f; cursor: pointer; font-size: 13px; width: 24px; height: 24px; border-radius: 6px; }
+.toast { position: fixed; bottom: 22px; left: 50%; transform: translateX(-50%); background: #1c2621; color: #fff; padding: 10px 18px; border-radius: 8px; font-size: 13px; }
+</style>
+</body>
+</html>
