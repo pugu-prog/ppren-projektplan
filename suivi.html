@@ -82,6 +82,8 @@ function App() {
   const [meilensteng, setMeilensteng] = useState([]);
   const [fachgespraeche, setFachgespraeche] = useState([]);
   const [zieluewerpreiwungen, setZieluewerpreiwungen] = useState([]);
+  const [budgetInfo, setBudgetInfo] = useState(null); // { status, max } oder null wann näischt ugefrot
+  const [ausgaben, setAusgaben] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [geladen, setGeladen] = useState(false);
@@ -105,6 +107,10 @@ function App() {
         setWochenberichte((data.wochenberichte || []).filter((w) => w.Schüler === currentSchueler.name));
         setFachgespraeche((data.fachgespraeche || []).filter((f) => f.Schüler === currentSchueler.name));
         setZieluewerpreiwungen((data.zieluewerpreiwungen || []).filter((z) => z.Schüler === currentSchueler.name));
+
+        const meinBudget = (data.budget || []).find((b) => b.Schüler === currentSchueler.name);
+        setBudgetInfo(meinBudget ? { status: meinBudget.Status, max: Number(meinBudget.Max) || 500 } : null);
+        setAusgaben((data.ausgaben || []).filter((a) => a.Schüler === currentSchueler.name));
 
         let gespäichert = [];
         const eintrag = (data.meilensteng || []).find((m) => m.Schüler === currentSchueler.name);
@@ -242,21 +248,30 @@ function App() {
                       <span className="feld-label">Kostenplan (max. 500 €)</span>
                       {planDetails.kostenplanNoetig && (planDetails.kosten || []).length > 0 ? (
                         <>
+                          <span className="feld-sub-label">Geplangt</span>
                           <ul className="kosten-liste">
                             {planDetails.kosten.map((k, i) => (
                               <li key={i}>{k.bezeichnung}: <strong>{k.betrag} €</strong></li>
                             ))}
                           </ul>
-                          {(() => {
-                            const summe = planDetails.kosten.reduce((s, k) => s + (parseFloat(k.betrag) || 0), 0);
-                            const prozent = Math.round((summe / 500) * 100);
-                            return (
-                              <div className="budget-block">
-                                <Fortschrittsbar prozent={prozent} farbe={prozent > 100 ? "#c0392b" : "#4576B5"} />
-                                <p className="budget-text">{summe.toFixed(2)} € von 500 € verwendet ({prozent}%)</p>
-                              </div>
-                            );
-                          })()}
+                          {budgetInfo?.status === "Genehmegt" ? (
+                            (() => {
+                              const summeAusgi = ausgaben.reduce((s, a) => s + (Number(a.Betrag) || 0), 0);
+                              const prozent = Math.round((summeAusgi / budgetInfo.max) * 100);
+                              return (
+                                <div className="budget-block">
+                                  <span className="feld-sub-label">Tatsächlech ausginn</span>
+                                  <Fortschrittsbar prozent={prozent} farbe={prozent > 100 ? "#c0392b" : "#4576B5"} />
+                                  <p className="budget-text">{summeAusgi.toFixed(2)} € von {budgetInfo.max} € ausginn ({prozent}%)</p>
+                                  <a className="btn btn-ghost budget-link" href="budget.html" target="_blank" rel="noreferrer">💰 Budget-Tool opmaachen</a>
+                                </div>
+                              );
+                            })()
+                          ) : budgetInfo?.status === "Ageraecht" ? (
+                            <p className="feld-text feld-text-sub">⏳ Genehmegung ugefrot — waart nach op de Prof, ier Ausgaben ageraecht ka ginn.</p>
+                          ) : (
+                            <p className="feld-text feld-text-sub">Nach keng Genehmegung ugefrot. <a href="budget.html">Budget-Tool opmaachen →</a></p>
+                          )}
                         </>
                       ) : <p className="feld-text">nicht erforderlich</p>}
                     </div>
@@ -508,8 +523,10 @@ body { margin: 0; font-family: -apple-system, "Segoe UI", Inter, Arial, sans-ser
 .feld-text { font-size: 13.5px; line-height: 1.5; margin: 0; white-space: pre-wrap; }
 .feld-text-sub { color: #55625a; margin-top: 4px; }
 .kosten-liste, .positionen-liste { margin: 4px 0 0; padding-left: 18px; font-size: 13px; line-height: 1.6; }
+.feld-sub-label { display: block; font-size: 10.5px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.02em; color: #93a098; margin: 10px 0 2px; }
 .budget-block { margin-top: 8px; }
 .budget-text { font-size: 12px; color: #55625a; margin: 4px 0 0; }
+.budget-link { display: inline-block; margin-top: 8px; font-size: 12px; padding: 7px 12px; }
 
 .periode-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px; }
 .periode-h2 { margin: 0 !important; }
