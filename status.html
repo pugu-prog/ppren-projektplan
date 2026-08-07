@@ -3,6 +3,7 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<link rel="icon" type="image/png" href="LogoSE_weisHintergrund.png" />
 <title>PPREN – Status & Fortschrëtt</title>
 <style>
   * { box-sizing: border-box; }
@@ -11,13 +12,22 @@
   .hero-bar { height: 3px; width: 90px; background: #F67E1B; margin: 0 auto 14px; border-radius: 2px; }
   .hero h1 { font-size: 20px; font-weight: 800; letter-spacing: 0.03em; margin: 0 0 6px; color: #fff; }
   .hero p { font-size: 13px; color: #c9d5cd; margin: 0; }
-  .content { max-width: 880px; margin: 0 auto; padding: 24px 20px 60px; }
-  .rubrik { margin-bottom: 30px; }
+  .content { max-width: 920px; margin: 0 auto; padding: 24px 20px 60px; }
+  .rubrik { margin-bottom: 34px; }
   .rubrik-head { display: flex; align-items: center; gap: 10px; margin: 0 0 14px; padding: 0 4px; }
   .rubrik-icon { width: 34px; height: 34px; border-radius: 9px; display: flex; align-items: center; justify-content: center; font-size: 17px; flex-shrink: 0; background: #eef3ef; }
   .rubrik-titel { font-size: 16px; font-weight: 800; color: #1c2621; }
   .rubrik-sub { font-size: 12px; color: #6d7d74; margin-top: 1px; }
   .footer-note { font-size: 11.5px; color: #93a098; text-align: center; margin-top: 36px; line-height: 1.6; }
+
+  .diagramm-figure { margin: 0; background: #fff; border: 1px solid #e2e8e3; border-radius: 14px; padding: 18px 16px 14px; }
+  .diagramm-scroll { overflow-x: auto; }
+  .diagramm-figure svg { width: 100%; height: auto; min-width: 620px; display: block; }
+  .diagramm-figure figcaption { font-size: 11.5px; color: #6d7d74; text-align: center; margin-top: 10px; line-height: 1.5; }
+  .legend { display: flex; gap: 16px; justify-content: center; flex-wrap: wrap; margin-top: 12px; font-size: 11px; color: #55625a; }
+  .legend span { display: inline-flex; align-items: center; gap: 5px; }
+  .legend i { width: 11px; height: 11px; border-radius: 3px; display: inline-block; }
+
   .status-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(210px, 1fr)); gap: 8px; }
   .status-card { display: flex; align-items: center; gap: 8px; background: #fff; border: 1px solid #e2e8e3; border-radius: 10px; padding: 10px 14px; cursor: pointer; position: relative; padding-right: 30px; transition: border-color 0.12s; }
   .status-card:hover { border-color: #00A94F; }
@@ -37,7 +47,6 @@
   .detail-panel ul { margin: 0 0 4px; padding-left: 18px; }
   .detail-panel li { margin-bottom: 2px; }
   .detail-leer { color: #93a098; font-style: italic; }
-  .back { display: block; text-align: center; font-size: 13px; color: #00A94F; text-decoration: none; font-weight: 700; margin-top: 6px; }
 </style>
 </head>
 <body>
@@ -48,6 +57,133 @@
   </header>
 
   <main class="content">
+    <section class="rubrik">
+      <div class="rubrik-head">
+        <span class="rubrik-icon">🔀</span>
+        <div>
+          <div class="rubrik-titel">Wéi d'Moduller zesummenhänken</div>
+          <div class="rubrik-sub">Wat gëtt vun engem Modul un den nächsten weiderginn</div>
+        </div>
+      </div>
+
+      <figure class="diagramm-figure">
+        <div class="diagramm-scroll">
+          <svg viewBox="0 0 920 830" role="img" aria-label="Datenfloss: Login gëtt fir all Modul gebraucht. De Projektplang (M2) gëtt Meilensteng un d'Planungstool (M9) a Kostenplang un d'Budget-Tool weider. D'Planungstool gëtt d'Datumer un d'Wochenberichter (M5) weider. D'Rendez-vousen (M8) leeën den Termin fir d'Fachgespréich/Ziler-Iwwerpréiwung (M10) fest. Wochenberichter a Fachgespréich/Ziler ginn hir Punkten un d'Bewertung (M6, mat Auto-Bemierkung M11) weider, d'Budget zielt just als Kritär mat. D'Bewertung gëtt eng Note un de Suivi (M3) an en Export un d'Notentabell (M7) weider. D'Dokumentatioun (M4) leeft onofhängeg a gëtt just als Link um Suivi ugewisen.">
+            <defs>
+              <marker id="arr" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+                <path d="M0,0 L10,5 L0,10 z" fill="#93a098"></path>
+              </marker>
+              <marker id="arr-dashed" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+                <path d="M0,0 L10,5 L0,10 z" fill="#a89be0"></path>
+              </marker>
+            </defs>
+
+            <!-- Gate: M1 Login -->
+            <rect x="60" y="24" width="800" height="46" rx="10" fill="#1c2621"></rect>
+            <text x="460" y="52" text-anchor="middle" font-size="14" font-weight="800" fill="#ffffff">🔐 M1 · Login &amp; Zougrëffskontroll — gëllt fir all Modul hei drënner</text>
+
+            <line x1="460" y1="70" x2="460" y2="104" stroke="#93a098" stroke-width="1.6" marker-end="url(#arr)"></line>
+
+            <!-- M2 Projektplang -->
+            <rect x="330" y="106" width="260" height="68" rx="12" fill="#eaf7ef" stroke="#00A94F" stroke-width="2"></rect>
+            <text x="460" y="134" text-anchor="middle" font-size="14" font-weight="800" fill="#1c2621">M2 · Projektplang</text>
+            <text x="460" y="154" text-anchor="middle" font-size="10.5" fill="#5b6b61">Schüler reecht Ziler, Meilensteng, Kostenplang an</text>
+
+            <line x1="460" y1="174" x2="190" y2="220" stroke="#93a098" stroke-width="1.6" marker-end="url(#arr)"></line>
+            <rect x="255" y="188" width="82" height="15" fill="#f6f8f6"></rect>
+            <text x="296" y="199" text-anchor="middle" font-size="10" fill="#55625a">Meilensteng</text>
+
+            <line x1="460" y1="174" x2="730" y2="220" stroke="#93a098" stroke-width="1.6" marker-end="url(#arr)"></line>
+            <rect x="580" y="188" width="82" height="15" fill="#f6f8f6"></rect>
+            <text x="621" y="199" text-anchor="middle" font-size="10" fill="#55625a">Kostenplang</text>
+
+            <!-- Row: M9 Planungstool / Budget -->
+            <rect x="60" y="222" width="260" height="68" rx="12" fill="#eaf3fb" stroke="#4576B5" stroke-width="2"></rect>
+            <text x="190" y="250" text-anchor="middle" font-size="13" font-weight="800" fill="#1c2621">M9 · Planungstool &amp; Gantt</text>
+            <text x="190" y="270" text-anchor="middle" font-size="10.5" fill="#5b6b61">Meilensteng verwalten a verfollegen</text>
+
+            <rect x="600" y="222" width="260" height="68" rx="12" fill="#eaf3fb" stroke="#4576B5" stroke-width="2"></rect>
+            <text x="730" y="250" text-anchor="middle" font-size="13" font-weight="800" fill="#1c2621">Budget-Tool</text>
+            <text x="730" y="270" text-anchor="middle" font-size="10.5" fill="#5b6b61">Ausgaben nom Genehmegen vum Prof</text>
+
+            <line x1="190" y1="290" x2="190" y2="324" stroke="#93a098" stroke-width="1.6" marker-end="url(#arr)"></line>
+            <rect x="200" y="300" width="58" height="15" fill="#f6f8f6"></rect>
+            <text x="229" y="311" text-anchor="middle" font-size="10" fill="#55625a">Datumer</text>
+
+            <!-- Row: M5 Wochenberichter / M8 Rendez-vousen -->
+            <rect x="60" y="326" width="260" height="68" rx="12" fill="#eaf3fb" stroke="#4576B5" stroke-width="2"></rect>
+            <text x="190" y="354" text-anchor="middle" font-size="13" font-weight="800" fill="#1c2621">M5 · Wochenberichter</text>
+            <text x="190" y="374" text-anchor="middle" font-size="10.5" fill="#5b6b61">All Woch, Punkte-Schema 2+1,5+1+0,5</text>
+
+            <rect x="600" y="326" width="260" height="68" rx="12" fill="#eaf3fb" stroke="#4576B5" stroke-width="2"></rect>
+            <text x="730" y="354" text-anchor="middle" font-size="13" font-weight="800" fill="#1c2621">M8 · Rendez-vousen</text>
+            <text x="730" y="374" text-anchor="middle" font-size="10.5" fill="#5b6b61">Erënnerung 2 Deeg virdrun</text>
+
+            <line x1="730" y1="394" x2="730" y2="428" stroke="#93a098" stroke-width="1.6" marker-end="url(#arr)"></line>
+            <rect x="742" y="404" width="50" height="15" fill="#f6f8f6"></rect>
+            <text x="767" y="415" text-anchor="middle" font-size="10" fill="#55625a">Termin</text>
+
+            <!-- M10 Fachgespréich / Ziler -->
+            <rect x="600" y="430" width="260" height="68" rx="12" fill="#eaf3fb" stroke="#4576B5" stroke-width="2"></rect>
+            <text x="730" y="454" text-anchor="middle" font-size="12.5" font-weight="800" fill="#1c2621">M10 · Fachgespréich &amp; Ziler</text>
+            <text x="730" y="474" text-anchor="middle" font-size="10.5" fill="#5b6b61">Punkten automatesch iwwerholl</text>
+
+            <!-- Convergence into M6 -->
+            <line x1="190" y1="394" x2="330" y2="532" stroke="#93a098" stroke-width="1.6" marker-end="url(#arr)"></line>
+            <rect x="222" y="466" width="52" height="15" fill="#f6f8f6"></rect>
+            <text x="248" y="477" text-anchor="middle" font-size="10" fill="#55625a">Punkten</text>
+
+            <line x1="730" y1="498" x2="590" y2="532" stroke="#93a098" stroke-width="1.6" marker-end="url(#arr)"></line>
+            <rect x="628" y="516" width="52" height="15" fill="#f6f8f6"></rect>
+            <text x="654" y="527" text-anchor="middle" font-size="10" fill="#55625a">Punkten</text>
+
+            <line x1="730" y1="290" x2="660" y2="532" stroke="#a89be0" stroke-width="1.6" stroke-dasharray="6,3" marker-end="url(#arr-dashed)"></line>
+            <rect x="700" y="400" width="120" height="15" fill="#f6f8f6"></rect>
+            <text x="760" y="411" text-anchor="middle" font-size="10" fill="#7a6fa0">zielt als Kritär mat</text>
+
+            <!-- M6 + M11 -->
+            <rect x="195" y="534" width="530" height="76" rx="14" fill="#fff2e2" stroke="#F67E1B" stroke-width="2"></rect>
+            <text x="460" y="564" text-anchor="middle" font-size="14" font-weight="800" fill="#1c2621">M6 · Bewertung  +  M11 · Auto-Bemierkung</text>
+            <text x="460" y="586" text-anchor="middle" font-size="10.5" fill="#5b6b61">Sammelt Punkten aus M5, M9 (Ziler) a M10 — generéiert Remarquen automatesch</text>
+
+            <line x1="330" y1="610" x2="230" y2="644" stroke="#93a098" stroke-width="1.6" marker-end="url(#arr)"></line>
+            <rect x="240" y="620" width="42" height="15" fill="#f6f8f6"></rect>
+            <text x="261" y="631" text-anchor="middle" font-size="10" fill="#55625a">Note</text>
+
+            <line x1="590" y1="610" x2="690" y2="644" stroke="#93a098" stroke-width="1.6" marker-end="url(#arr)"></line>
+            <rect x="638" y="620" width="52" height="15" fill="#f6f8f6"></rect>
+            <text x="664" y="631" text-anchor="middle" font-size="10" fill="#55625a">Export</text>
+
+            <!-- M3 Suivi / M7 Notenexport -->
+            <rect x="100" y="646" width="260" height="68" rx="12" fill="#eaf7ef" stroke="#00A94F" stroke-width="2"></rect>
+            <text x="230" y="674" text-anchor="middle" font-size="13" font-weight="800" fill="#1c2621">M3 · Suivi</text>
+            <text x="230" y="694" text-anchor="middle" font-size="10.5" fill="#5b6b61">Schüler gesäit Fortschrëtt, PDF-Export</text>
+
+            <rect x="560" y="646" width="260" height="68" rx="12" fill="#eaf7ef" stroke="#00A94F" stroke-width="2"></rect>
+            <text x="690" y="674" text-anchor="middle" font-size="13" font-weight="800" fill="#1c2621">M7 · Notenexport</text>
+            <text x="690" y="694" text-anchor="middle" font-size="10.5" fill="#5b6b61">CSV/Excel fir de Prof</text>
+
+            <!-- M4 Dokumentatioun, independent -->
+            <line x1="230" y1="742" x2="230" y2="716" stroke="#a89be0" stroke-width="1.6" stroke-dasharray="6,3" marker-end="url(#arr-dashed)"></line>
+            <rect x="248" y="722" width="86" height="15" fill="#f6f8f6"></rect>
+            <text x="291" y="733" text-anchor="middle" font-size="10" fill="#7a6fa0">Link ugewisen</text>
+
+            <rect x="100" y="744" width="260" height="60" rx="12" fill="#f3f0fb" stroke="#a89be0" stroke-width="2" stroke-dasharray="6,3"></rect>
+            <text x="230" y="768" text-anchor="middle" font-size="12.5" font-weight="800" fill="#1c2621">M4 · Dokumentatioun</text>
+            <text x="230" y="786" text-anchor="middle" font-size="10.5" fill="#5b6b61">Onofhängeg — Link um SharePoint</text>
+          </svg>
+        </div>
+        <figcaption>De Projektplang gëtt Meilensteng un d'Planungstool a Kostenplang un d'Budget-Tool weider. Wochenberichter a Fachgespréich/Ziler-Punkten fléissen an d'Bewertung, déi eng Note un de Suivi an en Export un d'Notentabell gëtt. D'Dokumentatioun leeft onofhängeg vun deem Floss.</figcaption>
+      </figure>
+
+      <div class="legend">
+        <span><i style="background:#00A94F"></i>Kär-Floss (Schüler → Note)</span>
+        <span><i style="background:#4576B5"></i>Lafend Verfollegung</span>
+        <span><i style="background:#F67E1B"></i>Bewertung / Zesummefaassung</span>
+        <span><i style="background:#a89be0"></i>gestrichelt = onofhängeg / just Kritär</span>
+      </div>
+    </section>
+
     <section class="rubrik">
       <div class="rubrik-head">
         <span class="rubrik-icon">📋</span>
