@@ -248,7 +248,7 @@ function App() {
         )}
       </main>
 
-      <h2 className="section-titel">💰 Budget / Kostepläng</h2>
+      <h2 id="budget" className="section-titel">💰 Budget / Kostepläng</h2>
       <main className="table-wrap">
         {!loading && !error && budget.length === 0 && <div className="empty">Nach keng Kostepläng ugefrot.</div>}
         {!loading && !error && budget.length > 0 && (
