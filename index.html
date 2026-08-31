@@ -245,7 +245,6 @@ function App() {
 
   const einreichen = () => senden("Eingereicht – wartet auf Freigabe");
   const freigeben = () => senden("Freigegeben & digital unterschrieben");
-  const zurueckOeffnen = () => senden("Entwurf");
 
   const entwurfZuruecksetzen = () => {
     if (!confirm("Lokalen Entwurf für " + (currentSchueler?.name || "diesen Schüler") + " wirklich löschen? Das kann nicht rückgängig gemacht werden.")) return;
@@ -281,7 +280,7 @@ function App() {
                 <span className={`status-pill status-${plan.status.startsWith("Frei") ? "done" : plan.status.startsWith("Ein") ? "pending" : "draft"}`}>{plan.status}</span>
               </div>
               <div className="hint-box">Der Entwurf wird automatisch gespeichert. Du kannst jederzeit wiederkommen und weiterarbeiten.</div>
-              {!locked && (
+              {!locked && plan.status === "Entwurf" && (
                 <button type="button" className="reset-btn" onClick={entwurfZuruecksetzen}>Lokalen Entwurf zurücksetzen</button>
               )}
             </>
@@ -293,7 +292,7 @@ function App() {
 
           {schuelerId && (
             <>
-              <fieldset disabled={locked} className="form">
+              <fieldset disabled={locked || plan.status.startsWith("Eingereicht")} className="form">
                 <section className="card">
                   <h2>1. Grunddaten</h2>
                   <div className="grid2">
@@ -422,12 +421,10 @@ function App() {
                   </button>
                 )}
                 {!locked && plan.status.startsWith("Eingereicht") && (
-                  <>
-                    <button className="btn btn-ghost" onClick={zurueckOeffnen} disabled={syncing}>Zurück zur Bearbeitung</button>
-                    <button className="btn btn-primary" disabled={syncing} onClick={freigeben}>
-                      {syncing ? "Sendet an Google Drive…" : "(Demo) Freigeben & unterschreiben"}
-                    </button>
-                  </>
+                  <span className="pending-note">
+                    ⏳ Areecht a waart op de Betreier — nëmmen deen kann de Plang nach eng Kéier zur Bearbeitung opmaachen.
+                    Kontaktéier däi Betreier, wann s du eppes nach änneren wëlls.
+                  </span>
                 )}
                 {locked && <span className="locked-note">🔒 Gesperrt — freigegeben und ins Suivi übernommen.</span>}
                 {docUrl && <a className="doc-link" href={docUrl} target="_blank" rel="noreferrer">📄 Google Doc öffnen ↗</a>}
@@ -494,6 +491,7 @@ body { margin: 0; font-family: -apple-system, "Segoe UI", Inter, Arial, sans-ser
 .btn-primary:disabled { background: #b7c6bd; cursor: not-allowed; }
 .btn-ghost { background: transparent; color: #294f3c; border-color: #c9d5cd; }
 .locked-note { font-size: 13px; color: #294f3c; font-weight: 600; }
+.pending-note { font-size: 13px; color: #8a5a12; font-weight: 600; background: #fbe8c6; padding: 8px 12px; border-radius: 8px; line-height: 1.5; }
 .doc-link { font-size: 13px; font-weight: 700; color: #00A94F; text-decoration: none; }
 .sync-error { color: #8a2b1f; font-size: 12.5px; background: #fbe4e1; padding: 8px 12px; border-radius: 8px; margin: -6px 22px 20px; }
 .toast { position: fixed; bottom: 22px; left: 50%; transform: translateX(-50%); background: #1c2621; color: #fff; padding: 10px 18px; border-radius: 8px; font-size: 13px; }
