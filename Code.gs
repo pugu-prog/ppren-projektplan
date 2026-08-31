@@ -336,6 +336,8 @@ function doPost(e) {
       return jsonResponse(speichereAusgab(data));
     } else if (data.typ === "ausgabLaeschen") {
       return jsonResponse(laeschAusgab(data));
+    } else if (data.typ === "projektplanWiedereroeffnen") {
+      return jsonResponse(projektplanWiedereroeffnen(data));
     } else {
       url = erstelleOderAktualisiereProjektplan(data);
     }
@@ -1214,6 +1216,14 @@ function erstelleOderAktualisiereProjektplan(data) {
   if (bisherigerStatus && bisherigerStatus.startsWith("Frei") && data.status !== "Entwurf") {
     throw new Error("Der Projektplan ist bereits freigegeben und gesperrt (Stand Ende Oktober). Nur die Betreuer/-in kann ihn zur Bearbeitung wieder öffnen.");
   }
+  // M2 (Lastenheft F2.7): Nëmmen de Betreier duerf en areecht/freigaben
+  // Plang zréck op "Entwurf" setzen. De Schüler-Formulaire (index.html)
+  // schéckt kee "Entwurf"-Status méi, wann de Plang scho méi wäit ass —
+  // dëse Serverside-Check ass eng zousätzlech Barrière, falls trotzdem
+  // een aneren Client (oder en direkten API-Opruff) dat probéiert.
+  if (bisherigerStatus && bisherigerStatus !== "Entwurf" && data.status === "Entwurf") {
+    throw new Error("Nëmmen de Betreier kann en areechte Projektplang zréck op Entwurf setzen. Kontaktéier w.e.g. däi Betreier.");
+  }
 
   const ordner = getStudentFolder(data.schueler);
   const { doc } = getOrCreateDoc(ordner, `_quelle_Projektplan_${data.schueler}`, true);
@@ -1239,6 +1249,31 @@ function erstelleOderAktualisiereProjektplan(data) {
   }
 
   return projektplanUrl;
+}
+
+/**
+ * M2 (Lastenheft F2.7): De Betreier setzt en areechte oder freigaben
+ * Projektplang vun engem Schüler zréck op "Entwurf", sou datt de Schüler
+ * nees dru kann änneren. Nëmme Proffen dierfen dat, iwwerpréift iwwer de
+ * proffToken. Gëtt vum Prof-Dashboard opgeruff.
+ */
+function projektplanWiedereroeffnen(data) {
+  const session = pruefSession(data.proffToken);
+  if (!session.valid || session.rolle !== "Prof") {
+    return { ok: false, error: "Nëmme Proffen dierfen e Projektplang zréck op Entwurf setzen." };
+  }
+  const sheet = SpreadsheetApp.openById(OVERVIEW_SHEET_ID).getSheets()[0];
+  const werte = sheet.getDataRange().getValues();
+  const header = werte[0] || [];
+  const statusSpalte = header.indexOf("Status");
+  if (statusSpalte === -1) return { ok: false, error: 'Spalt "Status" net fonnt.' };
+  for (let i = 1; i < werte.length; i++) {
+    if (werte[i][0] === data.schueler) {
+      sheet.getRange(i + 1, statusSpalte + 1).setValue("Entwurf");
+      return { ok: true };
+    }
+  }
+  return { ok: false, error: "Schüler net fonnt." };
 }
 
 /**
