@@ -28,13 +28,6 @@ const { useState, useEffect, useMemo } = React;
 
 const WEB_APP_URL = "https://script.google.com/macros/s/AKfycbwNDO4bJv1lYKvwg57TnHzVHxLIJJikxD0ey7RHlraqa9nUSs8liBJycF38p4X--t_6/exec";
 
-const SCHUELER = [
-  { id: "lea_muller", name: "Léa Muller", klasse: "1GSE" },
-  { id: "ben_weber", name: "Ben Weber", klasse: "2GSE" },
-  { id: "noah_schmit", name: "Noah Schmit", klasse: "1GSE" },
-  { id: "mia_reuter", name: "Mia Reuter", klasse: "2GSE" },
-  { id: "tom_klein", name: "Tom Klein", klasse: "2GSE" },
-];
 const TYPEN = ["Fachgespréich", "Ziel-Iwwerpréiwung"];
 
 function heutegDatumIso() { return new Date().toISOString().slice(0, 10); }
@@ -49,6 +42,19 @@ function dmyZuIso(dmy) {
 }
 
 function App() {
+  // M1: Nimm live vum Backend lueden, keng hart-codéiert Lëscht méi.
+  const [personen, setPersonen] = useState([]);
+  useEffect(() => {
+    fetch(WEB_APP_URL + "?namen=1")
+      .then((r) => r.json())
+      .then((d) => setPersonen(d.personen || []))
+      .catch(() => {});
+  }, []);
+  const SCHUELER = useMemo(
+    () => personen.filter((p) => p.rolle === "Schüler").map((p) => ({ id: p.numm, name: p.numm, klasse: p.klasse })),
+    [personen]
+  );
+
   const [schuelerId, setSchuelerId] = useState("");
   const [typ, setTyp] = useState("Fachgespréich");
   const [datum, setDatum] = useState(heutegDatumIso());
