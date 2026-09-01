@@ -45,11 +45,6 @@ const TEMPLATE_DOC_ID = "1kFM0tOdYrtpPRD6pyU7Rqrz0bDp8-1lR";
 const OVERVIEW_SHEET_ID = "1eAdAoDkiQMnowCV2sl1mrmTh3GT6W-_946uI06L3JAQ";
 const LOGO_FILE_ID = "12x_Q2xM-olpOeF8luCF-9uX2oFiPPBNW";
 
-/**
- * Placeholder-E-Mail-Adressen (Prototyp — später duerch richteg Schul-
- * Adressen ersetzen). Wird fir Erënnerungen (M5) an Notifikatiounen un
- * d'Betreuer/-innen benotzt.
- */
 const SCHUELER_EMAILS = {
   "Léa Muller": "lea.muller@lycee.lu",
   "Ben Weber": "ben.weber@lycee.lu",
@@ -67,11 +62,6 @@ const LEHRER_EMAILS = {
   "Alex Olinger": "alex.olinger@lycee.lu",
 };
 
-/**
- * Fügt ein Menü "PPREN" zur Übersicht-Sheet hinzu (nur wirksam, wenn dieses
- * Script direkt an die Sheet gebunden ist — Erweiterungen → Apps Script).
- * Erlaubt bequemes Entsperren per Dialog statt Code zu bearbeiten.
- */
 function onOpen() {
   SpreadsheetApp.getUi()
     .createMenu("PPREN")
@@ -84,11 +74,9 @@ function bewertungEntsperrenDialog() {
   const schuelerResp = ui.prompt("Bewertung entsperren", "Numm vum Schüler (genau wéi an der Tabell):", ui.ButtonSet.OK_CANCEL);
   if (schuelerResp.getSelectedButton() !== ui.Button.OK) return;
   const schueler = schuelerResp.getResponseText().trim();
-
   const periodeResp = ui.prompt("Bewertung entsperren", "Period (z.B. \"Semester 2\" oder \"Trimester 1\"):", ui.ButtonSet.OK_CANCEL);
   if (periodeResp.getSelectedButton() !== ui.Button.OK) return;
   const periode = periodeResp.getResponseText().trim();
-
   const sheet = SpreadsheetApp.openById(OVERVIEW_SHEET_ID).getSheetByName("Bewertungen");
   const werte = sheet.getDataRange().getValues();
   const statusSpalte = werte[0].indexOf("Status");
@@ -102,11 +90,11 @@ function bewertungEntsperrenDialog() {
   ui.alert("⚠️ Keng Bewertung fonnt fir: " + schueler + " – " + periode);
 }
 
-/**
- * Wird per HTTP GET aufgerufen (z. B. vom Dashboard via fetch()).
- * Liefert die komplette Übersichts-Sheet als JSON zurück.
- */
 function doGet(e) {
+  if (e.parameter && e.parameter.namen === "1") {
+    return jsonResponse({ ok: true, personen: getAktivePersonen() });
+  }
+
   const session = pruefSession(e.parameter && e.parameter.token);
   if (!session.valid) {
     return jsonResponse({ ok: false, error: "Net ugemellt." });
@@ -177,8 +165,6 @@ function doGet(e) {
         const obj = {};
         ozHeader.forEach((h, i) => {
           let wert = zeile[i];
-          // Google Sheets wandelt "2026-09-07"-Text oft automatesch a richteg
-          // Datumsobjeten ëm — hei zréck an e propperen "yyyy-MM-dd"-String.
           if (h === "Datum" && wert instanceof Date) {
             wert = Utilities.formatDate(wert, "Europe/Luxembourg", "yyyy-MM-dd");
           }
@@ -259,10 +245,8 @@ function doGet(e) {
     }
   }
 
-  // Schüler dierfen nëmmen hir eege Zeilen gesinn — Prof/Admin gesäit
-  // weiderhin alles (fir d'Iwwersiicht/Dashboard). OffiziellZaitplang
-  // gëtt bewosst NET gefiltert — dat sinn ëffentlech Klassendaten, keng
-  // perséinlech Informatiounen.
+  let personen = getAktivePersonen();
+
   if (session.rolle === "Schüler") {
     const numm = session.numm;
     projekte = projekte.filter((p) => p.Schüler === numm);
@@ -276,13 +260,9 @@ function doGet(e) {
     ausgaben = ausgaben.filter((a) => a.Schüler === numm);
   }
 
-  return jsonResponse({ ok: true, projekte, bewertungen, meilensteng, wochenberichte, offiziellZaitplang, fachgespraeche, zieluewerpreiwungen, rendezvousen, budget, ausgaben });
+  return jsonResponse({ ok: true, projekte, bewertungen, meilensteng, wochenberichte, offiziellZaitplang, fachgespraeche, zieluewerpreiwungen, rendezvousen, budget, ausgaben, personen });
 }
 
-/**
- * Wird per HTTP POST aufgerufen.
- * "typ": "bewertung" -> schreibeBewertung, sonst -> Projektplan-Flow.
- */
 function doPost(e) {
   try {
     const data = JSON.parse(e.postData.contents);
@@ -338,6 +318,10 @@ function doPost(e) {
       return jsonResponse(laeschAusgab(data));
     } else if (data.typ === "projektplanWiedereroeffnen") {
       return jsonResponse(projektplanWiedereroeffnen(data));
+    } else if (data.typ === "personSpäicheren") {
+      return jsonResponse(personSpäicheren(data));
+    } else if (data.typ === "personDeaktivéieren") {
+      return jsonResponse(personDeaktivéieren(data));
     } else {
       url = erstelleOderAktualisiereProjektplan(data);
     }
@@ -347,12 +331,6 @@ function doPost(e) {
   }
 }
 
-/**
- * Ändert nur die Status-Spalte einer bestehenden Bewertung (Entwurf ↔
- * Finalisiert), ohne die restlichen Daten anzufassen. Wird vom
- * Lehrer-Dashboard aus aufgerufen, damit die Lehrperson nicht in die
- * Google Sheet wechseln muss.
- */
 function aendereBewertungsStatus(schueler, periode, neuerStatus) {
   if (neuerStatus !== "Entwurf" && neuerStatus !== "Finalisiert") {
     throw new Error("Ungültiger Status: " + neuerStatus);
@@ -370,11 +348,6 @@ function aendereBewertungsStatus(schueler, periode, neuerStatus) {
   throw new Error("Keine Bewertung gefunden für " + schueler + " – " + periode);
 }
 
-/**
- * Speichert die komplette Meilensteng-Liste eines Schülers als JSON in
- * einer Zeile im Tab "Meilensteng" (erstellt den Tab bei Bedarf). Ersetzt
- * die vorherige Liste komplett (keine Einzelzeilen pro Meilenstein).
- */
 function speichereMeilensteng(schueler, klasse, meilensteng) {
   const ss = SpreadsheetApp.openById(OVERVIEW_SHEET_ID);
   let sheet = ss.getSheetByName("Meilensteng");
@@ -393,14 +366,6 @@ function speichereMeilensteng(schueler, klasse, meilensteng) {
   sheet.appendRow([schueler, klasse, JSON.stringify(meilensteng), jetzt]);
 }
 
-/**
- * Synchroniséiert d'Meilensteng aus dem Projektplang-Formulaire (index.html)
- * an de gemeinsame "Meilensteng"-Tab, deen och d'Planungstool (planung.html)
- * benotzt. Ersetzt NËMMEN déi Zeilen mat quell "Projektplang" (stabil id
- * "pp-0", "pp-1", ...) — Eegen-Meilensteng aus dem Planungstool a
- * Offiziell-Overlay (Status/Notiz) bleiwen onberéiert. Domat sinn allen
- * zwou Säiten iwwert de selwechte Sheet verbonnen (bidirektional).
- */
 function synchroniséierProjektplangMeilensteng(schueler, klasse, planMeilensteng) {
   const ss = SpreadsheetApp.openById(OVERVIEW_SHEET_ID);
   let sheet = ss.getSheetByName("Meilensteng");
@@ -421,10 +386,8 @@ function synchroniséierProjektplangMeilensteng(schueler, klasse, planMeilensten
     }
   }
 
-  // All Zeilen behalen, déi NET vum Projektplang kommen (Eegen + Offiziell-Overlay)
   const ouni_pp = bestehend.filter((m) => m.quell !== "Projektplang");
 
-  // Nei Projektplang-Zeilen bauen; bestoend Status/Notiz iwwerhuelen, wa selwecht pp-id
   const bestehendPpMap = {};
   bestehend.filter((m) => m.quell === "Projektplang").forEach((m) => { bestehendPpMap[m.id] = m; });
 
@@ -449,13 +412,6 @@ function synchroniséierProjektplangMeilensteng(schueler, klasse, planMeilensten
   }
 }
 
-/**
- * OFFIZIELLE ZÄITPLANG (zentral, nëmmen duerch Proffen ännerbar)
- * -----------------------------------------------------------
- * Eng eenzeg Quell pro Klass (1GSE/2GSE), déi bei all Ofroff live
- * matgeschéckt gëtt — net méi an d'Schüler-Meilensteng kopéiert.
- * Update duerch de Prof gëtt sou automatesch bei alle Schüler sichtbar.
- */
 function getOffiziellZaitplangSheet() {
   const ss = SpreadsheetApp.openById(OVERVIEW_SHEET_ID);
   let sheet = ss.getSheetByName("OffiziellZaitplang");
@@ -466,11 +422,9 @@ function getOffiziellZaitplangSheet() {
   return sheet;
 }
 
-/** Ersetzt d'komplett offiziell Lëscht fir eng Klass (1GSE oder 2GSE). */
 function speichereOffiziellZaitplang(klasse, meilensteng) {
   const sheet = getOffiziellZaitplangSheet();
   const werte = sheet.getDataRange().getValues();
-  // Al Zeile fir dës Klass ewechhuelen (vun hannen no vir, fir Indexen net ze verrécken)
   for (let i = werte.length - 1; i >= 1; i--) {
     if (werte[i][0] === klasse) sheet.deleteRow(i + 1);
   }
@@ -479,13 +433,6 @@ function speichereOffiziellZaitplang(klasse, meilensteng) {
   });
 }
 
-/**
- * EEMOLEG AUSFÉIEREN: iwwerhëlt d'Datumer aus der grafescher zeitplang.html-
- * Iwwersiicht (2026/27) an de neien zentrale OffiziellZaitplang-Tab, sou
- * datt net alles vun Null un am zeitplang-verwalten.html nei ageginn
- * gëtt. Am Editor auswielen an "Run" drécken — brauch just eemol gemaach
- * ze ginn (iwwerschreift eng eventuell scho bestehend Lëscht fir 1GSE/2GSE).
- */
 function seedOffiziellZaitplangVunZeitplangHtml() {
   const EIN_1GSE = [
     { datum: "2026-09-07", titel: "Präsentation PPREN", kategorie: "Event" },
@@ -522,14 +469,6 @@ function seedOffiziellZaitplangVunZeitplangHtml() {
   Logger.log("✅ OffiziellZaitplang gefëllt: " + EIN_1GSE.length + " Zeile(n) fir 1GSE, " + EIN_2GSE.length + " Zeile(n) fir 2GSE.");
 }
 
-/**
- * WOCHENBERICHTE (M5)
- * -------------------
- * Punkteschema pro Bericht: Zusammenfassung 2P, Fortschritt 1,5P,
- * Anhänge 1P, Grammatik 0,5P = 5P total. Ein Bericht ist eine eigene
- * Zeile im Tab "Wochenberichte" (nicht als JSON gebündelt, da jede
- * Woche individuell korrigiert/bewertet wird).
- */
 function getWochenberichteSheet() {
   const ss = SpreadsheetApp.openById(OVERVIEW_SHEET_ID);
   let sheet = ss.getSheetByName("Wochenberichte");
@@ -545,14 +484,12 @@ function getWochenberichteSheet() {
   return sheet;
 }
 
-/** Gëtt d'Betreuer/-innen-Nimm (max. 2) fir e Schüler aus der Übersicht zréck. */
 function holBetreuerFuerSchueler(schueler) {
-  const kombinéiert = getBetreuerFuerSchueler(schueler); // scho bestehend, gëtt "Numm1, Numm2" oder "Numm1" zréck
+  const kombinéiert = getBetreuerFuerSchueler(schueler);
   if (!kombinéiert) return [];
   return kombinéiert.split(",").map((s) => s.trim()).filter(Boolean).slice(0, 2);
 }
 
-/** Verschéckt eng Notifikatioun un déi zougewisen Betreuer/-innen, dass e Bericht ze korrigéieren ass. */
 function notifizéierBetreuerNeierBericht(schueler, betreuerListe, woche) {
   betreuerListe.forEach((betreuer) => {
     const email = LEHRER_EMAILS[betreuer];
@@ -564,23 +501,15 @@ function notifizéierBetreuerNeierBericht(schueler, betreuerListe, woche) {
         body: schueler + " huet e Wochenbericht fir d'Woch " + woche + " ofginn.\n\n" +
           "Hei korrigéieren: https://pugu-prog.github.io/ppren-projektplan/wochenberichte-korrigeieren.html",
       });
-    } catch (e) { /* E-Mail-Feeler blockéiert net d'Späicheren */ }
+    } catch (e) { }
   });
 }
 
-/**
- * Schüler reicht einen neuen Wochenbericht ein (oder aktualisiert einen
- * eigenen, noch nicht bewäerten, per id). Für eine bestimmte Woche+Periode
- * kann pro Schüler nur EIN Bericht existieren ("Wochensperr") — sobald er
- * bewäert ist, ist die Woche endgültig gesperrt.
- */
 function speichereWochenbericht(data) {
   const sheet = getWochenberichteSheet();
   const jetzt = Utilities.formatDate(new Date(), "Europe/Luxembourg", "dd.MM.yyyy HH:mm");
   const werte = sheet.getDataRange().getValues();
 
-  // Anhänge-Dateien (falls vorhanden) zuerst in Drive speichern und als
-  // Links an den Anhänge-Text anhängen.
   let anhaengeText = data.anhaenge || "";
   if (data.anhaengeDateien && data.anhaengeDateien.length > 0) {
     const ordner = getStudentFolder(data.schueler);
@@ -593,9 +522,7 @@ function speichereWochenbericht(data) {
         const neieDatei = wbOrdner.createFile(blob);
         neieDatei.setSharing(DriveApp.Access.ANYONE_WITH_LINK, DriveApp.Permission.VIEW);
         links.push(neieDatei.getUrl());
-      } catch (e) {
-        // eng defekt Datei blockéiert net déi aner
-      }
+      } catch (e) { }
     });
     if (links.length > 0) {
       anhaengeText = (anhaengeText ? anhaengeText + "\n" : "") + links.join("\n");
@@ -618,7 +545,6 @@ function speichereWochenbericht(data) {
     }
   }
 
-  // Wochensperr: fir déiselwecht Woch+Periode ka just ee Bericht existéieren
   for (let i = 1; i < werte.length; i++) {
     if (werte[i][1] === data.schueler && werte[i][3] === data.periode && werte[i][4] === data.woche) {
       throw new Error("Fir dës Woch (" + data.woche + ") hues du schonn en Bericht ofginn. Änner de bestehende Bericht amplaz en neien unzeleeën.");
@@ -636,10 +562,6 @@ function speichereWochenbericht(data) {
   return neiId;
 }
 
-/**
- * Prof gëtt engem Wochenbericht Punkten (4 Deelkritären). Gesamtzuel
- * gëtt matgespäichert, Status op "Bewäert" gesat.
- */
 function bewerteWochenbericht(id, punkte) {
   const sheet = getWochenberichteSheet();
   const werte = sheet.getDataRange().getValues();
@@ -653,11 +575,6 @@ function bewerteWochenbericht(id, punkte) {
   throw new Error("Wochebericht net fonnt: " + id);
 }
 
-/**
- * Markéiert e verpassten/automatesch op 0 gesaten Wochenbericht als
- * "Entschëllegt" mat engem Grond — dës Woch gëtt duerno aus der
- * Notebuch-Berechnung erausgeholl (weder Punkte nach Strof).
- */
 function entschellegWochenbericht(id, grond) {
   const sheet = getWochenberichteSheet();
   const werte = sheet.getDataRange().getValues();
@@ -672,14 +589,6 @@ function entschellegWochenbericht(id, grond) {
   throw new Error("Wochebericht net fonnt: " + id);
 }
 
-/**
- * Summe der bewäerten Wochenberichter-Punkte für einen Schüler in einer
- * Periode — wird in M6 (Bewertung) automatesch als Max/Punkte benotzt,
- * sodass sech d'Zuel automatesch un déi tatsächlech ofginn Berichter
- * upasst (z. B. 2GSE Trimester 3 mat wéineg/kenge Berichter méi).
- * "Verpasst" (automatesch op 0, keng Excuse) zielt voll als 0-Punkte-
- * Bericht mat an de Max eran. "Entschëllegt" gëtt komplett erausgelooss.
- */
 function berechneWochenberichtSumme(schueler, periode) {
   const sheet = getWochenberichteSheet();
   const werte = sheet.getDataRange().getValues();
@@ -689,30 +598,22 @@ function berechneWochenberichtSumme(schueler, periode) {
   for (let i = 1; i < werte.length; i++) {
     if (werte[i][1] === schueler && werte[i][3] === periode) {
       const status = werte[i][9];
-      if (status === "Entschëllegt") continue; // zielt guer net mat
+      if (status === "Entschëllegt") continue;
       anzahlAgereecht++;
       if (status === "Bewäert") {
         anzahlBewäert++;
         try {
           const p = JSON.parse(werte[i][10]);
           summe += (p.zusammenfassung || 0) + (p.fortschritt || 0) + (p.anhaenge || 0) + (p.grammatik || 0);
-        } catch (e) { /* ignore */ }
+        } catch (e) { }
       } else if (status === "Verpasst") {
-        anzahlBewäert++; // zielt mat 0 Punkte an de Max eran (Strof)
+        anzahlBewäert++;
       }
     }
   }
   return { summe, max: anzahlBewäert * 5, anzahlBewäert, anzahlAgereecht };
 }
 
-/**
- * FACHGESPRÉICHER (M10)
- * ----------------------
- * Zwee Fachgespréicher pro Joer (Schéma no "Instruktionen_Pruefer_Fachgespraeche_DE"):
- * Variante A: 5 Froen × 6P, Variante B (mat Skizze): 4 Froen × 7,5P — total 30P.
- * Optional zousätzlech "Eegebewäertung/Reflexioun" (10P), well dat bei e puer
- * Perioden (2GSE Tri1/Tri3) als eegent Ënnerkritär bäikënnt.
- */
 function getFachgespraechSheet() {
   const ss = SpreadsheetApp.openById(OVERVIEW_SHEET_ID);
   let sheet = ss.getSheetByName("Fachgespraeche");
@@ -727,7 +628,6 @@ function getFachgespraechSheet() {
   return sheet;
 }
 
-/** Speichert (oder aktualisiert per id) ein Fachgespräch-Ergebnis. */
 function speichereFachgespraech(data) {
   const sheet = getFachgespraechSheet();
   const jetzt = Utilities.formatDate(new Date(), "Europe/Luxembourg", "dd.MM.yyyy HH:mm");
@@ -753,14 +653,6 @@ function speichereFachgespraech(data) {
   return zeileWerte[0];
 }
 
-/**
- * ZIELUEWERPREIWUNGEN
- * --------------------
- * Kuerz Rendez-vous (10-12 Min, keng Preparatioun) fir de Fortschrëtt vun
- * engem Thema (z. B. Planung, Ëmsetzung) ze iwwerpréiwen. Selwecht Kritären
- * fir all Schüler; d'Zuel vun de Rendez-vousen an de Max-Wäert kënnen
- * variéieren (dofir Max pro Termin gespäichert, net fest virginn).
- */
 function getZieluewerpreiwungSheet() {
   const ss = SpreadsheetApp.openById(OVERVIEW_SHEET_ID);
   let sheet = ss.getSheetByName("Zieluewerpreiwungen");
@@ -774,7 +666,6 @@ function getZieluewerpreiwungSheet() {
   return sheet;
 }
 
-/** Speichert (oder aktualisiert per id) eng Ziel-Iwwerpréiwung. */
 function speichereZieluewerpreiwung(data) {
   const sheet = getZieluewerpreiwungSheet();
   const jetzt = Utilities.formatDate(new Date(), "Europe/Luxembourg", "dd.MM.yyyy HH:mm");
@@ -805,7 +696,81 @@ const SCHUELER_LISTE = [
   { name: "Tom Klein", klasse: "2GSE" },
 ];
 
-/* ================= Rendez-vousen (M8): Planung + Erënnerungen ================= */
+function getPersonenSheet() {
+  const ss = SpreadsheetApp.openById(OVERVIEW_SHEET_ID);
+  let sheet = ss.getSheetByName("Personen");
+  if (!sheet) {
+    sheet = ss.insertSheet("Personen");
+    sheet.appendRow(["Numm", "Roll", "Klasse", "Email", "Aktiv"]);
+  }
+  return sheet;
+}
+
+function seedPersonenVunListen() {
+  const sheet = getPersonenSheet();
+  const werte = sheet.getDataRange().getValues();
+  const bestehend = new Set(werte.slice(1).map((z) => z[0]));
+  let neiZuel = 0;
+  SCHUELER_LISTE.forEach((s) => {
+    if (bestehend.has(s.name)) return;
+    sheet.appendRow([s.name, "Schüler", s.klasse, SCHUELER_EMAILS[s.name] || "", "Jo"]);
+    neiZuel++;
+  });
+  Object.keys(LEHRER_EMAILS).forEach((numm) => {
+    if (bestehend.has(numm)) return;
+    sheet.appendRow([numm, "Prof", "", LEHRER_EMAILS[numm], "Jo"]);
+    neiZuel++;
+  });
+  Logger.log("✅ " + neiZuel + " Persoun(en) an de Personen-Tab kopéiert.");
+}
+
+function getAktivePersonen() {
+  const sheet = getPersonenSheet();
+  const werte = sheet.getDataRange().getValues();
+  return werte.slice(1)
+    .filter((z) => z[4] !== "Nee")
+    .map((z) => ({ numm: z[0], rolle: z[1], klasse: z[2] }));
+}
+
+function personSpäicheren(data) {
+  const session = pruefSession(data.proffToken);
+  if (!session.valid || session.rolle !== "Prof") {
+    return { ok: false, error: "Nëmme Proffen dierfen Persounen verwalten." };
+  }
+  if (!data.numm || !data.rolle) return { ok: false, error: "Numm a Roll erfuerderlech." };
+  if (data.rolle === "Schüler" && !data.klasse) return { ok: false, error: "Klasse erfuerderlech fir Schüler." };
+
+  const sheet = getPersonenSheet();
+  const werte = sheet.getDataRange().getValues();
+  for (let i = 1; i < werte.length; i++) {
+    if (werte[i][0] === data.numm) {
+      sheet.getRange(i + 1, 1, 1, 5).setValues([[data.numm, data.rolle, data.klasse || "", data.email || "", "Jo"]]);
+      return { ok: true, neiPin: null };
+    }
+  }
+  sheet.appendRow([data.numm, data.rolle, data.klasse || "", data.email || "", "Jo"]);
+
+  const pin = String(Math.floor(1000 + Math.random() * 9000));
+  const salt = Utilities.getUuid();
+  getLoginSheet().appendRow([data.numm, data.rolle, data.klasse || "", hashPin(pin, salt), salt]);
+  return { ok: true, neiPin: pin };
+}
+
+function personDeaktivéieren(data) {
+  const session = pruefSession(data.proffToken);
+  if (!session.valid || session.rolle !== "Prof") {
+    return { ok: false, error: "Nëmme Proffen dierfen Persounen (de)aktivéieren." };
+  }
+  const sheet = getPersonenSheet();
+  const werte = sheet.getDataRange().getValues();
+  for (let i = 1; i < werte.length; i++) {
+    if (werte[i][0] === data.numm) {
+      sheet.getRange(i + 1, 5).setValue(data.aktiv ? "Jo" : "Nee");
+      return { ok: true };
+    }
+  }
+  return { ok: false, error: "Net fonnt." };
+}
 
 function getRendezvousenSheet() {
   const ss = SpreadsheetApp.openById(OVERVIEW_SHEET_ID);
@@ -817,10 +782,6 @@ function getRendezvousenSheet() {
   return sheet;
 }
 
-/**
- * Plangt en neie Rendez-vous (Fachgespréich oder Ziel-Iwwerpréiwung) fir en
- * Datum an der Zukunft. Gëtt vum Prof-Formulaire opgeruff.
- */
 function plangRendezvous(data) {
   const session = pruefSession(data.token);
   if (!session.valid || session.rolle !== "Prof") {
@@ -836,7 +797,6 @@ function plangRendezvous(data) {
   return { ok: true, id: neiId };
 }
 
-/** Läscht e geplangte Rendez-vous (z.B. wann en ofgesot gëtt). */
 function läschRendezvous(data) {
   const session = pruefSession(data.token);
   if (!session.valid || session.rolle !== "Prof") {
@@ -850,14 +810,6 @@ function läschRendezvous(data) {
   return { ok: false, error: "Net fonnt." };
 }
 
-/**
- * BUDGET-TOOL (M9, F9.6-F9.11)
- * -----------------------------
- * Eng einfach Ausgaben-Lëscht pro Schüler mat engem Fräigab-Gate: den
- * 500€-Budget ass eréischt notzbar, nodeem de Prof de Kostenplang
- * genehmegt huet (Status "Genehmegt"). Bis dohin ass de Status
- * "Ageraecht" (oder guer keng Zeil, wann nach näischt ugefrot gouf).
- */
 const BUDGET_STANDARD_MAX = 500;
 
 function getBudgetSheet() {
@@ -880,12 +832,6 @@ function getAusgabenSheet() {
   return sheet;
 }
 
-/**
- * Schüler freet d'Genehmegung vum Kostenplang un (nodeem en am
- * Projektplang-Formulaire ausgefëllt gouf). Erstellt d'Zeil mat Status
- * "Ageraecht", wa nach keng do ass — eng scho "Genehmegt" Zeil gëtt
- * net iwwerschriwwen, fir kee bestoend Fräigab ze verléieren.
- */
 function kostenplanAgereechen(data) {
   const session = pruefSession(data.token);
   if (!session.valid) return { ok: false, error: "Net ugemellt." };
@@ -893,14 +839,13 @@ function kostenplanAgereechen(data) {
   const werte = sheet.getDataRange().getValues();
   for (let i = 1; i < werte.length; i++) {
     if (werte[i][0] === data.schueler) {
-      return { ok: true, status: werte[i][2] }; // scho eng Zeil, näischt änneren
+      return { ok: true, status: werte[i][2] };
     }
   }
   sheet.appendRow([data.schueler, data.klasse || "", "Ageraecht", BUDGET_STANDARD_MAX, "", ""]);
   return { ok: true, status: "Ageraecht" };
 }
 
-/** Nëmme Proffen dierfen e Kostenplang genehmegen (F9.6). */
 function kostenplanGenehmegen(data) {
   const session = pruefSession(data.token);
   if (!session.valid || session.rolle !== "Prof") {
@@ -919,11 +864,6 @@ function kostenplanGenehmegen(data) {
   return { ok: true };
 }
 
-/**
- * Schüler dréit eng Ausgab an — nëmmen erlaabt wann de Kostenplang scho
- * genehmegt ass (server-säiteg Gate, net just am UI). Optional Beleg-Foto
- * gëtt op Drive gespäichert (selwechte Muster wéi Wochenbericht-Ahänk).
- */
 function speichereAusgab(data) {
   const session = pruefSession(data.token);
   if (!session.valid) return { ok: false, error: "Net ugemellt." };
@@ -945,7 +885,7 @@ function speichereAusgab(data) {
       const neieDatei = belegOrdner.createFile(blob);
       neieDatei.setSharing(DriveApp.Access.ANYONE_WITH_LINK, DriveApp.Permission.VIEW);
       belegLink = neieDatei.getUrl();
-    } catch (e) { /* e defekte Beleg blockéiert net d'Späicheren vun der Ausgab */ }
+    } catch (e) { }
   }
 
   const sheet = getAusgabenSheet();
@@ -955,7 +895,6 @@ function speichereAusgab(data) {
   return { ok: true, id: neiId };
 }
 
-/** Läscht eng eege Ausgab (oder, als Prof, egal wéi eng — reng Iwwersiicht, kee Fräigab-Workflow néideg laut F9.10). */
 function laeschAusgab(data) {
   const session = pruefSession(data.token);
   if (!session.valid) return { ok: false, error: "Net ugemellt." };
@@ -973,12 +912,6 @@ function laeschAusgab(data) {
   return { ok: false, error: "Net fonnt." };
 }
 
-/**
- * ZÄITGESTEIERT (all Dag ~7.00h): erënnert Schüler un all Rendez-vous
- * (Fachgespréich/Ziel-Iwwerpréiwung), deen an genee 2 Deeg ass, an nach
- * net erënnert gouf. Markéiert duerno als "Erënnert", fir keng Duebel-Mailen
- * ze verschécken.
- */
 function sendeRendezvousErennerungen() {
   const sheet = getRendezvousenSheet();
   const werte = sheet.getDataRange().getValues();
@@ -1003,16 +936,12 @@ function sendeRendezvousErennerungen() {
             (zaeit ? " um " + zaeit : "") + ".\n" + (notiz ? "\nNotiz vum Prof: " + notiz + "\n" : "") +
             "\nBereet dech w.e.g. gutt vir.",
         });
-      } catch (e) { /* E-Mail-Feeler blockéiert net déi anerer */ }
+      } catch (e) { }
     }
     sheet.getRange(i + 1, 9).setValue("Jo");
   }
 }
 
-/**
- * EEMOLEG AUSFÉIEREN: setzt den zäitgesteierte Trigger fir d'Rendez-vous-
- * Erënnerungen op (all Dag ~7.00h). Am Editor auswielen an "Run" drécken.
- */
 function installRendezvousTrigger() {
   ScriptApp.getProjectTriggers().forEach((t) => {
     if (t.getHandlerFunction() === "sendeRendezvousErennerungen") ScriptApp.deleteTrigger(t);
@@ -1021,7 +950,6 @@ function installRendezvousTrigger() {
   Logger.log("✅ Trigger installéiert: Rendez-vous-Erënnerung all Dag ~7.00h.");
 }
 
-/** Gëtt d'Woch-Label (Méindeg–Sonndeg) fir haut zréck, am selwechten Format wéi d'Formulairen. */
 function aktuellWocheLabel() {
   const heute = new Date();
   const tag = heute.getDay();
@@ -1034,10 +962,6 @@ function aktuellWocheLabel() {
   return fmt(montag) + " – " + fmt(sonndeg);
 }
 
-/**
- * ZÄITGESTEIERT (Sonndes ~10.00h, 12h virum Ofgabedatum): erënnert all
- * Schüler, deen fir déi lafend Woch nach kee Bericht ofginn huet.
- */
 function sendeErennerungen() {
   const woche = aktuellWocheLabel();
   const sheet = getWochenberichteSheet();
@@ -1056,16 +980,10 @@ function sendeErennerungen() {
           "D'Ofgab ass haut Owend um 22.00h — duerno gëtt automatesch 0 Punkte gesat.\n\n" +
           "Hei ofginn: https://pugu-prog.github.io/ppren-projektplan/wochenbericht.html",
       });
-    } catch (e) { /* E-Mail-Feeler blockéiert net déi aner Schüler */ }
+    } catch (e) { }
   });
 }
 
-/**
- * ZÄITGESTEIERT (Sonndes ~23.00h, kuerz no der 22.00h-Fräist): all
- * Schüler ouni Bericht fir déi lafend Woch kritt automatesch e
- * "Verpasst"-Bericht mat 0 Punkte. De Prof kann dat spéider mat enger
- * valabeler Excuse op "Entschëllegt" ännere (kee Punktoofzuch méi).
- */
 function schliesseWochenberichterAb() {
   const woche = aktuellWocheLabel();
   const sheet = getWochenberichteSheet();
@@ -1075,8 +993,6 @@ function schliesseWochenberichterAb() {
 
   SCHUELER_LISTE.forEach((s) => {
     if (ofginn.has(s.name)) return;
-    // Rode Period: déi lescht Period, fir déi de Schüler scho Berichter huet
-    // (kann net "richteg" wëssen ouni Schouljoerkalenner ze kennen).
     const eegen = werte.slice(1).filter((z) => z[1] === s.name);
     const letztPeriode = eegen.length > 0 ? eegen[eegen.length - 1][3] : (s.klasse === "2GSE" ? "Trimester 1" : "Semester 1");
     const betreuerListe = holBetreuerFuerSchueler(s.name);
@@ -1090,11 +1006,6 @@ function schliesseWochenberichterAb() {
   });
 }
 
-/**
- * EEMOLEG AUSFÉIEREN: setzt déi zwee zäitgesteiert Trigger op
- * (Erënnerung Sonndes 10.00h, Ofschloss Sonndes 23.00h). Am Editor
- * auswielen an "Run" drécken — brauch just eemol gemaach ze ginn.
- */
 function installWochenberichtTriggers() {
   ScriptApp.getProjectTriggers().forEach((t) => {
     if (t.getHandlerFunction() === "sendeErennerungen" || t.getHandlerFunction() === "schliesseWochenberichterAb") {
@@ -1106,26 +1017,16 @@ function installWochenberichtTriggers() {
   Logger.log("✅ Trigger installéiert: Erënnerung Sonndes ~10.00h, Ofschloss Sonndes ~23.00h.");
 }
 
-/* ================= Ordner & Dokument-Helfer ================= */
-
-/**
- * Berechnet das aktuelle Schuljahr als Label (z. B. "2026-27").
- * Schuljahresbeginn wird auf September angenommen.
- */
 function getSchuljahrLabel() {
   const jetzt = new Date();
   const jahr = jetzt.getFullYear();
-  const monat = jetzt.getMonth() + 1; // 1–12
+  const monat = jetzt.getMonth() + 1;
   if (monat >= 9) {
     return `${jahr}-${String(jahr + 1).slice(-2)}`;
   }
   return `${jahr - 1}-${String(jahr).slice(-2)}`;
 }
 
-/**
- * Liefert (und legt bei Bedarf an) den Schuljahres-Unterordner
- * innerhalb des Hauptordners, z. B. "Projekte/2026-27".
- */
 function getSchuljahrOrdner() {
   const hauptordner = DriveApp.getFolderById(FOLDER_ID);
   const label = getSchuljahrLabel();
@@ -1156,71 +1057,37 @@ function getOrCreateDoc(ordner, dateiname, ausVorlage) {
   return { doc: neuesDoc, neu: true };
 }
 
-/**
- * Exportiert ein (internes, mit "_quelle_" beginnendes) Google Doc als
- * echte .docx-Datei im selben Ordner. Eine bereits vorhandene Word-Datei
- * mit demselben sichtbaren Namen wird ersetzt (alte Version in den
- * Papierkorb, neue Version neu angelegt – direktes Überschreiben einer
- * .docx ist über Apps Script nicht möglich).
- * Gibt die URL der Word-Datei zurück (das ist der Link, den Schüler/
- * Lehrer zum Öffnen in Word/Word Online benutzen).
- */
 function exportiereAlsWord(doc, ordner, sichtbarerName) {
   doc.saveAndClose();
-
-  // File.getAs(MimeType.MICROSOFT_WORD) wird von Google Docs nicht
-  // unterstützt. Stattdessen über den offiziellen Google-Docs-Export-
-  // Endpunkt exportieren (funktioniert zuverlässig, keine zusätzlichen
-  // "Advanced Services" nötig).
   const exportUrl = `https://docs.google.com/document/d/${doc.getId()}/export?format=docx`;
   const response = UrlFetchApp.fetch(exportUrl, {
     headers: { Authorization: "Bearer " + ScriptApp.getOAuthToken() },
   });
   const wordBlob = response.getBlob().setName(sichtbarerName + ".docx");
-
   const alte = ordner.getFilesByName(sichtbarerName + ".docx");
   while (alte.hasNext()) alte.next().setTrashed(true);
-
   const wordDatei = ordner.createFile(wordBlob);
   return wordDatei.getUrl();
 }
 
-/**
- * Exportiert dasselbe Dokument zusätzlich als PDF – das ist die
- * Ansicht, die der Schüler/die Schülerin zu sehen bekommt (reine
- * Leseansicht, nicht bearbeitbar). Wird "Anyone with link can view"
- * freigegeben, damit Schüler/-innen es ohne Drive-Berechtigung öffnen
- * können.
- */
 function exportiereAlsPdf(doc, ordner, sichtbarerName) {
   const exportUrl = `https://docs.google.com/document/d/${doc.getId()}/export?format=pdf`;
   const response = UrlFetchApp.fetch(exportUrl, {
     headers: { Authorization: "Bearer " + ScriptApp.getOAuthToken() },
   });
   const pdfBlob = response.getBlob().setName(sichtbarerName + ".pdf");
-
   const alte = ordner.getFilesByName(sichtbarerName + ".pdf");
   while (alte.hasNext()) alte.next().setTrashed(true);
-
   const pdfDatei = ordner.createFile(pdfBlob);
-  // Leseansicht für jeden mit Link freigeben, damit Schüler/-innen ohne
-  // eigene Drive-Berechtigung zugreifen können.
   pdfDatei.setSharing(DriveApp.Access.ANYONE_WITH_LINK, DriveApp.Permission.VIEW);
   return pdfDatei.getUrl();
 }
-
-/* ================= Projektplan-Dokument ================= */
 
 function erstelleOderAktualisiereProjektplan(data) {
   const bisherigerStatus = getAktuellenStatus(data.schueler);
   if (bisherigerStatus && bisherigerStatus.startsWith("Frei") && data.status !== "Entwurf") {
     throw new Error("Der Projektplan ist bereits freigegeben und gesperrt (Stand Ende Oktober). Nur die Betreuer/-in kann ihn zur Bearbeitung wieder öffnen.");
   }
-  // M2 (Lastenheft F2.7): Nëmmen de Betreier duerf en areecht/freigaben
-  // Plang zréck op "Entwurf" setzen. De Schüler-Formulaire (index.html)
-  // schéckt kee "Entwurf"-Status méi, wann de Plang scho méi wäit ass —
-  // dëse Serverside-Check ass eng zousätzlech Barrière, falls trotzdem
-  // een aneren Client (oder en direkten API-Opruff) dat probéiert.
   if (bisherigerStatus && bisherigerStatus !== "Entwurf" && data.status === "Entwurf") {
     throw new Error("Nëmmen de Betreier kann en areechte Projektplang zréck op Entwurf setzen. Kontaktéier w.e.g. däi Betreier.");
   }
@@ -1238,9 +1105,6 @@ function erstelleOderAktualisiereProjektplan(data) {
   }
 
   aktualisiereUebersicht(data, projektplanUrl, null);
-
-  // Meilensteng aus dem Projektplang mam gemeinsame Meilensteng-Tab
-  // synchroniséieren, deen och d'Planungstool benotzt (bidirektional).
   synchroniséierProjektplangMeilensteng(data.schueler, data.klasse, data.meilensteine || []);
 
   if ((data.status || "").startsWith("Frei")) {
@@ -1251,12 +1115,6 @@ function erstelleOderAktualisiereProjektplan(data) {
   return projektplanUrl;
 }
 
-/**
- * M2 (Lastenheft F2.7): De Betreier setzt en areechte oder freigaben
- * Projektplang vun engem Schüler zréck op "Entwurf", sou datt de Schüler
- * nees dru kann änneren. Nëmme Proffen dierfen dat, iwwerpréift iwwer de
- * proffToken. Gëtt vum Prof-Dashboard opgeruff.
- */
 function projektplanWiedereroeffnen(data) {
   const session = pruefSession(data.proffToken);
   if (!session.valid || session.rolle !== "Prof") {
@@ -1276,10 +1134,6 @@ function projektplanWiedereroeffnen(data) {
   return { ok: false, error: "Schüler net fonnt." };
 }
 
-/**
- * Liest den aktuell gespeicherten Status eines Schülers/einer
- * Schülerin aus der Übersichts-Sheet (leer, falls noch kein Eintrag).
- */
 function getAktuellenStatus(schueler) {
   const sheet = SpreadsheetApp.openById(OVERVIEW_SHEET_ID).getSheets()[0];
   const werte = sheet.getDataRange().getValues();
@@ -1289,13 +1143,6 @@ function getAktuellenStatus(schueler) {
   return null;
 }
 
-/* ================= Deckblatt ================= */
-
-/**
- * Fügt einen schmalen farbigen Balken ein (simuliert die Akzentlinien
- * im offiziellen Sciences-Environnementales-Layout, da Google Docs
- * keine farbige horizontale Linie direkt unterstützt).
- */
 function fuegeFarbBalkenEin(body, farbe, hoehePt, breitePt) {
   const tabelle = body.appendTable([[""]]);
   tabelle.setBorderWidth(0);
@@ -1312,20 +1159,8 @@ function fuegeFarbBalkenEin(body, farbe, hoehePt, breitePt) {
 const LTETT_LOGO_URL = "https://raw.githubusercontent.com/pugu-prog/ppren-projektplan/main/LTEtt_Logo.png";
 const SE_LOGO_URL = "https://raw.githubusercontent.com/pugu-prog/ppren-projektplan/main/LogoSE_weisHintergrund.png";
 
-/**
- * Baut das Deckblatt als eine einzige, pixelgenau positionierte Google-Slide
- * (A4-Format), exportiert sie als PNG und gibt den Blob zurück. Die Slide
- * wird danach automatisch gelöscht. Wirft einen Fehler, wenn irgendwas
- * schiefgeht — der Aufrufer fängt das ab und nutzt den Text-Fallback.
- */
 function erstelleDeckblattBildViaSlides(dokumentTyp, data, behalten) {
-  const PAGE_W = 595, PAGE_H = 842; // A4 in Punkten
-
-  // Advanced Slides API nötig, um die Präsentation direkt mit A4-Maßen
-  // anzulegen (der einfache SlidesApp-Service kann die Seitengröße nicht
-  // ändern). Falls der Service nicht aktiviert ist, wirft das einen
-  // klaren Fehler, den fuegeDeckblattEin() abfängt und in den Fallback
-  // wechselt.
+  const PAGE_W = 595, PAGE_H = 842;
   const seBlob = DriveApp.getFileById(LOGO_FILE_ID).getBlob();
   const ltettBlob = UrlFetchApp.fetch(LTETT_LOGO_URL).getBlob();
 
@@ -1357,13 +1192,11 @@ function erstelleDeckblattBildViaSlides(dokumentTyp, data, behalten) {
     balken.getBorder().setTransparent();
   };
 
-  // Kleines SE-Logo oben rechts, bleeds über den Seitenrand hinaus
   const kleinBreite = 210;
   const kleinBild = slide.insertImage(seBlob.copyBlob());
   const seVerhaeltnis = kleinBild.getHeight() / kleinBild.getWidth();
   kleinBild.setLeft(PAGE_W - 150).setTop(-100).setWidth(kleinBreite).setHeight(kleinBreite * seVerhaeltnis);
 
-  // Titelblock
   textBox("SCIENCES", margin, 70, 320, 42, 28, GREEN, true);
   textBox("ENVIRONNEMENTALES", margin, 120, 430, 42, 28, GREEN, true);
   textBox("ËMWELTWËSSENSCHAFTEN", margin, 175, 430, 30, 18, BLACK, true);
@@ -1379,7 +1212,6 @@ function erstelleDeckblattBildViaSlides(dokumentTyp, data, behalten) {
   textBox(`${data.schueler || ""}  ·  ${betreierLabel}: ${betreierText}`, margin, 353, 430, 24, 13, GRAY, false);
   textBox(`Stand: ${Utilities.formatDate(new Date(), "Europe/Luxembourg", "dd.MM.yyyy HH:mm")}`, margin, 375, 300, 18, 9, LIGHTGRAY, false);
 
-  // Großes SE-Logo (bleeds links) + LTEtt-Logo daneben, unten auf der Seite
   const grossBreite = 260;
   const grossBild = slide.insertImage(seBlob.copyBlob());
   grossBild.setLeft(-50).setTop(580).setWidth(grossBreite).setHeight(grossBreite * seVerhaeltnis);
@@ -1395,7 +1227,7 @@ function erstelleDeckblattBildViaSlides(dokumentTyp, data, behalten) {
   farbBalken(ltettLeft, ltettTop + ltettHoehe + 15, ltettBreite, 8, TEAL);
 
   SpreadsheetApp.flush();
-  Utilities.sleep(4000); // kurz warten, bis Slides die Änderungen serverseitig übernommen hat
+  Utilities.sleep(4000);
 
   const presentationId = praesentation.getId();
   const slideId = slide.getObjectId();
@@ -1417,12 +1249,6 @@ function erstelleDeckblattBildViaSlides(dokumentTyp, data, behalten) {
   return bildBlob;
 }
 
-/**
- * Baut das Deckblatt als HTML-String mit exakt denselben Positionen,
- * die im LaTeX/TikZ-Referenzlayout (GSE-Cover) verwendet wurden — nur
- * von cm in px (96dpi) umgerechnet. Bilder werden als Base64-Data-URIs
- * eingebettet, damit PDFShift keinen externen Zugriff braucht.
- */
 function baueDeckblattHtml(dokumentTyp, data) {
   const seBlob = UrlFetchApp.fetch(SE_LOGO_URL).getBlob();
   const ltettBlob = UrlFetchApp.fetch(LTETT_LOGO_URL).getBlob();
@@ -1471,11 +1297,6 @@ function baueDeckblattHtml(dokumentTyp, data) {
   </body></html>`;
 }
 
-/**
- * Rendert das Deckblatt pixelgenau über die PDFShift-API (HTML → PNG).
- * Der API-Schlüssel wird sicher aus den Script Properties gelesen
- * (Projekteinstellungen → Script Properties → PDFSHIFT_API_KEY).
- */
 function erstelleDeckblattBildViaPDFShift(dokumentTyp, data) {
   const apiKey = PropertiesService.getScriptProperties().getProperty("PDFSHIFT_API_KEY");
   if (!apiKey) {
@@ -1496,13 +1317,6 @@ function erstelleDeckblattBildViaPDFShift(dokumentTyp, data) {
   return antwort.getBlob().setName("Deckblatt.png");
 }
 
-/**
- * Fügt ein Deckblatt im Sciences-Environnementales-Stil an den Anfang
- * eines (leeren) Dokuments ein. Reihenfolge: (1) PDFShift — pixelgenau,
- * exakt aus dem LaTeX-Referenzlayout übernommen; (2) Google-Slides-
- * Rendering als Rückfalloption; (3) einfache Textannäherung als letzter
- * Ausweg, falls beide externen Wege scheitern.
- */
 function fuegeDeckblattEin(body, dokumentTyp, data) {
   try {
     const bildBlob = erstelleDeckblattBildViaPDFShift(dokumentTyp, data);
@@ -1518,7 +1332,7 @@ function fuegeDeckblattEin(body, dokumentTyp, data) {
   try {
     const bildBlob = erstelleDeckblattBildViaSlides(dokumentTyp, data);
     const bild = body.appendImage(bildBlob);
-    bild.setWidth(468).setHeight(468 * 842 / 595); // A4-Verhältnis auf Textbreite skaliert
+    bild.setWidth(468).setHeight(468 * 842 / 595);
     body.appendPageBreak();
     return;
   } catch (e2) {
@@ -1529,11 +1343,6 @@ function fuegeDeckblattEin(body, dokumentTyp, data) {
   fuegeDeckblattEinFallback(body, dokumentTyp, data);
 }
 
-/**
- * Einfachere, textbasierte Deckblatt-Variante (kein pixelgenaues
- * Bleed-Layout möglich) — wird nur benutzt, wenn die Slides-Rendering-
- * Methode fehlschlägt (z. B. Berechtigungsproblem).
- */
 function fuegeDeckblattEinFallback(body, dokumentTyp, data) {
   let seBlob = null;
   try {
@@ -1669,15 +1478,6 @@ function fuelleProjektplanDokument(doc, data) {
   }
 }
 
-/* ================= Suivi-Dokument ================= */
-
-/**
- * Initialisiert ein neu angelegtes Suivi-Dokument: Deckblatt, Titel,
- * Intro sowie ein Platzhalter-Kapitel 1 (falls der Projektplan noch
- * nicht freigegeben ist). So existiert die Kapitel-1-Überschrift
- * immer schon, egal ob das Suivi zuerst durch eine Freigabe oder
- * durch eine Bewertung entsteht.
- */
 function initialisiereSuiviDoc(body, data) {
   fuegeDeckblattEin(body, "Suivi", data);
   body.appendParagraph(`Suivi — ${data.schueler} (${data.klasse || ""})`).setHeading(DocumentApp.ParagraphHeading.HEADING1);
@@ -1696,7 +1496,6 @@ function uebernehmeProjektplanInSuivi(data) {
   }
 
   const headingText = "Kapitel 1: Projektplan";
-  // Puffer-Absatz gegen "letzter Absatz kann nicht entfernt werden" (siehe unten)
   body.appendParagraph("");
   const startIndex = entferneVorherigenAbschnitt(body, headingText);
 
@@ -1707,10 +1506,6 @@ function uebernehmeProjektplanInSuivi(data) {
     ? (data.kosten || []).map((k) => `• ${k.bezeichnung}: ${k.betrag} €`).join("\n")
     : "nicht erforderlich";
 
-  // Kapitel 1 wird immer an der Stelle eingefügt, an der die alte
-  // Fassung stand (oder am Ende, falls aus irgendeinem Grund noch
-  // keine Kapitel-1-Überschrift existierte). So bleibt die
-  // Reihenfolge "Projektplan zuerst, danach Trimester" erhalten.
   let pos = startIndex >= 0 ? startIndex : naechsteEinfuegePosition(body, headingText);
 
   const einfuegen = (text, heading, bold) => {
@@ -1738,7 +1533,6 @@ function uebernehmeProjektplanInSuivi(data) {
   einfuegen("Kostenplan (max. 500 €)", DocumentApp.ParagraphHeading.HEADING3, false);
   einfuegen(kostenText, null, false);
 
-  // Trennung zu den nachfolgenden Trimester-Abschnitten, falls welche existieren
   if (pos < body.getNumChildren() && body.getChild(pos).getType() !== DocumentApp.ElementType.PAGE_BREAK) {
     body.insertPageBreak(pos);
   }
@@ -1746,12 +1540,6 @@ function uebernehmeProjektplanInSuivi(data) {
   return exportiereAlsWord(doc, ordner, `Suivi_${data.schueler}`);
 }
 
-/**
- * Feste, gewünschte Reihenfolge der Abschnitte im Suivi – unabhängig
- * davon, in welcher Reihenfolge die Bewertungen tatsächlich eingereicht
- * werden. So landet z. B. "Trimester 1" immer vor "Trimester 2", auch
- * wenn Trimester 2 zuerst abgeschickt wurde.
- */
 const ABSCHNITTS_REIHENFOLGE = [
   "Kapitel 1: Projektplan",
   "Semester 1 – Bewertung & Kommentar",
@@ -1761,14 +1549,6 @@ const ABSCHNITTS_REIHENFOLGE = [
   "Trimester 3 – Bewertung & Kommentar",
 ];
 
-/**
- * Ermittelt den Body-Index, an dem ein neuer Abschnitt (headingText)
- * eingefügt werden soll, basierend auf ABSCHNITTS_REIHENFOLGE – nämlich
- * direkt vor dem ersten bereits vorhandenen Abschnitt, der laut dieser
- * Reihenfolge NACH headingText kommen soll. Gibt es keinen solchen
- * (noch) vorhandenen späteren Abschnitt, wird ganz am Ende eingefügt
- * (vor dem Puffer-Absatz).
- */
 function naechsteEinfuegePosition(body, headingText) {
   const meinIndex = ABSCHNITTS_REIHENFOLGE.indexOf(headingText);
   const anzahl = body.getNumChildren();
@@ -1789,15 +1569,9 @@ function naechsteEinfuegePosition(body, headingText) {
       }
     }
   }
-  // Kein späterer Abschnitt gefunden -> ganz ans Ende, aber vor dem
-  // zuletzt angehängten Puffer-Absatz (das tatsächlich letzte Element).
   return Math.max(0, anzahl - 1);
 }
 
-/**
- * Liest den aktuellen Status ("Entwurf" oder "Finalisiert") einer
- * bereits gespeicherten Bewertung für Schüler+Periode, falls vorhanden.
- */
 function getAktuellenBewertungsStatus(schueler, periode) {
   const sheet = SpreadsheetApp.openById(OVERVIEW_SHEET_ID).getSheetByName("Bewertungen");
   if (!sheet) return null;
@@ -1812,17 +1586,9 @@ function getAktuellenBewertungsStatus(schueler, periode) {
   return null;
 }
 
-/**
- * ENTSPERR-WERKZEUG FÜR DIE LEHRPERSON
- * ------------------------------------
- * Setzt eine finalisierte Bewertung zurück auf "Entwurf", damit sie im
- * Formular wieder bearbeitet werden kann. Einfach SCHUELER und PERIODE
- * unten anpassen, dann diese Funktion im Editor auswählen und "Run"
- * drücken (kein Deployment nötig). Ergebnis steht im "Execution log".
- */
 function bewertungEntsperren() {
-  const SCHUELER = "Léa Muller";     // <- hei den genauen Numm aginn
-  const PERIODE = "Semester 2";       // <- hei d'Period aginn (z.B. "Trimester 1")
+  const SCHUELER = "Léa Muller";
+  const PERIODE = "Semester 2";
 
   const sheet = SpreadsheetApp.openById(OVERVIEW_SHEET_ID).getSheetByName("Bewertungen");
   if (!sheet) {
@@ -1839,15 +1605,9 @@ function bewertungEntsperren() {
       return;
     }
   }
-  Logger.log("⚠️ Keng Bewertung fonnt fir: " + SCHUELER + " – " + PERIODE + " (Numm/Period genau esou wéi an der Tabell schreiwen)");
+  Logger.log("⚠️ Keng Bewertung fonnt fir: " + SCHUELER + " – " + PERIODE);
 }
 
-/**
- * Liest den/die Betreuer für einen Schüler aus der Übersicht-Sheet
- * (wurde beim Projektplan-Absenden dort gespeichert). Wird benutzt,
- * damit das Suivi-Deckblatt auch dann den Betreuer anzeigt, wenn die
- * Bewertung selbst kein Betreuer-Feld mitschickt.
- */
 function getBetreuerFuerSchueler(schueler) {
   const sheet = SpreadsheetApp.openById(OVERVIEW_SHEET_ID).getSheetByName("Übersicht");
   if (!sheet) return "";
@@ -1861,7 +1621,7 @@ function getBetreuerFuerSchueler(schueler) {
 function schreibeBewertung(data) {
   const bisherigerStatus = getAktuellenBewertungsStatus(data.schueler, data.periode);
   if (bisherigerStatus === "Finalisiert") {
-    throw new Error("Diese Bewertung (" + data.periode + ") ist bereits finalisiert und gesperrt. Zum erneuten Öffnen muss die Betreuer/-in in der Übersicht-Sheet (Tab \"Bewertungen\") die Status-Spalte für diese Zeile von \"Finalisiert\" auf \"Entwurf\" ändern.");
+    throw new Error("Diese Bewertung (" + data.periode + ") ist bereits finalisiert und gesperrt.");
   }
   if (!data.betreuer) {
     data.betreuer = getBetreuerFuerSchueler(data.schueler);
@@ -1876,9 +1636,6 @@ function schreibeBewertung(data) {
   }
 
   const headingText = `${data.periode} – Bewertung & Kommentar`;
-  // Puffer-Absatz: Google Docs verweigert das Löschen des allerletzten
-  // Absatzes im Dokument. Dieser leere Absatz stellt sicher, dass beim
-  // Entfernen der alten Sektion immer noch ein Absatz danach übrig bleibt.
   body.appendParagraph("");
   entferneVorherigenAbschnitt(body, headingText);
 
@@ -1894,8 +1651,6 @@ function schreibeBewertung(data) {
     einfuegenAbsatz("✅ Finalisiert").setBold(true).setForegroundColor("#1F5C3B");
   }
 
-  // Punkte den passenden Kategorie-Gruppen zuordnen (Name-Format aus dem
-  // Formular: "Gruppentitel — Positionsname")
   const itemsProGruppe = {};
   (data.kategorien || []).forEach((k) => {
     const teile = k.name.split(" — ");
@@ -1939,7 +1694,6 @@ function schreibeBewertung(data) {
     einfuegenAbsatz("").setFontSize(4);
   });
 
-  // Wochenberichte als eigene kleine Tabelle
   if (data.wochenberichtePunkte !== undefined) {
     einfuegenAbsatz(data.wochenberichteLabel || "Wochenberichte").setHeading(DocumentApp.ParagraphHeading.HEADING3);
     const wbTabelle = einfuegenTabelle([
@@ -1978,9 +1732,6 @@ function schreibeBewertung(data) {
   return suiviUrl;
 }
 
-/**
- * Kopfzeile einer Bewertungstabelle: leicht hinterlegt, fett.
- */
 function styleKopfzeile(tabelle) {
   const kopf = tabelle.getRow(0);
   for (let c = 0; c < kopf.getNumCells(); c++) {
@@ -1990,10 +1741,6 @@ function styleKopfzeile(tabelle) {
   }
 }
 
-/**
- * Einheitliche, dezente Schriftgröße für alle Tabellenzellen
- * (Kopfzeile ausgenommen, die wird von styleKopfzeile gesetzt).
- */
 function styleTabellenzellen(tabelle) {
   for (let r = 1; r < tabelle.getNumRows(); r++) {
     const zeile = tabelle.getRow(r);
@@ -2023,10 +1770,6 @@ function entferneVorherigenAbschnitt(body, headingText) {
     }
   }
   if (startIndex === -1) return -1;
-  // Fallback: bis zum vorletzten Element löschen, NICHT bis ganz zum
-  // Ende – der zuvor angehängte Puffer-Absatz (das tatsächlich letzte
-  // Element) darf nie mitgelöscht werden (Google Docs erlaubt das
-  // Entfernen des allerletzten Absatzes im Dokument nicht).
   if (endIndex === -1) endIndex = anzahl - 1;
 
   let entfernterPageBreak = false;
@@ -2044,8 +1787,6 @@ function entferneVorherigenAbschnitt(body, headingText) {
   return startIndex;
 }
 
-/* ================= Sheets (Dashboard-Datenquelle) ================= */
-
 function aktualisiereUebersicht(data, projektplanUrl, suiviUrl, suiviPdfUrl) {
   const sheet = SpreadsheetApp.openById(OVERVIEW_SHEET_ID).getSheets()[0];
   const sollHeader = ["Schüler", "Klasse", "Betreuer", "Titel", "Status", "Zuletzt aktualisiert", "Projektplan-Link", "Suivi-Link", "Suivi-PDF-Link (Schüler)", "Projektplan-Details (JSON)", "Dokumentatioun-Link"];
@@ -2053,9 +1794,6 @@ function aktualisiereUebersicht(data, projektplanUrl, suiviUrl, suiviPdfUrl) {
   if (sheet.getLastRow() === 0) {
     sheet.appendRow(sollHeader);
   } else {
-    // Kopfzeile bei Bedarf nachziehen (z. B. wenn nachträglich neue
-    // Spalten hinzugekommen sind), damit doGet() die Werte über den
-    // Spaltennamen korrekt zuordnen kann.
     const istHeader = sheet.getRange(1, 1, 1, sheet.getLastColumn()).getValues()[0];
     let abweichend = istHeader.length < sollHeader.length;
     if (!abweichend) {
@@ -2076,9 +1814,6 @@ function aktualisiereUebersicht(data, projektplanUrl, suiviUrl, suiviPdfUrl) {
 
   const bestehend = zeile > 0 ? werte[zeile - 1] : null;
 
-  // Nur überschreiben, wenn diese Bewertung tatsächlich vom
-  // Projektplan-Formular kommt (erkennbar an data.inhalt); beim Aufruf
-  // aus schreibeBewertung bleiben die Details unverändert erhalten.
   const projektplanDetails = data.inhalt !== undefined
     ? JSON.stringify({
         inhalt: data.inhalt || "",
@@ -2118,12 +1853,6 @@ function aktualisiereUebersicht(data, projektplanUrl, suiviUrl, suiviPdfUrl) {
   }
 }
 
-/**
- * Späichert/aktualiséiert de SharePoint-Link (oder aner Link) fir d'Dokumentatioun
- * vun engem Schüler an der "Projekte"-Iwwersiicht (Spalt 11). Wann de Schüler nach
- * kee Projekt-Zeil huet (z.B. Projektplang nach net areecht), gëtt eng minimal
- * Zeil ugeluecht, sou datt de Link trotzdem gespäichert ka ginn.
- */
 function speichereDokumentatiounLink(schueler, klasse, link) {
   const sheet = SpreadsheetApp.openById(OVERVIEW_SHEET_ID).getSheets()[0];
   const sollHeader = ["Schüler", "Klasse", "Betreuer", "Titel", "Status", "Zuletzt aktualisiert", "Projektplan-Link", "Suivi-Link", "Suivi-PDF-Link (Schüler)", "Projektplan-Details (JSON)", "Dokumentatioun-Link"];
@@ -2170,8 +1899,6 @@ function aktualisiereBewertungsSheet(data, gesamt, gesamtMax, docUrl, pdfUrl) {
     if (werte[i][0] === data.schueler && werte[i][1] === data.periode) { zeile = i + 1; break; }
   }
 
-  // Bevorzugt die vom Formular mitgelieferte, offiziell skalierte Note
-  // (z. B. Punkte/60 laut Bewertungsbogen); sonst Fallback auf Punkte/4.
   const note = data.noteBerechnet !== undefined
     ? data.noteBerechnet
     : (gesamtMax > 0 ? Math.round((gesamt / gesamtMax) * 4 * 10) / 10 : "");
@@ -2201,17 +1928,11 @@ function aktualisiereBewertungsSheet(data, gesamt, gesamtMax, docUrl, pdfUrl) {
   setzeStatusDropdown(sheet, sollHeader.indexOf("Status") + 1);
 }
 
-/**
- * Setzt eine Dropdown-Datenvalidierung ("Entwurf" / "Finalisiert") auf die
- * gesamte Status-Spalte der Bewertungen-Sheet, damit die Lehrperson den
- * Status direkt per Klick ändern kann, ohne ein Skript auszuführen.
- */
 function setzeStatusDropdown(sheet, statusSpaltenNr) {
   const regel = SpreadsheetApp.newDataValidation()
     .requireValueInList(["Entwurf", "Finalisiert"], true)
     .setAllowInvalid(false)
     .build();
-  // Spalte bis Zeile 500 abdecken (genug Puffer für künftige Einträge)
   sheet.getRange(2, statusSpaltenNr, 500, 1).setDataValidation(regel);
 }
 
@@ -2219,22 +1940,6 @@ function jsonResponse(obj) {
   return ContentService.createTextOutput(JSON.stringify(obj)).setMimeType(ContentService.MimeType.JSON);
 }
 
-/**
- * AUFRÄUM-WERKZEUG: Entfernt aus "Projekte" und "Bewertungen" alle Zeilen,
- * deren zugehöriger Schüler-Ordner nicht mehr in Drive existiert (z. B.
- * nach manuellem Löschen aller Testordner). Header-Zeile bleibt erhalten.
- * Im Editor auswählen und "Run" drücken. Ergebnis im "Execution log".
- * Hinweis: Google Sheets hat eine Versionshistorie (Datei → Versionsverlauf),
- * falls doch etwas zurückgeholt werden muss.
- */
-/**
- * KOMPLETT-RESET: Löscht ALLE Datenzeilen (Header bleibt) aus dem
- * Haupt-Tab und "Bewertungen" — ohne Prüfung, ob ein Ordner noch
- * existiert. Für den kompletten Neustart vor einer Demo.
- * Im Editor auswählen und "Run" drücken.
- * Hinweis: Google Sheets hat eine Versionshistorie (Datei → Versionsverlauf),
- * falls doch etwas zurückgeholt werden muss.
- */
 function alleFormulardatenLoeschen() {
   const ss = SpreadsheetApp.openById(OVERVIEW_SHEET_ID);
   const sheets = [ss.getSheets()[0], ss.getSheetByName("Bewertungen")];
@@ -2267,7 +1972,6 @@ function raeumeVerwaisteEintraegeAuf() {
       Logger.log(`Tab "${tabName}": keine Datenzeilen vorhanden.`);
       return;
     }
-    // Von unten nach oben löschen, damit sich Zeilenindizes nicht verschieben
     let geloeschtHier = 0;
     for (let i = werte.length - 1; i >= 1; i--) {
       const schueler = werte[i][0];
@@ -2307,13 +2011,6 @@ function statusDropdownEinmaligEinrichten() {
   Logger.log("✅ Dropdown eingerichtet.");
 }
 
-/**
- * TESTFUNKTION FÜR DAS DECKBLATT
- * ------------------------------
- * Erstellt nur das Deckblatt-Bild (ohne echte Bewertung anzulegen) und
- * speichert es als PNG-Datei im Hauptordner. Im Editor auswählen und
- * "Run" drücken; Link steht danach im "Execution log".
- */
 function testDeckblatt() {
   const blob = erstelleDeckblattBildViaPDFShift("Suivi", {
     schueler: "Léa Muller",
@@ -2324,8 +2021,6 @@ function testDeckblatt() {
   const datei = DriveApp.getFolderById(FOLDER_ID).createFile(blob);
   Logger.log("Testbild erstellt: " + datei.getUrl());
 }
-
-/* ================= Testfunktion ================= */
 
 function testLauf() {
   const beispiel = {
@@ -2348,9 +2043,7 @@ function testLauf() {
   Logger.log(erstelleOderAktualisiereProjektplan(beispiel));
 }
 
-/* ================= M1: PIN-Login & Sessioune ================= */
-
-const SESSION_GUELTEGKEET_STONNEN = 18; // Session gëllt 18 Stonnen (e Schouldag+)
+const SESSION_GUELTEGKEET_STONNEN = 18;
 
 function getLoginSheet() {
   const ss = SpreadsheetApp.openById(OVERVIEW_SHEET_ID);
@@ -2372,16 +2065,11 @@ function getSessionsSheet() {
   return sheet;
 }
 
-/** Hasht e PIN mat engem Salt (SHA-256, Hex-String). */
 function hashPin(pin, salt) {
   const digest = Utilities.computeDigest(Utilities.DigestAlgorithm.SHA_256, pin + ":" + salt);
   return digest.map((b) => ("0" + (b & 0xff).toString(16)).slice(-2)).join("");
 }
 
-/**
- * Feste PINs fir bestëmmte Persounen (iwwerschreiwt de zoufällege PIN beim
- * éischte initialiséierLoginPins-Laf). Aner Persounen kréien zoufälleg PINs.
- */
 const FEST_PINS = {
   "Guy Putz": "2803",
   "Pol Medernach": "4127",
@@ -2392,14 +2080,6 @@ const FEST_PINS = {
   "Alex Olinger": "1007",
 };
 
-/**
- * Initialiséiert de Login-Sheet mat allen Schüler/Proffen aus SCHUELER_LISTE
- * a LEHRER_EMAILS, mat engem PIN pro Persoun (fest aus FEST_PINS wann do,
- * soss zoufälleg 4-stellech) — nëmmen wann d'Zeil nach net existéiert
- * (bestehend PINs ginn net iwwerschriwwen). Gëtt eng Lëscht vun
- * {numm, rolle, pin} zréck fir nei ugeluechte Persounen, fir se
- * unzeweisen. EEMOLEG am Editor lafen loossen!
- */
 function initialiséierLoginPins() {
   const sheet = getLoginSheet();
   const werte = sheet.getDataRange().getValues();
@@ -2421,9 +2101,16 @@ function initialiséierLoginPins() {
   return nei;
 }
 
-/** Login mat Numm + PIN. Gëtt {ok:true, token, numm, rolle, klasse} oder {ok:false, error}. */
 function login(numm, pin) {
   if (!numm || !pin) return { ok: false, error: "Numm a PIN erfuerderlech." };
+
+  const personenSheet = getPersonenSheet();
+  const pWerte = personenSheet.getDataRange().getValues();
+  const persoonZeil = pWerte.find((z) => z[0] === numm);
+  if (persoonZeil && persoonZeil[4] === "Nee") {
+    return { ok: false, error: "Dëse Zougang ass deaktivéiert. Frot de Prof." };
+  }
+
   const sheet = getLoginSheet();
   const werte = sheet.getDataRange().getValues();
   for (let i = 1; i < werte.length; i++) {
@@ -2441,7 +2128,6 @@ function login(numm, pin) {
   return { ok: false, error: "Onbekannten Numm. Frot de Prof no Ärem Zougang." };
 }
 
-/** Préift en Session-Token; läscht ofgelaf Sessioune bäi der Geleeënheet. */
 function pruefSession(token) {
   if (!token) return { valid: false };
   const sheet = getSessionsSheet();
@@ -2470,11 +2156,6 @@ function logout(token) {
   }
 }
 
-/**
- * Setzt de PIN vun engem Numm op eng nei zoufälleg Zuel zréck — nëmmen wann
- * proffToken zu enger gëlteger Prof-Session gehéiert. Gëtt de nei PIN zréck,
- * fir datt de Prof en un de Schüler/déi Kolleegin weiderginn kann.
- */
 function pinZuruecksetzen(numm, proffToken) {
   const session = pruefSession(proffToken);
   if (!session.valid || session.rolle !== "Prof") {
