@@ -24,17 +24,9 @@
   });
 </script>
 <script type="text/babel">
-const { useState, useMemo } = React;
+const { useState, useMemo, useEffect } = React;
 
 const WEB_APP_URL = "https://script.google.com/macros/s/AKfycbwNDO4bJv1lYKvwg57TnHzVHxLIJJikxD0ey7RHlraqa9nUSs8liBJycF38p4X--t_6/exec";
-
-const SCHUELER = [
-  { id: "lea_muller", name: "Léa Muller", klasse: "1GSE" },
-  { id: "ben_weber", name: "Ben Weber", klasse: "2GSE" },
-  { id: "noah_schmit", name: "Noah Schmit", klasse: "1GSE" },
-  { id: "mia_reuter", name: "Mia Reuter", klasse: "2GSE" },
-  { id: "tom_klein", name: "Tom Klein", klasse: "2GSE" },
-];
 
 const PERIODEN_2GSE = ["Trimester 1", "Trimester 2", "Trimester 3"];
 const PERIODEN_1GSE = ["Semester 1", "Semester 2"];
@@ -325,12 +317,6 @@ function auswahlZuListen(vorlage, auswahl) {
   return { positiv, negativ };
 }
 
-/* Gëtt déi komplett Remarquen-Vorlag fir eng Grupp zréck: d'Basis-Vorlag
-   vum Grupp-Typ, plus — wa relevant — d'Sachlech-Qualitéit-Remarquen, wa
-   dës Grupp en Ënnerpunkt "Sachliche Qualität" enthält (z.B. bei den
-   "umsetzung"- an "dokumentation"-Gruppen an 2GSE Tri3 / 1GSE Sem2). Sou
-   ass all Kategoritype vollstänneg ofgedeckt, och wa säin Numm net genee
-   dem Grupp-Typ entsprécht. */
 function vorlageFuerGrupp(g) {
   const basis = REMARKEN_VORLAGEN[g.typ] || [];
   const hatSachlechQualitéit = (g.items || []).some((i) => i.name === "Sachliche Qualität");
@@ -339,6 +325,19 @@ function vorlageFuerGrupp(g) {
 }
 
 function App() {
+  // M1: Nimm live vum Backend lueden, keng hart-codéiert Lëscht méi.
+  const [personen, setPersonen] = useState([]);
+  useEffect(() => {
+    fetch(WEB_APP_URL + "?namen=1")
+      .then((r) => r.json())
+      .then((d) => setPersonen(d.personen || []))
+      .catch(() => {});
+  }, []);
+  const SCHUELER = useMemo(
+    () => personen.filter((p) => p.rolle === "Schüler").map((p) => ({ id: p.numm, name: p.numm, klasse: p.klasse })),
+    [personen]
+  );
+
   const [schuelerId, setSchuelerId] = useState("");
   const [periode, setPeriode] = useState("");
   const [kategorien, setKategorien] = useState([]);
@@ -400,7 +399,6 @@ function App() {
       if (bestehend && bestehend.Status === "Finalisiert") {
         setFinalisiert(true);
       }
-      // Wochenberichter-Punkte automatesch aus de bewäerte Berichter zéien
       const meng = (data.wochenberichte || []).filter((w) => w.Schüler === schuelerName && w.Periode === p);
       let summe = 0, anzahl = 0;
       meng.forEach((w) => {
@@ -415,7 +413,6 @@ function App() {
       setWbAuto({ summe, max: anzahl * 5, anzahl });
       setWbPunkte(String(summe));
 
-      // Fachgespréich-Punkte automatesch aus dem Fachgespraech-Tool zéien
       const fgTreffer = (data.fachgespraeche || [])
         .filter((f) => f.Schüler === schuelerName && f.Periode === p)
         .sort((a, b) => (a["Zuletzt aktualisiert"] || "").localeCompare(b["Zuletzt aktualisiert"] || ""));
@@ -427,10 +424,8 @@ function App() {
           return ks.map((k) => {
             if (k.gruppe !== "Fachgespräch") return k;
             if (fgItems.length === 1) {
-              // Nëmmen Fachwëssen (max 30): kompletten Gesamt-Wäert
               return { ...k, punkte: String(fgLetzt.Gesamt ?? "") };
             }
-            // Opgedeelt: Fachwëssen + Eegebewäertung/Reflexioun
             if (k.name === "Fachwissen") return { ...k, punkte: String(fgLetzt["Fachwissen-Punkte"] ?? "") };
             if (k.name.startsWith("Eigenbewertung")) return { ...k, punkte: String(fgLetzt["Reflexioun-Punkte"] ?? "") };
             return k;
@@ -441,8 +436,6 @@ function App() {
         setFgInfo(null);
       }
 
-      // Ziel-Iwwerpréiwung-Punkten automatesch an "Bewältigung des Themas" zéien
-      // (deckt just d'Prüftermine of, Autonomie muss d'Prof bäi Bedarf dobäi addéieren)
       const zpTreffer = (data.zieluewerpreiwungen || []).filter((z) => z.Schüler === schuelerName && z.Periode === p);
       if (zpTreffer.length > 0) {
         const zpSumme = zpTreffer.reduce((s, z) => s + (Number(z.Punkte) || 0), 0);
@@ -452,7 +445,7 @@ function App() {
         setZpInfo(null);
       }
     } catch (e) {
-      // Prüfung fehlgeschlagen: im Zweifel nicht sperren, Formulaire bleibt normal nutzbar
+      // Prüfung fehlgeschlagen: im Zweifel nicht sperren
     } finally {
       setPruefeLaden(false);
     }
@@ -548,8 +541,6 @@ function App() {
   const wbMax = wbAuto.max;
   const gesamt = kategorienSumme + (parseFloat(wbPunkte) || 0);
   const gesamtMax = kategorienMax + wbMax;
-  // Offiziell Skala passt sech un déi tatsächlech bewäert Zuel Wochenberichter un
-  // (z. B. 2GSE Trimester 3 mat wéineg/kenge Berichter méi → méi kleng Skala)
   const offizielleSkala = def ? (def.offizielleSkala - def.wochenberichte.max) + wbMax : gesamtMax;
   const note = offizielleSkala > 0 ? Math.round((gesamt * 60 / offizielleSkala) * 10) / 10 : null;
   const abweichung = gesamtMax !== offizielleSkala;
