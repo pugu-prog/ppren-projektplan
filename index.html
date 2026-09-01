@@ -24,25 +24,7 @@
   });
 </script>
 <script type="text/babel">
-const { useState, useEffect, useCallback, useRef } = React;
-
-const SCHUELER = [
-  { id: "lea_muller", name: "Léa Muller", klasse: "1GSE" },
-  { id: "ben_weber", name: "Ben Weber", klasse: "2GSE" },
-  { id: "noah_schmit", name: "Noah Schmit", klasse: "1GSE" },
-  { id: "mia_reuter", name: "Mia Reuter", klasse: "2GSE" },
-  { id: "tom_klein", name: "Tom Klein", klasse: "2GSE" },
-];
-
-const LEHRER = [
-  { id: "guy_putz", name: "Guy Putz" },
-  { id: "pol_medernach", name: "Pol Medernach" },
-  { id: "sarah_blum", name: "Sarah Blum" },
-  { id: "tania_ludwig", name: "Tania Ludwig" },
-  { id: "tom_bleyer", name: "Tom Bleyer" },
-  { id: "salman_murad", name: "Salman Murad" },
-  { id: "alex_olinger", name: "Alex Olinger" },
-];
+const { useState, useEffect, useCallback, useRef, useMemo } = React;
 
 const BUDGET_MAX = 500;
 const WEB_APP_URL = "https://script.google.com/macros/s/AKfycbwNDO4bJv1lYKvwg57TnHzVHxLIJJikxD0ey7RHlraqa9nUSs8liBJycF38p4X--t_6/exec";
@@ -122,10 +104,34 @@ function App() {
     }
   }, []);
 
-  const [schuelerId, setSchuelerId] = useState(() => {
+  // M1: Nimm live vum Backend lueden (Personen-Tab), keng hart-codéiert
+  // Lëscht méi. "id" ass hei einfach de Numm selwer (schonn eendeiteg).
+  const [personen, setPersonen] = useState([]);
+  const [personenGelueden, setPersonenGelueden] = useState(false);
+  useEffect(() => {
+    fetch(WEB_APP_URL + "?namen=1")
+      .then((r) => r.json())
+      .then((d) => setPersonen(d.personen || []))
+      .catch(() => {})
+      .finally(() => setPersonenGelueden(true));
+  }, []);
+  const SCHUELER = useMemo(
+    () => personen.filter((p) => p.rolle === "Schüler").map((p) => ({ id: p.numm, name: p.numm, klasse: p.klasse })),
+    [personen]
+  );
+  const LEHRER = useMemo(
+    () => personen.filter((p) => p.rolle === "Prof").map((p) => ({ id: p.numm, name: p.numm })),
+    [personen]
+  );
+
+  const [schuelerId, setSchuelerId] = useState("");
+  useEffect(() => {
+    if (!personenGelueden || schuelerId) return;
     const numm = window.PPREN_SESSION?.numm;
-    return SCHUELER.find((s) => s.name === numm)?.id || "";
-  });
+    if (numm && SCHUELER.find((s) => s.id === numm)) setSchuelerId(numm);
+    // eslint-disable-next-line
+  }, [personenGelueden, SCHUELER]);
+
   const [plan, setPlan] = useState(emptyPlan());
   const [loaded, setLoaded] = useState(false);
   const [exportOpen, setExportOpen] = useState(false);
@@ -152,11 +158,6 @@ function App() {
     }
   }, [schuelerId]);
 
-  // "Vis versa": Meilensteng, déi am Planungstool derbäigesat goufen (quell "Eegen"),
-  // an de Projektplang-Formulaire iwwerhuelen, wa se hei nach net stinn (no Titel gepréift).
-  // Zousätzlech: de Status (Ausstoend/Erreecht/Verspéit) vun ALLE Meilensteng (och
-  // Projektplang-Ursprong) fir d'faarweg Uweisung hei iwwerhuelen — de Sync geet
-  // also a béid Richtungen: Titel/Datum *an* Status kommen tëscht deenen zwou Säiten un.
   useEffect(() => {
     if (!schuelerId || !currentSchueler || !loaded) return;
     fetch(WEB_APP_URL + "?token=" + encodeURIComponent(window.PPREN_SESSION?.token || ""))
