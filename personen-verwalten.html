@@ -35,6 +35,14 @@ function App() {
   const [error, setError] = useState(null);
   const [neiPin, setNeiPin] = useState(null);
 
+  // Bulk-Import (Lëscht vu Nimm, ee pro Zeil)
+  const [bulkNimm, setBulkNimm] = useState("");
+  const [bulkRolle, setBulkRolle] = useState("Schüler");
+  const [bulkKlasse, setBulkKlasse] = useState("1GSE");
+  const [bulkSyncing, setBulkSyncing] = useState(false);
+  const [bulkError, setBulkError] = useState(null);
+  const [bulkResultater, setBulkResultater] = useState(null);
+
   const token = () => window.PPREN_SESSION?.token || "";
 
   const lade = () => {
@@ -69,6 +77,36 @@ function App() {
     }
   };
 
+  const bulkSpeicheren = async () => {
+    const nimm = bulkNimm.split("\n").map((n) => n.trim()).filter(Boolean);
+    if (nimm.length === 0) { setBulkError("Weg op d'mannst ee Numm aginn (ee pro Zeil)."); return; }
+    setBulkSyncing(true);
+    setBulkError(null);
+    setBulkResultater(null);
+    try {
+      const res = await fetch(WEB_APP_URL, {
+        method: "POST",
+        headers: { "Content-Type": "text/plain;charset=utf-8" },
+        body: JSON.stringify({
+          typ: "personenBulkSpäicheren",
+          proffToken: token(),
+          nimm,
+          rolle: bulkRolle,
+          klasse: bulkRolle === "Schüler" ? bulkKlasse : "",
+        }),
+      });
+      const data = await res.json();
+      if (!data.ok) throw new Error(data.error);
+      setBulkResultater(data.resultater || []);
+      setBulkNimm("");
+      lade();
+    } catch (e) {
+      setBulkError(e.message);
+    } finally {
+      setBulkSyncing(false);
+    }
+  };
+
   const toggleAktiv = async (p) => {
     try {
       await fetch(WEB_APP_URL, {
@@ -79,6 +117,9 @@ function App() {
       lade();
     } catch (e) { alert(e.message); }
   };
+
+  const anzuelNei = bulkResultater ? bulkResultater.filter((r) => r.status === "nei").length : 0;
+  const anzuelSchoDo = bulkResultater ? bulkResultater.filter((r) => r.status === "scho do").length : 0;
 
   return (
     <div className="wrap">
@@ -117,6 +158,59 @@ function App() {
         </section>
 
         <section className="card">
+          <h2>Vill Persoune mat enger Lëscht derbäisetzen</h2>
+          <p className="hint">Ee Numm pro Zeil (z.B. aus Excel kopéiert). Persounen, déi et scho gëtt, ginn iwwersprongen.</p>
+          <div className="grid2">
+            <label className="field"><span>Roll</span>
+              <select className="select" value={bulkRolle} onChange={(e) => setBulkRolle(e.target.value)}>
+                <option value="Schüler">Schüler</option>
+                <option value="Prof">Prof</option>
+              </select>
+            </label>
+            {bulkRolle === "Schüler" && (
+              <label className="field"><span>Klasse</span>
+                <select className="select" value={bulkKlasse} onChange={(e) => setBulkKlasse(e.target.value)}>
+                  {KLASSEN.map((k) => <option key={k} value={k}>{k}</option>)}
+                </select>
+              </label>
+            )}
+          </div>
+          <label className="field">
+            <span>Nimm (ee pro Zeil)</span>
+            <textarea
+              className="textarea"
+              rows={6}
+              placeholder={"Léa Muller\nBen Weber\nNoah Schmit"}
+              value={bulkNimm}
+              onChange={(e) => setBulkNimm(e.target.value)}
+            />
+          </label>
+          {bulkError && <p className="error">{bulkError}</p>}
+          <button className="btn" disabled={bulkSyncing} onClick={bulkSpeicheren}>
+            {bulkSyncing ? "…" : "📋 Lëscht derbäisetzen"}
+          </button>
+
+          {bulkResultater && (
+            <div className="bulk-resultat">
+              <p className="bulk-summary">✅ {anzuelNei} nei derbäigesat{anzuelSchoDo > 0 ? ` · ${anzuelSchoDo} scho virhannen (iwwersprongen)` : ""}</p>
+              <table className="tabelle">
+                <thead><tr><th>Numm</th><th>Status</th><th>PIN</th></tr></thead>
+                <tbody>
+                  {bulkResultater.map((r, i) => (
+                    <tr key={i}>
+                      <td>{r.numm}</td>
+                      <td>{r.status === "nei" ? "✅ nei" : "⏭️ scho do"}</td>
+                      <td className="pin-zell">{r.pin || "–"}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+              <p className="hint" style={{ marginTop: "10px" }}>⚠️ Dës PINs ginn hei nëmmen eemol ugewisen — notéier oder exportéier se, ier s du dës Säit verléiss.</p>
+            </div>
+          )}
+        </section>
+
+        <section className="card">
           <h2>All Personen</h2>
           {loading && <p>Lädt…</p>}
           {!loading && (
@@ -147,11 +241,17 @@ ReactDOM.createRoot(document.getElementById("root")).render(<App />);
 .card h2 { color: #00A94F; margin-top: 0; }
 .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
 .field { display: flex; flex-direction: column; gap: 4px; margin-bottom: 12px; font-size: 12.5px; font-weight: 700; color: #294f3c; }
-.input, .select { border: 1px solid #c9d5cd; border-radius: 7px; padding: 8px 10px; font-size: 13.5px; }
+.input, .select, .textarea { border: 1px solid #c9d5cd; border-radius: 7px; padding: 8px 10px; font-size: 13.5px; font-family: inherit; width: 100%; }
+.textarea { resize: vertical; }
+.hint { font-size: 11.5px; color: #6d7d74; margin: 0 0 12px; line-height: 1.5; }
 .btn { background: #00A94F; color: #fff; border: none; padding: 10px 18px; border-radius: 8px; font-weight: 700; cursor: pointer; }
-.error { color: #8a2b1f; background: #fbe4e1; padding: 8px 12px; border-radius: 8px; font-size: 12.5px; }
+.btn:disabled { background: #b7c6bd; cursor: not-allowed; }
+.error { color: #8a2b1f; background: #fbe4e1; padding: 8px 12px; border-radius: 8px; font-size: 12.5px; margin-bottom: 12px; }
 .pin-box { margin-top: 12px; background: #eef3ef; padding: 12px; border-radius: 8px; text-align: center; }
 .pin-zuel { display: block; font-size: 24px; font-weight: 800; color: #00A94F; letter-spacing: 6px; }
+.bulk-resultat { margin-top: 14px; padding-top: 14px; border-top: 1px solid #eef1ef; }
+.bulk-summary { font-size: 13px; font-weight: 700; color: #294f3c; margin: 0 0 10px; }
+.pin-zell { font-weight: 800; color: #00A94F; letter-spacing: 2px; }
 .tabelle { width: 100%; border-collapse: collapse; }
 .tabelle th { text-align: left; font-size: 11px; color: #6d7d74; padding: 6px; }
 .tabelle td { padding: 7px 6px; font-size: 13px; border-top: 1px solid #f4f6f4; }
