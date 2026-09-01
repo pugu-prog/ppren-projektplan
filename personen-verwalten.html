@@ -1,0 +1,161 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>PPREN Personen verwalten</title>
+<script>window.PPREN_ERFUERDERT_ROLLE = "Prof";</script>
+<script src="auth-guard.js"></script>
+<script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+<script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+<script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+</head>
+<body>
+<div id="root"></div>
+<script>
+  window.addEventListener("error", function (e) {
+    document.getElementById("root").innerHTML =
+      '<div style="padding:40px;font-family:sans-serif;color:#8a2b1f;white-space:pre-wrap;">' +
+      '<h2 style="margin-top:0;">Fehler beim Laden</h2>' + (e.message || "") + "</div>";
+  });
+</script>
+<script type="text/babel">
+const { useState, useEffect } = React;
+const WEB_APP_URL = "https://script.google.com/macros/s/AKfycbwNDO4bJv1lYKvwg57TnHzVHxLIJJikxD0ey7RHlraqa9nUSs8liBJycF38p4X--t_6/exec";
+const KLASSEN = ["1GSE", "2GSE"];
+
+function App() {
+  const [personen, setPersonen] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [numm, setNumm] = useState("");
+  const [rolle, setRolle] = useState("Schüler");
+  const [klasse, setKlasse] = useState("1GSE");
+  const [email, setEmail] = useState("");
+  const [syncing, setSyncing] = useState(false);
+  const [error, setError] = useState(null);
+  const [neiPin, setNeiPin] = useState(null);
+
+  const token = () => window.PPREN_SESSION?.token || "";
+
+  const lade = () => {
+    setLoading(true);
+    fetch(WEB_APP_URL + "?token=" + encodeURIComponent(token()))
+      .then((r) => r.json())
+      .then((d) => setPersonen(d.personen || []))
+      .finally(() => setLoading(false));
+  };
+  useEffect(() => { lade(); }, []);
+
+  const speicheren = async () => {
+    if (!numm.trim()) { setError("Numm erfuerderlech."); return; }
+    setSyncing(true);
+    setError(null);
+    setNeiPin(null);
+    try {
+      const res = await fetch(WEB_APP_URL, {
+        method: "POST",
+        headers: { "Content-Type": "text/plain;charset=utf-8" },
+        body: JSON.stringify({ typ: "personSpäicheren", proffToken: token(), numm: numm.trim(), rolle, klasse: rolle === "Schüler" ? klasse : "", email: email.trim() }),
+      });
+      const data = await res.json();
+      if (!data.ok) throw new Error(data.error);
+      if (data.neiPin) setNeiPin({ numm: numm.trim(), pin: data.neiPin });
+      setNumm(""); setEmail("");
+      lade();
+    } catch (e) {
+      setError(e.message);
+    } finally {
+      setSyncing(false);
+    }
+  };
+
+  const toggleAktiv = async (p) => {
+    try {
+      await fetch(WEB_APP_URL, {
+        method: "POST",
+        headers: { "Content-Type": "text/plain;charset=utf-8" },
+        body: JSON.stringify({ typ: "personDeaktivéieren", proffToken: token(), numm: p.numm, aktiv: false }),
+      });
+      lade();
+    } catch (e) { alert(e.message); }
+  };
+
+  return (
+    <div className="wrap">
+      <header className="topbar">
+        <span className="brand-mark">PPREN</span>
+        <span className="brand-sub">Personen verwalten · nëmmen Proffen</span>
+      </header>
+      <main className="content">
+        <section className="card">
+          <h2>Nei Persoun</h2>
+          <div className="grid2">
+            <label className="field"><span>Numm</span><input className="input" value={numm} onChange={(e) => setNumm(e.target.value)} placeholder="Virnumm Familljennumm" /></label>
+            <label className="field"><span>Roll</span>
+              <select className="select" value={rolle} onChange={(e) => setRolle(e.target.value)}>
+                <option value="Schüler">Schüler</option>
+                <option value="Prof">Prof</option>
+              </select>
+            </label>
+          </div>
+          {rolle === "Schüler" && (
+            <label className="field"><span>Klasse</span>
+              <select className="select" value={klasse} onChange={(e) => setKlasse(e.target.value)}>
+                {KLASSEN.map((k) => <option key={k} value={k}>{k}</option>)}
+              </select>
+            </label>
+          )}
+          <label className="field"><span>Email (optional)</span><input className="input" value={email} onChange={(e) => setEmail(e.target.value)} /></label>
+          {error && <p className="error">{error}</p>}
+          <button className="btn" disabled={syncing} onClick={speicheren}>{syncing ? "…" : "➕ Derbäisetzen"}</button>
+          {neiPin && (
+            <div className="pin-box">
+              <span>Neie PIN fir <strong>{neiPin.numm}</strong>:</span>
+              <span className="pin-zuel">{neiPin.pin}</span>
+            </div>
+          )}
+        </section>
+
+        <section className="card">
+          <h2>All Personen</h2>
+          {loading && <p>Lädt…</p>}
+          {!loading && (
+            <table className="tabelle">
+              <thead><tr><th>Numm</th><th>Roll</th><th>Klasse</th><th></th></tr></thead>
+              <tbody>
+                {personen.map((p, i) => (
+                  <tr key={i}>
+                    <td>{p.numm}</td><td>{p.rolle}</td><td>{p.klasse || "–"}</td>
+                    <td><button className="icon-btn" onClick={() => toggleAktiv(p)}>Deaktivéieren</button></td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          )}
+        </section>
+      </main>
+    </div>
+  );
+}
+ReactDOM.createRoot(document.getElementById("root")).render(<App />);
+</script>
+<style>
+* { box-sizing: border-box; } body { margin: 0; font-family: sans-serif; background: #f6f8f6; color: #1c2621; }
+.topbar { padding: 14px 22px; background: #00A94F; color: #fff; display: flex; gap: 10px; align-items: baseline; }
+.brand-mark { font-weight: 800; } .content { max-width: 600px; margin: 0 auto; padding: 24px 20px; }
+.card { background: #fff; border: 1px solid #e2e8e3; border-radius: 12px; padding: 18px 20px; margin-bottom: 16px; }
+.card h2 { color: #00A94F; margin-top: 0; }
+.grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.field { display: flex; flex-direction: column; gap: 4px; margin-bottom: 12px; font-size: 12.5px; font-weight: 700; color: #294f3c; }
+.input, .select { border: 1px solid #c9d5cd; border-radius: 7px; padding: 8px 10px; font-size: 13.5px; }
+.btn { background: #00A94F; color: #fff; border: none; padding: 10px 18px; border-radius: 8px; font-weight: 700; cursor: pointer; }
+.error { color: #8a2b1f; background: #fbe4e1; padding: 8px 12px; border-radius: 8px; font-size: 12.5px; }
+.pin-box { margin-top: 12px; background: #eef3ef; padding: 12px; border-radius: 8px; text-align: center; }
+.pin-zuel { display: block; font-size: 24px; font-weight: 800; color: #00A94F; letter-spacing: 6px; }
+.tabelle { width: 100%; border-collapse: collapse; }
+.tabelle th { text-align: left; font-size: 11px; color: #6d7d74; padding: 6px; }
+.tabelle td { padding: 7px 6px; font-size: 13px; border-top: 1px solid #f4f6f4; }
+.icon-btn { font-size: 11px; color: #99392f; background: #fbe4e1; border: none; padding: 4px 8px; border-radius: 6px; cursor: pointer; }
+</style>
+</body>
+</html>
