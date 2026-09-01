@@ -28,14 +28,6 @@ const { useState, useEffect, useMemo } = React;
 
 const WEB_APP_URL = "https://script.google.com/macros/s/AKfycbwNDO4bJv1lYKvwg57TnHzVHxLIJJikxD0ey7RHlraqa9nUSs8liBJycF38p4X--t_6/exec";
 
-const SCHUELER = [
-  { id: "lea_muller", name: "Léa Muller", klasse: "1GSE" },
-  { id: "ben_weber", name: "Ben Weber", klasse: "2GSE" },
-  { id: "noah_schmit", name: "Noah Schmit", klasse: "1GSE" },
-  { id: "mia_reuter", name: "Mia Reuter", klasse: "2GSE" },
-  { id: "tom_klein", name: "Tom Klein", klasse: "2GSE" },
-];
-
 const PERIODEN_2GSE = ["Trimester 1", "Trimester 2", "Trimester 3"];
 const PERIODEN_1GSE = ["Semester 1", "Semester 2"];
 
@@ -83,10 +75,29 @@ const leererBericht = () => ({
 });
 
 function App() {
-  const [schuelerId] = useState(() => {
+  // M1: Nimm live vum Backend lueden, keng hart-codéiert Lëscht méi.
+  const [personen, setPersonen] = useState([]);
+  const [personenGelueden, setPersonenGelueden] = useState(false);
+  useEffect(() => {
+    fetch(WEB_APP_URL + "?namen=1")
+      .then((r) => r.json())
+      .then((d) => setPersonen(d.personen || []))
+      .catch(() => {})
+      .finally(() => setPersonenGelueden(true));
+  }, []);
+  const SCHUELER = useMemo(
+    () => personen.filter((p) => p.rolle === "Schüler").map((p) => ({ id: p.numm, name: p.numm, klasse: p.klasse })),
+    [personen]
+  );
+
+  const [schuelerId, setSchuelerId] = useState("");
+  useEffect(() => {
+    if (!personenGelueden || schuelerId) return;
     const numm = window.PPREN_SESSION?.numm;
-    return SCHUELER.find((s) => s.name === numm)?.id || "";
-  });
+    if (numm && SCHUELER.find((s) => s.id === numm)) setSchuelerId(numm);
+    // eslint-disable-next-line
+  }, [personenGelueden, SCHUELER]);
+
   const [periode, setPeriode] = useState("");
   const [bericht, setBericht] = useState(leererBericht());
   const [dateien, setDateien] = useState([]);
@@ -112,7 +123,6 @@ function App() {
         const eegen = (data.wochenberichte || []).filter((w) => w.Schüler === currentSchueler.name);
         setMeng(eegen);
 
-        // Meilensteng zesummesammelen (offiziell + eegen + Projektplang) fir d'Verlinkung
         let gespäichert = [];
         const eintrag = (data.meilensteng || []).find((m) => m.Schüler === currentSchueler.name);
         if (eintrag && eintrag["Meilensteng (JSON)"]) {
@@ -135,10 +145,6 @@ function App() {
 
   useEffect(() => { if (schuelerId) lade(); }, [schuelerId]);
 
-  // Automatesche Virschlag: dee Meilensteen, deem säin Datum am nootste bei der
-  // Woch läit (léiwer nach net erreechten, soss dee lescht vergaangenen). De
-  // Schüler kann dëse Virschlag ëmmer manuell änneren — d'Aarbecht leeft jo net
-  // ëmmer genau esou zäitlech of, wéi geplangt.
   useEffect(() => {
     if (meilensteenManuellGewielt || meilensteng.length === 0) return;
     const wocheDatum = ersteDatumVunWoche(bericht.woche);
@@ -155,8 +161,6 @@ function App() {
     // eslint-disable-next-line
   }, [meilensteng, bericht.woche]);
 
-  // Ass déi aktuell Woch fir dës Period scho ofginn? Dann ass se gespaart
-  // (nëmmen änneren méiglech, wann nach net bewäert).
   const heutegWoche = heutigeWocheLabel();
   const bestehendFuerWoche = periode
     ? meng.find((w) => w.Periode === periode && w.Woche === bericht.woche && w.ID !== bericht.id)
