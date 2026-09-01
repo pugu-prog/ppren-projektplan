@@ -322,6 +322,8 @@ function doPost(e) {
       return jsonResponse(personSpäicheren(data));
     } else if (data.typ === "personDeaktivéieren") {
       return jsonResponse(personDeaktivéieren(data));
+    } else if (data.typ === "personenBulkSpäicheren") {
+      return jsonResponse(personenBulkSpäicheren(data));
     } else {
       url = erstelleOderAktualisiereProjektplan(data);
     }
@@ -522,7 +524,8 @@ function speichereWochenbericht(data) {
         const neieDatei = wbOrdner.createFile(blob);
         neieDatei.setSharing(DriveApp.Access.ANYONE_WITH_LINK, DriveApp.Permission.VIEW);
         links.push(neieDatei.getUrl());
-      } catch (e) { }
+      } catch (e) {
+      }
     });
     if (links.length > 0) {
       anhaengeText = (anhaengeText ? anhaengeText + "\n" : "") + links.join("\n");
@@ -754,6 +757,50 @@ function personSpäicheren(data) {
   const salt = Utilities.getUuid();
   getLoginSheet().appendRow([data.numm, data.rolle, data.klasse || "", hashPin(pin, salt), salt]);
   return { ok: true, neiPin: pin };
+}
+
+/**
+ * Setzt eng ganz Lëscht vu Nimm op eemol als nei Persounen an (z.B. eng
+ * ganz Klass Schüler). Nëmme Proffen dierfen dat. Persounen, déi et
+ * scho gëtt, ginn iwwersprongen (Numm bleift eendeiteg). Gëtt eng Lëscht
+ * vun {numm, pin, status} zréck, fir d'Resultater unzeweisen.
+ */
+function personenBulkSpäicheren(data) {
+  const session = pruefSession(data.proffToken);
+  if (!session.valid || session.rolle !== "Prof") {
+    return { ok: false, error: "Nëmme Proffen dierfen Persounen verwalten." };
+  }
+  const rolle = data.rolle === "Prof" ? "Prof" : "Schüler";
+  if (rolle === "Schüler" && !data.klasse) {
+    return { ok: false, error: "Klasse erfuerderlech fir Schüler." };
+  }
+  const nimm = (data.nimm || [])
+    .map((n) => String(n).trim())
+    .filter(Boolean);
+  if (nimm.length === 0) return { ok: false, error: "Keng Nimm ugi." };
+
+  const sheet = getPersonenSheet();
+  const loginSheet = getLoginSheet();
+  const bestehend = new Set(sheet.getDataRange().getValues().slice(1).map((z) => z[0]));
+  const scho_gesinn = new Set();
+  const resultater = [];
+
+  nimm.forEach((numm) => {
+    if (bestehend.has(numm) || scho_gesinn.has(numm)) {
+      resultater.push({ numm, pin: null, status: "scho do" });
+      return;
+    }
+    scho_gesinn.add(numm);
+    const klass = rolle === "Schüler" ? data.klasse : "";
+    sheet.appendRow([numm, rolle, klass, "", "Jo"]);
+
+    const pin = String(Math.floor(1000 + Math.random() * 9000));
+    const salt = Utilities.getUuid();
+    loginSheet.appendRow([numm, rolle, klass, hashPin(pin, salt), salt]);
+    resultater.push({ numm, pin, status: "nei" });
+  });
+
+  return { ok: true, resultater };
 }
 
 function personDeaktivéieren(data) {
