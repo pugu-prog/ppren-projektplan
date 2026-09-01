@@ -27,14 +27,6 @@ const { useState, useEffect, useMemo } = React;
 
 const WEB_APP_URL = "https://script.google.com/macros/s/AKfycbwNDO4bJv1lYKvwg57TnHzVHxLIJJikxD0ey7RHlraqa9nUSs8liBJycF38p4X--t_6/exec";
 
-const SCHUELER = [
-  { id: "lea_muller", name: "Léa Muller", klasse: "1GSE" },
-  { id: "ben_weber", name: "Ben Weber", klasse: "2GSE" },
-  { id: "noah_schmit", name: "Noah Schmit", klasse: "1GSE" },
-  { id: "mia_reuter", name: "Mia Reuter", klasse: "2GSE" },
-  { id: "tom_klein", name: "Tom Klein", klasse: "2GSE" },
-];
-
 const KATEGORIE_OPTIONEN = ["Event", "Iwwerpréiwung", "Praktesch Phase", "Ofgab", "Eegen", "Vakanz"];
 const KATEGORIE_FARWEN = { "Event": "#f0ec3a", "Iwwerpréiwung": "#d9d3f5", "Praktesch Phase": "#1ecdc4", "Ofgab": "#a9d92d", "Eegen": "#F67E1B", "Vakanz": "#b3d9e8" };
 const KATEGORIE_TEXT = { "Event": "#1c2621", "Iwwerpréiwung": "#1c2621", "Praktesch Phase": "#04342c", "Ofgab": "#1c2621", "Eegen": "#ffffff", "Vakanz": "#1c4a5e" };
@@ -71,6 +63,19 @@ function App() {
   const urlParams = new URLSearchParams(window.location.search);
   const urlSchueler = urlParams.get("schueler");
 
+  // M1: Nimm live vum Backend lueden, keng hart-codéiert Lëscht méi.
+  const [personen, setPersonen] = useState([]);
+  useEffect(() => {
+    fetch(WEB_APP_URL + "?namen=1")
+      .then((r) => r.json())
+      .then((d) => setPersonen(d.personen || []))
+      .catch(() => {});
+  }, []);
+  const SCHUELER = useMemo(
+    () => personen.filter((p) => p.rolle === "Schüler").map((p) => ({ id: p.numm, name: p.numm, klasse: p.klasse })),
+    [personen]
+  );
+
   const [schuelerId, setSchuelerId] = useState(urlSchueler || "");
   const [gespaart, setGespaart] = useState(!!urlSchueler);
   const [meilensteng, setMeilensteng] = useState([]);
@@ -81,8 +86,9 @@ function App() {
   const currentSchueler = SCHUELER.find((s) => s.id === schuelerId);
 
   useEffect(() => {
-    if (!schuelerId) return;
+    if (!schuelerId || SCHUELER.length === 0) return;
     const s = SCHUELER.find((x) => x.id === schuelerId);
+    if (!s) return;
     setLoading(true);
     setError(null);
     fetch(WEB_APP_URL + "?token=" + encodeURIComponent(window.PPREN_SESSION?.token || ""))
@@ -110,7 +116,7 @@ function App() {
       })
       .catch(() => setError("Konnte Meilensteng net lueden."))
       .finally(() => setLoading(false));
-  }, [schuelerId]);
+  }, [schuelerId, SCHUELER]);
 
   const sortéiert = useMemo(
     () => [...meilensteng].filter((m) => m.datum).sort((a, b) => a.datum.localeCompare(b.datum)),
