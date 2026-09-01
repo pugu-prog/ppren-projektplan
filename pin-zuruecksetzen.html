@@ -24,16 +24,22 @@
   });
 </script>
 <script type="text/babel">
-const { useState } = React;
+const { useState, useEffect, useMemo } = React;
 
 const WEB_APP_URL = "https://script.google.com/macros/s/AKfycbwNDO4bJv1lYKvwg57TnHzVHxLIJJikxD0ey7RHlraqa9nUSs8liBJycF38p4X--t_6/exec";
 
-const SCHUELER = [
-  "Léa Muller", "Ben Weber", "Noah Schmit", "Mia Reuter", "Tom Klein",
-];
-const PROFFEN = ["Guy Putz", "Pol Medernach", "Sarah Blum", "Tania Ludwig", "Tom Bleyer", "Salman Murad", "Alex Olinger"];
-
 function App() {
+  // M1: Nimm live vum Backend lueden, keng hart-codéiert Lëschten méi.
+  const [personen, setPersonen] = useState([]);
+  useEffect(() => {
+    fetch(WEB_APP_URL + "?namen=1")
+      .then((r) => r.json())
+      .then((d) => setPersonen(d.personen || []))
+      .catch(() => {});
+  }, []);
+  const SCHUELER = useMemo(() => personen.filter((p) => p.rolle === "Schüler").map((p) => p.numm), [personen]);
+  const PROFFEN = useMemo(() => personen.filter((p) => p.rolle === "Prof").map((p) => p.numm), [personen]);
+
   const [rolle, setRolle] = useState("Schüler");
   const [numm, setNumm] = useState("");
   const [syncing, setSyncing] = useState(false);
