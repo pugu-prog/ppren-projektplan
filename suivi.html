@@ -27,14 +27,6 @@ const { useState, useEffect, useMemo } = React;
 
 const WEB_APP_URL = "https://script.google.com/macros/s/AKfycbwNDO4bJv1lYKvwg57TnHzVHxLIJJikxD0ey7RHlraqa9nUSs8liBJycF38p4X--t_6/exec";
 
-const SCHUELER = [
-  { id: "lea_muller", name: "Léa Muller", klasse: "1GSE" },
-  { id: "ben_weber", name: "Ben Weber", klasse: "2GSE" },
-  { id: "noah_schmit", name: "Noah Schmit", klasse: "1GSE" },
-  { id: "mia_reuter", name: "Mia Reuter", klasse: "2GSE" },
-  { id: "tom_klein", name: "Tom Klein", klasse: "2GSE" },
-];
-
 const PERIODEN_2GSE = ["Trimester 1", "Trimester 2", "Trimester 3"];
 const PERIODEN_1GSE = ["Semester 1", "Semester 2"];
 
@@ -71,11 +63,30 @@ function formatDatumKuerz(iso) {
 
 function App() {
   const istSchueler = window.PPREN_SESSION?.rolle === "Schüler";
-  const [schuelerId, setSchuelerId] = useState(() => {
-    if (!istSchueler) return "";
+
+  // M1: Nimm live vum Backend lueden, keng hart-codéiert Lëscht méi.
+  const [personen, setPersonen] = useState([]);
+  const [personenGelueden, setPersonenGelueden] = useState(false);
+  useEffect(() => {
+    fetch(WEB_APP_URL + "?namen=1")
+      .then((r) => r.json())
+      .then((d) => setPersonen(d.personen || []))
+      .catch(() => {})
+      .finally(() => setPersonenGelueden(true));
+  }, []);
+  const SCHUELER = useMemo(
+    () => personen.filter((p) => p.rolle === "Schüler").map((p) => ({ id: p.numm, name: p.numm, klasse: p.klasse })),
+    [personen]
+  );
+
+  const [schuelerId, setSchuelerId] = useState("");
+  useEffect(() => {
+    if (!personenGelueden || !istSchueler || schuelerId) return;
     const numm = window.PPREN_SESSION?.numm;
-    return SCHUELER.find((s) => s.name === numm)?.id || "";
-  });
+    if (numm && SCHUELER.find((s) => s.id === numm)) setSchuelerId(numm);
+    // eslint-disable-next-line
+  }, [personenGelueden, SCHUELER]);
+
   const [projekt, setProjekt] = useState(null);
   const [bewertungen, setBewertungen] = useState([]);
   const [wochenberichte, setWochenberichte] = useState([]);
