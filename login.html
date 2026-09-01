@@ -28,19 +28,10 @@ const WEB_APP_URL = "https://script.google.com/macros/s/AKfycbwNDO4bJv1lYKvwg57T
 const SE_LOGO_URL = "LogoSE_weisHintergrund.png";
 const LTETT_LOGO_URL = "LTEtt_Logo.png";
 
-const SCHUELER = [
-  { id: "lea_muller", name: "Léa Muller", klasse: "1GSE" },
-  { id: "ben_weber", name: "Ben Weber", klasse: "2GSE" },
-  { id: "noah_schmit", name: "Noah Schmit", klasse: "1GSE" },
-  { id: "mia_reuter", name: "Mia Reuter", klasse: "2GSE" },
-  { id: "tom_klein", name: "Tom Klein", klasse: "2GSE" },
-];
-const PROFFEN = ["Guy Putz", "Pol Medernach", "Sarah Blum", "Tania Ludwig", "Tom Bleyer", "Salman Murad", "Alex Olinger"];
-
 // Säiten, déi just fir eng bestëmmte Roll gedaach sinn — gëtt benotzt fir
 // de "zréck"-Parameter ze préiwen, sou datt kee mat der falscher Roll op
 // eng gespaart Säit geleet gëtt (och net iwwer en ale Link).
-const PROF_SÄITEN = ["admin.html", "bewertung.html", "dashboard.html", "fachgespraech.html", "zieluewerpreiwung.html", "wochenberichte-korrigeieren.html", "zeitplang-verwalten.html", "noten.html", "pin-zuruecksetzen.html", "rendezvousen.html"];
+const PROF_SÄITEN = ["admin.html", "bewertung.html", "dashboard.html", "fachgespraech.html", "zieluewerpreiwung.html", "wochenberichte-korrigeieren.html", "zeitplang-verwalten.html", "noten.html", "pin-zuruecksetzen.html", "rendezvousen.html", "personen-verwalten.html"];
 const SCHUELER_SÄITEN = ["index.html", "wochenbericht.html", "schueler.html"];
 
 /** Gëtt eng sécher Ziel-Säit zréck: benotzt "zréck" nëmmen, wann d'Roll do och Zougrëff huet. */
@@ -59,19 +50,24 @@ function App() {
   const [pin, setPin] = useState("");
   const [error, setError] = useState(null);
   const [syncing, setSyncing] = useState(false);
+  const [personen, setPersonen] = useState([]); // M1: live vum Backend gelueden
 
   useEffect(() => {
-    // Wann scho ugemellt, direkt weiderleeden op déi Säit, déi virdru gewollt war
-    // (mä just wann d'Roll do Zougrëff huet, soss op d'Standard-Säit).
     const bestehendToken = localStorage.getItem("ppren_token");
     const bestehendRolle = localStorage.getItem("ppren_rolle");
     if (bestehendToken && bestehendRolle) {
       const zréckParam = new URLSearchParams(window.location.search).get("zréck");
       window.location.href = sécherZiel(zréckParam, bestehendRolle);
+      return;
     }
+    // M1: Nimm-Lëscht live vum Backend lueden (Personen-Tab), net méi hart-codéiert.
+    fetch(WEB_APP_URL + "?namen=1")
+      .then((r) => r.json())
+      .then((d) => setPersonen(d.personen || []))
+      .catch(() => {});
   }, []);
 
-  const nimm = rolle === "Schüler" ? SCHUELER.map((s) => s.name) : PROFFEN;
+  const nimm = personen.filter((p) => (rolle === "Schüler" ? p.rolle === "Schüler" : p.rolle === "Prof")).map((p) => p.numm);
 
   const umellen = async () => {
     if (!numm || pin.length !== 4) {
