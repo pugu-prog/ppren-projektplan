@@ -27,14 +27,6 @@ const { useState, useEffect, useMemo } = React;
 
 const WEB_APP_URL = "https://script.google.com/macros/s/AKfycbwNDO4bJv1lYKvwg57TnHzVHxLIJJikxD0ey7RHlraqa9nUSs8liBJycF38p4X--t_6/exec";
 
-const SCHUELER = [
-  { id: "lea_muller", name: "Léa Muller", klasse: "1GSE" },
-  { id: "ben_weber", name: "Ben Weber", klasse: "2GSE" },
-  { id: "noah_schmit", name: "Noah Schmit", klasse: "1GSE" },
-  { id: "mia_reuter", name: "Mia Reuter", klasse: "2GSE" },
-  { id: "tom_klein", name: "Tom Klein", klasse: "2GSE" },
-];
-
 // Lëtzebuerger Schoulvakanzen a Feierdeeg fir d'Schouljoer 2026/2027 (Quell: men.public.lu)
 const VAKANZEN_2026_27 = [
   { start: "2026-10-31", end: "2026-11-08", label: "Allerheiligenferien" },
@@ -79,6 +71,19 @@ function uid() { return Date.now().toString(36) + Math.random().toString(36).sli
 function App() {
   const urlParams = new URLSearchParams(window.location.search);
   const urlSchueler = urlParams.get("schueler");
+
+  // M1: Nimm live vum Backend lueden, keng hart-codéiert Lëscht méi.
+  const [personen, setPersonen] = useState([]);
+  useEffect(() => {
+    fetch(WEB_APP_URL + "?namen=1")
+      .then((r) => r.json())
+      .then((d) => setPersonen(d.personen || []))
+      .catch(() => {});
+  }, []);
+  const SCHUELER = useMemo(
+    () => personen.filter((p) => p.rolle === "Schüler").map((p) => ({ id: p.numm, name: p.numm, klasse: p.klasse })),
+    [personen]
+  );
 
   const [schuelerId, setSchuelerId] = useState(urlSchueler || "");
   const [gespaart, setGespaart] = useState(!!urlSchueler);
@@ -141,7 +146,7 @@ function App() {
       .finally(() => setLoading(false));
   };
 
-  useEffect(() => { if (schuelerId) lade(schuelerId); }, [schuelerId]);
+  useEffect(() => { if (schuelerId && SCHUELER.length > 0) lade(schuelerId); }, [schuelerId, SCHUELER]);
 
   const updateZeil = (id, patch) =>
     setEegenMeilensteng((ms) => ms.map((m) => (m.id === id ? { ...m, ...patch } : m)));
