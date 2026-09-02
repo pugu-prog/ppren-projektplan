@@ -45,12 +45,14 @@ function sécherZiel(zréckParam, rolle) {
 }
 
 function App() {
-  const [rolle, setRolle] = useState("Schüler");
-  const [numm, setNumm] = useState("");
+  // M1: Login geschitt elo iwwer den Untis-Code (méi sécher wéi de Numm,
+  // well net direkt ze roden) — oder, falls nach kee Code zougewisen ass,
+  // weiderhin iwwer de vollen Numm. D'Roll gëtt server-säiteg festgestallt,
+  // duerfir brauch et keng Roll-Ëmschalter méi hei.
+  const [eingabe, setEingabe] = useState("");
   const [pin, setPin] = useState("");
   const [error, setError] = useState(null);
   const [syncing, setSyncing] = useState(false);
-  const [personen, setPersonen] = useState([]); // M1: live vum Backend gelueden
 
   useEffect(() => {
     const bestehendToken = localStorage.getItem("ppren_token");
@@ -60,18 +62,11 @@ function App() {
       window.location.href = sécherZiel(zréckParam, bestehendRolle);
       return;
     }
-    // M1: Nimm-Lëscht live vum Backend lueden (Personen-Tab), net méi hart-codéiert.
-    fetch(WEB_APP_URL + "?namen=1")
-      .then((r) => r.json())
-      .then((d) => setPersonen(d.personen || []))
-      .catch(() => {});
   }, []);
 
-  const nimm = personen.filter((p) => (rolle === "Schüler" ? p.rolle === "Schüler" : p.rolle === "Prof")).map((p) => p.numm);
-
   const umellen = async () => {
-    if (!numm || pin.length !== 4) {
-      setError("Weg Numm auswielen an 4-stellegen PIN aginn.");
+    if (!eingabe.trim() || pin.length !== 4) {
+      setError("Weg Untis-Code (oder Numm) an 4-stellegen PIN aginn.");
       return;
     }
     setSyncing(true);
@@ -80,7 +75,7 @@ function App() {
       const res = await fetch(WEB_APP_URL, {
         method: "POST",
         headers: { "Content-Type": "text/plain;charset=utf-8" },
-        body: JSON.stringify({ typ: "login", numm, pin }),
+        body: JSON.stringify({ typ: "login", numm: eingabe.trim(), pin }),
       });
       const data = await res.json();
       if (!data.ok) throw new Error(data.error || "Umeldung feelgeschloen.");
@@ -117,22 +112,20 @@ function App() {
       {/* ===== Login-Kaart ===== */}
       <main className="main">
         <div className="card">
-          <div className="rolle-switch">
-            <button className={`switch-btn ${rolle === "Schüler" ? "active" : ""}`} onClick={() => { setRolle("Schüler"); setNumm(""); }}>Schüler/-in</button>
-            <button className={`switch-btn ${rolle === "Prof" ? "active" : ""}`} onClick={() => { setRolle("Prof"); setNumm(""); }}>Prof</button>
-          </div>
-
           <label className="field">
-            <span className="field-label">Numm</span>
-            <select className="select" value={numm} onChange={(e) => setNumm(e.target.value)}>
-              <option value="">– auswählen –</option>
-              {nimm.map((n) => <option key={n} value={n}>{n}</option>)}
-            </select>
+            <span className="field-label">Untis-Code (oder Numm)</span>
+            <input
+              type="text" className="input" autoCapitalize="none" autoCorrect="off" spellCheck="false"
+              placeholder="z.B. putgu255"
+              value={eingabe} onChange={(e) => setEingabe(e.target.value)}
+              onKeyDown={(e) => e.key === "Enter" && document.getElementById("pin-feld")?.focus()}
+            />
           </label>
 
           <label className="field">
             <span className="field-label">PIN (4 Zuelen)</span>
             <input
+              id="pin-feld"
               type="password" inputMode="numeric" maxLength={4} className="input pin-input"
               value={pin} onChange={(e) => setPin(e.target.value.replace(/\D/g, "").slice(0, 4))}
               onKeyDown={(e) => e.key === "Enter" && umellen()}
@@ -145,7 +138,7 @@ function App() {
             {syncing ? "Mellt un…" : "Umellen"}
           </button>
 
-          <p className="footer-hint">PIN vergiess? Frot Ären Prof, en zréckzesetzen.</p>
+          <p className="footer-hint">Kee Untis-Code? Numm benotzen. PIN vergiess? Frot Ären Prof, en zréckzesetzen.</p>
         </div>
       </main>
 
@@ -184,9 +177,6 @@ body { margin: 0; font-family: -apple-system, "Segoe UI", Inter, Arial, sans-ser
 /* ===== Login-Kaart ===== */
 .main { flex: 1; display: flex; align-items: flex-start; justify-content: center; padding: 4px 24px 30px; }
 .card { width: 100%; max-width: 400px; background: #fff; border: 1px solid #e2e8e3; border-radius: 16px; padding: 26px 26px 22px; box-shadow: 0 4px 20px rgba(28,38,33,0.06); }
-.rolle-switch { display: flex; gap: 6px; margin-bottom: 18px; }
-.switch-btn { flex: 1; font-size: 13px; font-weight: 700; padding: 9px; border-radius: 8px; border: 1px solid #c9d5cd; background: #fff; color: #55625a; cursor: pointer; }
-.switch-btn.active { background: #00A94F; border-color: #00A94F; color: #fff; }
 .field { display: flex; flex-direction: column; gap: 5px; margin-bottom: 16px; }
 .field-label { font-size: 12.5px; font-weight: 700; color: #294f3c; }
 .select, .input { border: 1px solid #c9d5cd; border-radius: 8px; padding: 10px 12px; font-size: 14px; font-family: inherit; background: #fff; color: #1c2621; width: 100%; }
@@ -195,7 +185,7 @@ body { margin: 0; font-family: -apple-system, "Segoe UI", Inter, Arial, sans-ser
 .btn { width: 100%; font-size: 14px; font-weight: 700; padding: 12px; border-radius: 9px; border: none; cursor: pointer; }
 .btn-primary { background: #00A94F; color: #fff; }
 .btn-primary:disabled { background: #b7c6bd; cursor: not-allowed; }
-.footer-hint { text-align: center; font-size: 11.5px; color: #93a098; margin: 16px 0 0; }
+.footer-hint { text-align: center; font-size: 11.5px; color: #93a098; margin: 16px 0 0; line-height: 1.5; }
 
 /* ===== Footer (Deckblatt-Logoen) — einfache Flexbox, keng absolut Positioun ===== */
 .foot { display: flex; align-items: flex-end; justify-content: space-between; gap: 16px; padding: 28px 24px 30px 4px; flex-wrap: wrap; }
