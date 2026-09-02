@@ -704,7 +704,13 @@ function getPersonenSheet() {
   let sheet = ss.getSheetByName("Personen");
   if (!sheet) {
     sheet = ss.insertSheet("Personen");
-    sheet.appendRow(["Numm", "Roll", "Klasse", "Email", "Aktiv"]);
+    sheet.appendRow(["Numm", "Roll", "Klasse", "Email", "Aktiv", "Untis-Code"]);
+  } else {
+    // Migratioun fir Sheets, déi virun der Untis-Code-Ëmstellung ugeluecht goufen
+    const header = sheet.getRange(1, 1, 1, Math.max(sheet.getLastColumn(), 1)).getValues()[0];
+    if (header.length < 6 || header[5] !== "Untis-Code") {
+      sheet.getRange(1, 6).setValue("Untis-Code");
+    }
   }
   return sheet;
 }
@@ -716,12 +722,12 @@ function seedPersonenVunListen() {
   let neiZuel = 0;
   SCHUELER_LISTE.forEach((s) => {
     if (bestehend.has(s.name)) return;
-    sheet.appendRow([s.name, "Schüler", s.klasse, SCHUELER_EMAILS[s.name] || "", "Jo"]);
+    sheet.appendRow([s.name, "Schüler", s.klasse, SCHUELER_EMAILS[s.name] || "", "Jo", ""]);
     neiZuel++;
   });
   Object.keys(LEHRER_EMAILS).forEach((numm) => {
     if (bestehend.has(numm)) return;
-    sheet.appendRow([numm, "Prof", "", LEHRER_EMAILS[numm], "Jo"]);
+    sheet.appendRow([numm, "Prof", "", LEHRER_EMAILS[numm], "Jo", ""]);
     neiZuel++;
   });
   Logger.log("✅ " + neiZuel + " Persoun(en) an de Personen-Tab kopéiert.");
@@ -732,7 +738,23 @@ function getAktivePersonen() {
   const werte = sheet.getDataRange().getValues();
   return werte.slice(1)
     .filter((z) => z[4] !== "Nee")
-    .map((z) => ({ numm: z[0], rolle: z[1], klasse: z[2] }));
+    .map((z) => ({ numm: z[0], rolle: z[1], klasse: z[2], untisCode: z[5] || "" }));
+}
+
+/**
+ * Aktualiséiert de Untis-Code an der Login-Tabell fir eng bestoend
+ * Persoun (falls schonn e Login-Zougang existéiert). Gëtt roueg näischt
+ * zréck, well dëst just en Hëllefsschrëtt bei personSpäicheren ass.
+ */
+function aktualiséierUntisCodeAmLogin(numm, untisCode) {
+  const loginSheet = getLoginSheet();
+  const loginWerte = loginSheet.getDataRange().getValues();
+  for (let j = 1; j < loginWerte.length; j++) {
+    if (loginWerte[j][0] === numm) {
+      loginSheet.getRange(j + 1, 6).setValue(untisCode);
+      return;
+    }
+  }
 }
 
 function personSpäicheren(data) {
@@ -743,27 +765,32 @@ function personSpäicheren(data) {
   if (!data.numm || !data.rolle) return { ok: false, error: "Numm a Roll erfuerderlech." };
   if (data.rolle === "Schüler" && !data.klasse) return { ok: false, error: "Klasse erfuerderlech fir Schüler." };
 
+  const untisCode = (data.untisCode || "").trim();
   const sheet = getPersonenSheet();
   const werte = sheet.getDataRange().getValues();
   for (let i = 1; i < werte.length; i++) {
     if (werte[i][0] === data.numm) {
-      sheet.getRange(i + 1, 1, 1, 5).setValues([[data.numm, data.rolle, data.klasse || "", data.email || "", "Jo"]]);
+      sheet.getRange(i + 1, 1, 1, 6).setValues([[data.numm, data.rolle, data.klasse || "", data.email || "", "Jo", untisCode]]);
+      aktualiséierUntisCodeAmLogin(data.numm, untisCode);
       return { ok: true, neiPin: null };
     }
   }
-  sheet.appendRow([data.numm, data.rolle, data.klasse || "", data.email || "", "Jo"]);
+  sheet.appendRow([data.numm, data.rolle, data.klasse || "", data.email || "", "Jo", untisCode]);
 
   const pin = String(Math.floor(1000 + Math.random() * 9000));
   const salt = Utilities.getUuid();
-  getLoginSheet().appendRow([data.numm, data.rolle, data.klasse || "", hashPin(pin, salt), salt]);
+  getLoginSheet().appendRow([data.numm, data.rolle, data.klasse || "", hashPin(pin, salt), salt, untisCode]);
   return { ok: true, neiPin: pin };
 }
 
 /**
  * Setzt eng ganz Lëscht vu Nimm op eemol als nei Persounen an (z.B. eng
  * ganz Klass Schüler). Nëmme Proffen dierfen dat. Persounen, déi et
- * scho gëtt, ginn iwwersprongen (Numm bleift eendeiteg). Gëtt eng Lëscht
- * vun {numm, pin, status} zréck, fir d'Resultater unzeweisen.
+ * scho gëtt, ginn iwwersprongen (Numm bleift eendeiteg). Jiddereng Zeil
+ * kann optional en Untis-Code matbréngen, Format "Numm;UntisCode"
+ * (Semikolon-getrennt) — den Untis-Code kann och eidel gelooss ginn a
+ * spéider nogedroe ginn. Gëtt eng Lëscht vun {numm, pin, untisCode,
+ * status} zréck, fir d'Resultater unzeweisen.
  */
 function personenBulkSpäicheren(data) {
   const session = pruefSession(data.proffToken);
@@ -774,10 +801,10 @@ function personenBulkSpäicheren(data) {
   if (rolle === "Schüler" && !data.klasse) {
     return { ok: false, error: "Klasse erfuerderlech fir Schüler." };
   }
-  const nimm = (data.nimm || [])
+  const zeilen = (data.nimm || [])
     .map((n) => String(n).trim())
     .filter(Boolean);
-  if (nimm.length === 0) return { ok: false, error: "Keng Nimm ugi." };
+  if (zeilen.length === 0) return { ok: false, error: "Keng Nimm ugi." };
 
   const sheet = getPersonenSheet();
   const loginSheet = getLoginSheet();
@@ -785,19 +812,24 @@ function personenBulkSpäicheren(data) {
   const scho_gesinn = new Set();
   const resultater = [];
 
-  nimm.forEach((numm) => {
+  zeilen.forEach((zeil) => {
+    const teile = zeil.split(";").map((t) => t.trim());
+    const numm = teile[0];
+    const untisCode = teile[1] || "";
+    if (!numm) return;
+
     if (bestehend.has(numm) || scho_gesinn.has(numm)) {
-      resultater.push({ numm, pin: null, status: "scho do" });
+      resultater.push({ numm, pin: null, untisCode, status: "scho do" });
       return;
     }
     scho_gesinn.add(numm);
     const klass = rolle === "Schüler" ? data.klasse : "";
-    sheet.appendRow([numm, rolle, klass, "", "Jo"]);
+    sheet.appendRow([numm, rolle, klass, "", "Jo", untisCode]);
 
     const pin = String(Math.floor(1000 + Math.random() * 9000));
     const salt = Utilities.getUuid();
-    loginSheet.appendRow([numm, rolle, klass, hashPin(pin, salt), salt]);
-    resultater.push({ numm, pin, status: "nei" });
+    loginSheet.appendRow([numm, rolle, klass, hashPin(pin, salt), salt, untisCode]);
+    resultater.push({ numm, pin, untisCode, status: "nei" });
   });
 
   return { ok: true, resultater };
@@ -2097,7 +2129,13 @@ function getLoginSheet() {
   let sheet = ss.getSheetByName("Login");
   if (!sheet) {
     sheet = ss.insertSheet("Login");
-    sheet.appendRow(["Numm", "Rolle", "Klasse", "PIN-Hash", "Salt"]);
+    sheet.appendRow(["Numm", "Rolle", "Klasse", "PIN-Hash", "Salt", "Untis-Code"]);
+  } else {
+    // Migratioun fir Sheets, déi virun der Untis-Code-Ëmstellung ugeluecht goufen
+    const header = sheet.getRange(1, 1, 1, Math.max(sheet.getLastColumn(), 1)).getValues()[0];
+    if (header.length < 6 || header[5] !== "Untis-Code") {
+      sheet.getRange(1, 6).setValue("Untis-Code");
+    }
   }
   return sheet;
 }
@@ -2141,19 +2179,28 @@ function initialiséierLoginPins() {
     if (bestehendNimm.has(p.numm)) return;
     const pin = FEST_PINS[p.numm] || String(Math.floor(1000 + Math.random() * 9000));
     const salt = Utilities.getUuid();
-    sheet.appendRow([p.numm, p.rolle, p.klasse, hashPin(pin, salt), salt]);
+    sheet.appendRow([p.numm, p.rolle, p.klasse, hashPin(pin, salt), salt, ""]);
     nei.push({ numm: p.numm, rolle: p.rolle, pin });
   });
   Logger.log(JSON.stringify(nei, null, 2));
   return nei;
 }
 
-function login(numm, pin) {
-  if (!numm || !pin) return { ok: false, error: "Numm a PIN erfuerderlech." };
+/**
+ * Login akzeptéiert entweder de vollen Numm oder den Untis-Code
+ * (empfohlen — méi séchert wéi de Numm, well net direkt ze roden). De
+ * Groussbuschtabe-Ënnerscheed bei den Untis-Code gëllt net.
+ */
+function login(nummOderCode, pin) {
+  if (!nummOderCode || !pin) return { ok: false, error: "Numm/Code a PIN erfuerderlech." };
+  const eingabe = String(nummOderCode).trim();
+  const eingabeLower = eingabe.toLowerCase();
 
   const personenSheet = getPersonenSheet();
   const pWerte = personenSheet.getDataRange().getValues();
-  const persoonZeil = pWerte.find((z) => z[0] === numm);
+  const persoonZeil = pWerte.slice(1).find(
+    (z) => z[0] === eingabe || (z[5] && String(z[5]).toLowerCase() === eingabeLower)
+  );
   if (persoonZeil && persoonZeil[4] === "Nee") {
     return { ok: false, error: "Dëse Zougang ass deaktivéiert. Frot de Prof." };
   }
@@ -2161,8 +2208,9 @@ function login(numm, pin) {
   const sheet = getLoginSheet();
   const werte = sheet.getDataRange().getValues();
   for (let i = 1; i < werte.length; i++) {
-    if (werte[i][0] === numm) {
-      const [, rolle, klasse, pinHash, salt] = werte[i];
+    const [numm, rolle, klasse, pinHash, salt, untisCode] = werte[i];
+    const stëmmtIwwerEng = numm === eingabe || (untisCode && String(untisCode).toLowerCase() === eingabeLower);
+    if (stëmmtIwwerEng) {
       if (hashPin(String(pin), salt) !== pinHash) {
         return { ok: false, error: "Falsche PIN." };
       }
@@ -2172,7 +2220,7 @@ function login(numm, pin) {
       return { ok: true, token, numm, rolle, klasse };
     }
   }
-  return { ok: false, error: "Onbekannten Numm. Frot de Prof no Ärem Zougang." };
+  return { ok: false, error: "Onbekannten Numm/Code. Frot de Prof no Ärem Zougang." };
 }
 
 function pruefSession(token) {
