@@ -245,6 +245,20 @@ function doGet(e) {
     }
   }
 
+  let bewertungsraster = [];
+  const brSheet = ss.getSheetByName("Bewertungsraster");
+  if (brSheet) {
+    const brWerte = brSheet.getDataRange().getValues();
+    if (brWerte.length >= 2) {
+      const brHeader = brWerte[0];
+      bewertungsraster = brWerte.slice(1).map((zeile) => {
+        const obj = {};
+        brHeader.forEach((h, i) => { obj[h] = zeile[i]; });
+        return obj;
+      });
+    }
+  }
+
   let personen = getAktivePersonen();
 
   if (session.rolle === "Schüler") {
@@ -260,7 +274,7 @@ function doGet(e) {
     ausgaben = ausgaben.filter((a) => a.Schüler === numm);
   }
 
-  return jsonResponse({ ok: true, projekte, bewertungen, meilensteng, wochenberichte, offiziellZaitplang, fachgespraeche, zieluewerpreiwungen, rendezvousen, budget, ausgaben, personen });
+  return jsonResponse({ ok: true, projekte, bewertungen, meilensteng, wochenberichte, offiziellZaitplang, fachgespraeche, zieluewerpreiwungen, rendezvousen, budget, ausgaben, personen, bewertungsraster });
 }
 
 function doPost(e) {
@@ -324,6 +338,8 @@ function doPost(e) {
       return jsonResponse(personDeaktivéieren(data));
     } else if (data.typ === "personenBulkSpäicheren") {
       return jsonResponse(personenBulkSpäicheren(data));
+    } else if (data.typ === "bewertungsrasterSpäicheren") {
+      return jsonResponse(bewertungsrasterSpäicheren(data));
     } else {
       url = erstelleOderAktualisiereProjektplan(data);
     }
@@ -850,6 +866,215 @@ function personDeaktivéieren(data) {
   }
   return { ok: false, error: "Net fonnt." };
 }
+
+// ===== M6: Konfiguréierbaart Bewertungsraster =====
+
+function getBewertungsrasterSheet() {
+  const ss = SpreadsheetApp.openById(OVERVIEW_SHEET_ID);
+  let sheet = ss.getSheetByName("Bewertungsraster");
+  if (!sheet) {
+    sheet = ss.insertSheet("Bewertungsraster");
+    sheet.appendRow([
+      "Klasse", "Periode", "GruppeOrder", "GruppeTitel", "GruppeTyp", "ItemOrder",
+      "ItemName", "ItemMax", "ItemIndikatoren", "WochenberichteMax", "WochenberichteLabel", "OffizielleSkala",
+    ]);
+  }
+  return sheet;
+}
+
+/**
+ * Déi aktuell, géint d'offiziell PDFen Punkt-fir-Punkt verifizéiert
+ * Bewertungsstrukturen — dëse Standard gëtt beim Seeden 1:1 an d'Sheet
+ * kopéiert, sou datt näischt un der bestoender, korrekter Bewertung
+ * geännert gëtt, just d'Quell (vum Code an d'Sheet) wiesselt.
+ */
+const BEWERTUNGSRASTER_STANDARD = {
+  "2GSE": {
+    "Trimester 1": {
+      offizielleSkala: 270, wochenberichteMax: 60, wochenberichteLabel: "Wochenberichte (12 × 5P)",
+      gruppen: [
+        { titel: "Planung / Themenfindung", typ: "planung", items: [
+          { name: "Projektplan", max: 30, indikatoren: "Beschreibung des Projektes (15P); Motivation/Bezug zu Umweltwissenschaften (3P); Ziele (6P); Aufgabenteilung bei Gruppenarbeit (6P); Kostenplan falls erforderlich" },
+        ] },
+        { titel: "Umsetzung des Projektes und Dokumentation", typ: "umsetzung", items: [
+          { name: "Bewältigung des Themas", max: 30, indikatoren: "Arbeit an vereinbarten Zielsetzungen; Zielüberprüfung an 2 Terminen (je 11P); Autonomie (8P)" },
+          { name: "Dokumentation", max: 30, indikatoren: "Einleitung, Vorwort, Titelseite, Inhaltsverzeichnis, Verzeichnisse; Recherche/Theorie (20P)" },
+        ] },
+        { titel: "Methodologie 1 — Bewerbungsmappe & Praktikumssuche", typ: "methodologie", items: [
+          { name: "Bewerbungsmappe (FR/DE/EN)", max: 30, indikatoren: "Alle Dokumente vorhanden; Richtlinien für Bewerbungsschreiben/Lebenslauf beachtet" },
+          { name: "Überprüfung der erledigten Arbeiten", max: 10, indikatoren: "Methodische, gezielte Kontrolle; Nutzung von Korrekturressourcen; Fehler erkannt und korrigiert" },
+          { name: "Praktikumsplatzsuche", max: 20, indikatoren: "Alle Suchmöglichkeiten ausgeschöpft; Termine eingehalten" },
+        ] },
+        { titel: "Methodologie 2 — Kommunikation & Recherche", typ: "methodologie", items: [
+          { name: "Schriftliche Kommunikation per E-Mail", max: 40, indikatoren: "Standardsätze/Höflichkeitsformeln bekannt; passender Wortschatz; korrekte Struktur" },
+          { name: "Elektronische Kommunikationsmittel", max: 10, indikatoren: "Modalitäten bekannt und korrekt angewendet; Anweisungen korrekt umgesetzt" },
+          { name: "Effiziente Nutzung verschiedener Quellen", max: 10, indikatoren: "Informationsquellen unterschieden und projektrelevant ausgewählt" },
+        ] },
+      ],
+    },
+    "Trimester 2": {
+      offizielleSkala: 190, wochenberichteMax: 40, wochenberichteLabel: "Meilensteine / Wochenberichte (8 × 5P)",
+      gruppen: [
+        { titel: "Umsetzung des Projektes und Dokumentation", typ: "umsetzung", items: [
+          { name: "Bewältigung des Themas", max: 30, indikatoren: "Arbeit an Zielsetzungen; 1–2 Prüftermine; Autonomie" },
+          { name: "Dokumentation", max: 30, indikatoren: "Theoretische Grundlagen (25P); Quellenverzeichnis (5P)" },
+        ] },
+        { titel: "Fachgespräch", typ: "fachgespraech", items: [
+          { name: "Fachwissen", max: 30, indikatoren: "4 Fragen mit Skizze oder 5 Fragen kompetent & fachlich korrekt beantwortet, Fachbegriffe benutzt" },
+        ] },
+        { titel: "Schriftliche Prüfung", typ: "dokumentation", items: [
+          { name: "Schriftliche Prüfung", max: 30, indikatoren: "Vorbereitung auf das schriftliche Examen; Analyse und Reflexion des Projekts" },
+        ] },
+        { titel: "Methodologie", typ: "methodologie", items: [
+          { name: "Digitale Kompetenzen", max: 15, indikatoren: "Beherrschung fortgeschrittener Funktionen der verwendeten Software (MS Office)" },
+          { name: "Recherche, Analyse und Dokumentation", max: 15, indikatoren: "Theoretische Grundlagen & Quellenverzeichnis; Vielfalt & Relevanz der Quellen" },
+        ] },
+      ],
+    },
+    "Trimester 3": {
+      offizielleSkala: 300, wochenberichteMax: 60, wochenberichteLabel: "Meilensteine / Wochenberichte (8–12 × 5P)",
+      gruppen: [
+        { titel: "Vorgehensweise bei der Umsetzung des Projektes", typ: "umsetzung", items: [
+          { name: "Bewältigung des Themas", max: 30, indikatoren: "Arbeit an Zielsetzungen; 1–2 Prüftermine; Autonomie (8P)" },
+          { name: "Sachliche Qualität", max: 60, indikatoren: "Komponenten/Produkt funktionieren wie geplant (30P); Qualität inkl. Film überzeugt (30P)" },
+        ] },
+        { titel: "Schriftliche Arbeit / Dokumentation", typ: "dokumentation", items: [
+          { name: "Darstellung", max: 8, indikatoren: "Übersichtlich strukturiert & gegliedert; sorgfältiges, kompaktes Layout" },
+          { name: "Sprache", max: 7, indikatoren: "Verständlich, flüssig, prägnant; korrekte Grammatik/Satzbau/Rechtschreibung/Zeichensetzung" },
+          { name: "Zitate, Quellen, Verzeichnisse", max: 5, indikatoren: "Vollständige Quellenangaben & Verzeichnisse" },
+          { name: "Sachliche Qualität", max: 40, indikatoren: "Vollständig, fachlich begründet und korrekt" },
+        ] },
+        { titel: "Präsentation", typ: "praesentation", items: [
+          { name: "Struktur", max: 6, indikatoren: "Durchdacht und ansprechend gestaltet" },
+          { name: "Inhalt", max: 12, indikatoren: "Repräsentativ, mit Einblick in Ergebnisse und Produkt" },
+          { name: "Sprache", max: 3, indikatoren: "Flüssig, verständlich, korrekt" },
+          { name: "Interaktion", max: 3, indikatoren: "Interesse geweckt, Publikum angemessen einbezogen" },
+          { name: "Fragen", max: 6, indikatoren: "Kompetent beantwortet" },
+        ] },
+        { titel: "Fachgespräch", typ: "fachgespraech", items: [
+          { name: "Fachwissen", max: 20, indikatoren: "4/5 Fragen kompetent beantwortet, Fachbegriffe benutzt" },
+          { name: "Eigenbewertung / Reflexion", max: 10, indikatoren: "Analyse und Reflexion des Projekts" },
+        ] },
+        { titel: "Methodologie", typ: "methodologie", items: [
+          { name: "Vorbereitung und Verwaltung des Projekts", max: 20, indikatoren: "Checkliste vor Abgabe genutzt; Zwischentermine eingehalten" },
+          { name: "Teamarbeit (PowerPoint-Präsentation)", max: 10, indikatoren: "Organisation der Notizen; individuelle Beiträge; Koordination/Kommunikation" },
+        ] },
+      ],
+    },
+  },
+  "1GSE": {
+    "Semester 1": {
+      offizielleSkala: 210, wochenberichteMax: 60, wochenberichteLabel: "Wochenberichte (12 × 5P)",
+      gruppen: [
+        { titel: "Planung / Themenfindung", typ: "planung", items: [
+          { name: "Projektplan", max: 30, indikatoren: "Beschreibung des Projektes (15P); Motivation/Bezug zu Umweltwissenschaften (3P); Ziele (6P); Meilensteine bis Ende 1. Semester; Aufgabenteilung bei Gruppenarbeit (6P); Kostenplan falls erforderlich" },
+        ] },
+        { titel: "Methodologie", typ: "methodologie", items: [
+          { name: "Reflexion", max: 15, indikatoren: "Zeitplanung; Kostenplanung; Eigene Entwicklung (Initiative, Autonomie, Gelerntes); Qualität des Projektergebnisses; Teamwork" },
+          { name: "Zusammenfassen", max: 15, indikatoren: "Bedeutung des Themas; Stand der Wissenschaft/Technik; Fragestellung; Methodisches Vorgehen; wichtigste Resultate/Erkenntnisse/Argumente" },
+          { name: "Zitieren", max: 15, indikatoren: "Zitate und Quellenangabe nach APA (Bücher, Artikel, PDF-Dokumente, Internetseiten, Video)" },
+          { name: "Überprüfung der erledigten Arbeiten", max: 15, indikatoren: "Methodische, gezielte Kontrolle; Nutzung von Korrekturressourcen; Fehler erkannt und korrigiert" },
+        ] },
+        { titel: "Umsetzung des Projektes und Dokumentation", typ: "umsetzung", items: [
+          { name: "Bewältigung des Themas", max: 30, indikatoren: "Arbeit an vereinbarten Zielsetzungen; Zielüberprüfung an 2 Terminen (je 11P); Autonomie (8P)" },
+          { name: "Dokumentation", max: 30, indikatoren: "Einleitung, Vorwort, Titelseite, Inhaltsverzeichnis, Verzeichnisse; Recherche/Theorie (20P)" },
+        ] },
+      ],
+    },
+    "Semester 2": {
+      offizielleSkala: 330, wochenberichteMax: 60, wochenberichteLabel: "Meilensteine / Wochenberichte (12 × 5P)",
+      gruppen: [
+        { titel: "Fachgespräch", typ: "fachgespraech", items: [
+          { name: "Fachwissen", max: 30, indikatoren: "4 Fragen mit Skizze oder 5 Fragen kompetent & fachlich korrekt beantwortet, Fachbegriffe benutzt" },
+        ] },
+        { titel: "Schriftliche Prüfung", typ: "dokumentation", items: [
+          { name: "Schriftliche Prüfung", max: 30, indikatoren: "Vorbereitung auf das schriftliche Examen; Analyse und Reflexion des Projekts" },
+        ] },
+        { titel: "Vorgehensweise bei der Umsetzung des Projektes", typ: "umsetzung", items: [
+          { name: "Bewältigung des Themas", max: 30, indikatoren: "Zielsetzungen (10P); 1–2 Prüftermine (2×6P); Autonomie (8P)" },
+          { name: "Sachliche Qualität", max: 60, indikatoren: "Komponenten/Produkt funktionieren wie geplant (30P); Qualität inkl. Film überzeugt (30P)" },
+        ] },
+        { titel: "Schriftliche Arbeit / Dokumentation", typ: "dokumentation", items: [
+          { name: "Darstellung", max: 8, indikatoren: "Übersichtlich strukturiert & gegliedert; sorgfältiges, kompaktes Layout" },
+          { name: "Sprache", max: 7, indikatoren: "Verständlich, flüssig, prägnant; korrekte Grammatik/Satzbau/Rechtschreibung/Zeichensetzung" },
+          { name: "Zitate, Quellen, Verzeichnisse", max: 5, indikatoren: "Vollständige Quellenangaben & Verzeichnisse" },
+          { name: "Sachliche Qualität", max: 40, indikatoren: "Vollständig, fachlich begründet und korrekt" },
+        ] },
+        { titel: "Präsentation", typ: "praesentation", items: [
+          { name: "Struktur", max: 6, indikatoren: "Durchdacht und ansprechend gestaltet" },
+          { name: "Inhalt", max: 12, indikatoren: "Repräsentativ, mit Einblick in Ergebnisse und Produkt" },
+          { name: "Sprache", max: 3, indikatoren: "Flüssig, verständlich, korrekt" },
+          { name: "Interaktion", max: 3, indikatoren: "Interesse geweckt, Publikum angemessen einbezogen" },
+          { name: "Fragen", max: 6, indikatoren: "Kompetent beantwortet" },
+        ] },
+        { titel: "Methodologie", typ: "methodologie", items: [
+          { name: "Umfragen, Interview", max: 15, indikatoren: "Planung, Durchführung und Auswertung" },
+          { name: "Film", max: 15, indikatoren: "Erstellen eines Storyboards (Drehbuch)" },
+        ] },
+      ],
+    },
+  },
+};
+
+function schreiwBewertungsrasterZeilen(sheet, klasse, periode, def) {
+  def.gruppen.forEach((g, gi) => {
+    g.items.forEach((item, ii) => {
+      sheet.appendRow([
+        klasse, periode, gi, g.titel, g.typ, ii, item.name, item.max, item.indikatoren || "",
+        def.wochenberichteMax, def.wochenberichteLabel, def.offizielleSkala,
+      ]);
+    });
+  });
+}
+
+/**
+ * Kopéiert d'STANDARD-Bewertungsstruktur eemol an d'Sheet — nëmmen fir
+ * Klass/Period-Kombinatiounen, déi nach net an der Sheet stinn (schützt
+ * virun onbewosstem Iwwerschreiwen vu manuell gemaachten Ännerungen).
+ */
+function seedBewertungsrasterVunHardcoded() {
+  const sheet = getBewertungsrasterSheet();
+  const werte = sheet.getDataRange().getValues();
+  const bestehendKombis = new Set(werte.slice(1).map((z) => z[0] + "||" + z[1]));
+  let neiZuel = 0;
+  Object.keys(BEWERTUNGSRASTER_STANDARD).forEach((klasse) => {
+    Object.keys(BEWERTUNGSRASTER_STANDARD[klasse]).forEach((periode) => {
+      if (bestehendKombis.has(klasse + "||" + periode)) return;
+      schreiwBewertungsrasterZeilen(sheet, klasse, periode, BEWERTUNGSRASTER_STANDARD[klasse][periode]);
+      neiZuel++;
+    });
+  });
+  Logger.log("✅ Bewertungsraster gesät fir " + neiZuel + " Klass/Period-Kombinatioun(en).");
+}
+
+/**
+ * Iwwerschreift dat komplett Bewertungsraster fir eng Klasse+Period.
+ * Nëmme Proffen dierfen dat. Erwaart data.gruppen = [{titel, typ,
+ * items:[{name, max, indikatoren}]}], data.wochenberichteMax,
+ * data.wochenberichteLabel, data.offizielleSkala.
+ */
+function bewertungsrasterSpäicheren(data) {
+  const session = pruefSession(data.proffToken);
+  if (!session.valid || session.rolle !== "Prof") {
+    return { ok: false, error: "Nëmme Proffen dierfen d'Bewertungsraster änneren." };
+  }
+  if (!data.klasse || !data.periode) return { ok: false, error: "Klasse a Period erfuerderlech." };
+  if (!data.gruppen || data.gruppen.length === 0) return { ok: false, error: "Op d'mannst eng Grupp erfuerderlech." };
+
+  const sheet = getBewertungsrasterSheet();
+  const werte = sheet.getDataRange().getValues();
+  for (let i = werte.length - 1; i >= 1; i--) {
+    if (werte[i][0] === data.klasse && werte[i][1] === data.periode) sheet.deleteRow(i + 1);
+  }
+  schreiwBewertungsrasterZeilen(sheet, data.klasse, data.periode, {
+    gruppen: data.gruppen,
+    wochenberichteMax: Number(data.wochenberichteMax) || 0,
+    wochenberichteLabel: data.wochenberichteLabel || "",
+    offizielleSkala: Number(data.offizielleSkala) || 0,
+  });
+  return { ok: true };
+}
+// ===== Enn M6 =====
 
 function getRendezvousenSheet() {
   const ss = SpreadsheetApp.openById(OVERVIEW_SHEET_ID);
