@@ -1,0 +1,278 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<link rel="icon" type="image/png" href="LogoSE_weisHintergrund.png" />
+<title>PPREN Bewertungsraster verwalten</title>
+<script>window.PPREN_ERFUERDERT_ROLLE = "Prof";</script>
+<script src="auth-guard.js"></script>
+<script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+<script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+<script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+</head>
+<body>
+<div id="root"></div>
+<script>
+  window.addEventListener("error", function (e) {
+    document.getElementById("root").innerHTML =
+      '<div style="padding:40px;font-family:sans-serif;color:#8a2b1f;white-space:pre-wrap;">' +
+      '<h2 style="margin-top:0;">Fehler beim Laden</h2>' + (e.message || "") + "</div>";
+  });
+</script>
+<script type="text/babel">
+const { useState, useEffect, useMemo } = React;
+const WEB_APP_URL = "https://script.google.com/macros/s/AKfycbwNDO4bJv1lYKvwg57TnHzVHxLIJJikxD0ey7RHlraqa9nUSs8liBJycF38p4X--t_6/exec";
+
+const KLASSEN = ["1GSE", "2GSE"];
+const PERIODEN = { "1GSE": ["Semester 1", "Semester 2"], "2GSE": ["Trimester 1", "Trimester 2", "Trimester 3"] };
+const TYPEN = ["planung", "umsetzung", "dokumentation", "methodologie", "fachgespraech", "praesentation"];
+
+function uid() { return Date.now().toString(36) + Math.random().toString(36).slice(2, 6); }
+
+function bauStrukturVunRaster(raster, klasse, periode) {
+  const zeilen = (raster || []).filter((r) => r.Klasse === klasse && r.Periode === periode);
+  if (zeilen.length === 0) return null;
+  const gruppenMap = {};
+  zeilen.forEach((r) => {
+    const key = r.GruppeOrder + "|" + r.GruppeTitel;
+    if (!gruppenMap[key]) {
+      gruppenMap[key] = { id: uid(), order: Number(r.GruppeOrder) || 0, titel: r.GruppeTitel, typ: r.GruppeTyp, items: [] };
+    }
+    gruppenMap[key].items.push({
+      id: uid(), order: Number(r.ItemOrder) || 0, name: r.ItemName, max: Number(r.ItemMax) || 0, indikatoren: r.ItemIndikatoren || "",
+    });
+  });
+  const gruppen = Object.values(gruppenMap)
+    .sort((a, b) => a.order - b.order)
+    .map((g) => ({ ...g, items: g.items.sort((a, b) => a.order - b.order) }));
+  const erschte = zeilen[0];
+  return {
+    offizielleSkala: Number(erschte.OffizielleSkala) || 0,
+    wochenberichteMax: Number(erschte.WochenberichteMax) || 0,
+    wochenberichteLabel: erschte.WochenberichteLabel || "",
+    gruppen,
+  };
+}
+
+function App() {
+  const [klasse, setKlasse] = useState("2GSE");
+  const [periode, setPeriode] = useState("Trimester 1");
+  const [raster, setRaster] = useState([]);
+  const [struktur, setStruktur] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [syncing, setSyncing] = useState(false);
+  const [error, setError] = useState(null);
+  const [toast, setToast] = useState(null);
+
+  const token = () => window.PPREN_SESSION?.token || "";
+
+  const lade = () => {
+    setLoading(true);
+    fetch(WEB_APP_URL + "?token=" + encodeURIComponent(token()))
+      .then((r) => r.json())
+      .then((d) => setRaster(d.bewertungsraster || []))
+      .finally(() => setLoading(false));
+  };
+  useEffect(() => { lade(); }, []);
+
+  useEffect(() => {
+    if (loading) return;
+    const s = bauStrukturVunRaster(raster, klasse, periode);
+    setStruktur(s || { offizielleSkala: 0, wochenberichteMax: 0, wochenberichteLabel: "", gruppen: [] });
+  }, [raster, klasse, periode, loading]);
+
+  const perioden = PERIODEN[klasse];
+  useEffect(() => { if (!perioden.includes(periode)) setPeriode(perioden[0]); }, [klasse]);
+
+  const gesamtMax = useMemo(() => {
+    if (!struktur) return 0;
+    const itemsSumme = struktur.gruppen.reduce((s, g) => s + g.items.reduce((s2, i) => s2 + (Number(i.max) || 0), 0), 0);
+    return itemsSumme + (Number(struktur.wochenberichteMax) || 0);
+  }, [struktur]);
+
+  const aktualiséierFeld = (feld, wert) => setStruktur((s) => ({ ...s, [feld]: wert }));
+
+  const gruppBäisetzen = () => setStruktur((s) => ({
+    ...s, gruppen: [...s.gruppen, { id: uid(), titel: "Nei Grupp", typ: "methodologie", items: [] }],
+  }));
+  const gruppLaeschen = (gId) => setStruktur((s) => ({ ...s, gruppen: s.gruppen.filter((g) => g.id !== gId) }));
+  const gruppÄnneren = (gId, feld, wert) => setStruktur((s) => ({
+    ...s, gruppen: s.gruppen.map((g) => (g.id === gId ? { ...g, [feld]: wert } : g)),
+  }));
+
+  const itemBäisetzen = (gId) => setStruktur((s) => ({
+    ...s,
+    gruppen: s.gruppen.map((g) => g.id === gId
+      ? { ...g, items: [...g.items, { id: uid(), name: "Nei Positioun", max: 10, indikatoren: "" }] }
+      : g),
+  }));
+  const itemLaeschen = (gId, iId) => setStruktur((s) => ({
+    ...s, gruppen: s.gruppen.map((g) => g.id === gId ? { ...g, items: g.items.filter((i) => i.id !== iId) } : g),
+  }));
+  const itemÄnneren = (gId, iId, feld, wert) => setStruktur((s) => ({
+    ...s,
+    gruppen: s.gruppen.map((g) => g.id === gId
+      ? { ...g, items: g.items.map((i) => (i.id === iId ? { ...i, [feld]: wert } : i)) }
+      : g),
+  }));
+
+  const späicheren = async () => {
+    setSyncing(true);
+    setError(null);
+    try {
+      const payload = {
+        typ: "bewertungsrasterSpäicheren",
+        proffToken: token(),
+        klasse,
+        periode,
+        offizielleSkala: Number(struktur.offizielleSkala) || 0,
+        wochenberichteMax: Number(struktur.wochenberichteMax) || 0,
+        wochenberichteLabel: struktur.wochenberichteLabel,
+        gruppen: struktur.gruppen.map((g) => ({
+          titel: g.titel, typ: g.typ,
+          items: g.items.map((i) => ({ name: i.name, max: Number(i.max) || 0, indikatoren: i.indikatoren })),
+        })),
+      };
+      const res = await fetch(WEB_APP_URL, {
+        method: "POST",
+        headers: { "Content-Type": "text/plain;charset=utf-8" },
+        body: JSON.stringify(payload),
+      });
+      const data = await res.json();
+      if (!data.ok) throw new Error(data.error || "Onbekannte Feeler");
+      setToast("Bewertungsraster gespäichert — gëllt ab elo fir nei Bewertungen vun " + klasse + " · " + periode + ".");
+      lade();
+    } catch (e) {
+      setError(e.message);
+    } finally {
+      setSyncing(false);
+      setTimeout(() => setToast(null), 4000);
+    }
+  };
+
+  return (
+    <div className="wrap">
+      <header className="topbar">
+        <span className="brand-mark">PPREN</span>
+        <span className="brand-sub">Bewertungsraster verwalten · nëmmen Proffen</span>
+      </header>
+      <main className="content">
+        <div className="warn">
+          ⚠️ Ännerungen hei betreffen déi Punkte-Struktur, déi <strong>all Proffen am Bewertungsformulaire</strong> gesinn.
+          Änner just eppes, wann s du dir sécher bass — de Fallback op déi verifizéiert Original-Struktur gëllt
+          nëmme wann d'Sheet komplett eidel ass, net wann s du hei eppes falsch ännerts.
+        </div>
+
+        <section className="card">
+          <div className="grid2">
+            <label className="field"><span>Klasse</span>
+              <select className="select" value={klasse} onChange={(e) => setKlasse(e.target.value)}>
+                {KLASSEN.map((k) => <option key={k} value={k}>{k}</option>)}
+              </select>
+            </label>
+            <label className="field"><span>Periode</span>
+              <select className="select" value={periode} onChange={(e) => setPeriode(e.target.value)}>
+                {perioden.map((p) => <option key={p} value={p}>{p}</option>)}
+              </select>
+            </label>
+          </div>
+        </section>
+
+        {loading && <p className="notice">Lädt…</p>}
+
+        {!loading && struktur && (
+          <>
+            {struktur.gruppen.length === 0 && (
+              <p className="notice">⚠️ Fir dës Klass/Period-Kombinatioun ass nach näischt gesät — entweder d'Sheet ass nach eidel
+                (dann eemol <code>seedBewertungsrasterVunHardcoded()</code> am Apps Script lafe loossen) oder et gëtt just nach keng Struktur.</p>
+            )}
+
+            {struktur.gruppen.map((g) => (
+              <section className="card" key={g.id}>
+                <div className="grupp-head">
+                  <input className="input input-titel" value={g.titel} onChange={(e) => gruppÄnneren(g.id, "titel", e.target.value)} />
+                  <select className="select select-typ" value={g.typ} onChange={(e) => gruppÄnneren(g.id, "typ", e.target.value)}>
+                    {TYPEN.map((t) => <option key={t} value={t}>{t}</option>)}
+                  </select>
+                  <button className="icon-btn" onClick={() => gruppLaeschen(g.id)}>✕ Grupp läschen</button>
+                </div>
+
+                {g.items.map((i) => (
+                  <div className="item-row" key={i.id}>
+                    <input className="input input-name" value={i.name} onChange={(e) => itemÄnneren(g.id, i.id, "name", e.target.value)} placeholder="Positioun" />
+                    <input className="input input-max" type="number" value={i.max} onChange={(e) => itemÄnneren(g.id, i.id, "max", e.target.value)} />
+                    <button className="icon-btn" onClick={() => itemLaeschen(g.id, i.id)}>✕</button>
+                    <textarea
+                      className="textarea textarea-indikatoren"
+                      rows={2}
+                      value={i.indikatoren}
+                      onChange={(e) => itemÄnneren(g.id, i.id, "indikatoren", e.target.value)}
+                      placeholder="Indikatoren (optional)"
+                    />
+                  </div>
+                ))}
+                <button className="btn-gen" onClick={() => itemBäisetzen(g.id)}>➕ Positioun derbäisetzen</button>
+              </section>
+            ))}
+
+            <button className="btn btn-ghost" onClick={gruppBäisetzen}>➕ Nei Grupp derbäisetzen</button>
+
+            <section className="card summary-card">
+              <label className="field"><span>Wochenberichter/Meilensteng — Max Punkten</span>
+                <input className="input" type="number" value={struktur.wochenberichteMax} onChange={(e) => aktualiséierFeld("wochenberichteMax", e.target.value)} />
+              </label>
+              <label className="field"><span>Wochenberichter/Meilensteng — Label</span>
+                <input className="input" value={struktur.wochenberichteLabel} onChange={(e) => aktualiséierFeld("wochenberichteLabel", e.target.value)} />
+              </label>
+              <label className="field"><span>Offiziell Skala (Punkten-Basis fir d'Note-Berechnung, 1:1 aus dem offizielle Bewertungsbogen)</span>
+                <input className="input" type="number" value={struktur.offizielleSkala} onChange={(e) => aktualiséierFeld("offizielleSkala", e.target.value)} />
+              </label>
+              <p className="hint">Summe vun alle Positioune + Wochenberichter aktuell: <strong>{gesamtMax}P</strong>. Wann dat net mat der offizieller Skala ({struktur.offizielleSkala}P) iwwereneestëmmt, gëtt am Bewertungsformulaire e Hiweis ugewisen — dat ass normal, well den offizielle Bewertungsbogen selwer heiansdo esou eng Ofweichung huet.</p>
+            </section>
+
+            {error && <p className="error">{error}</p>}
+            <button className="btn btn-primary" disabled={syncing} onClick={späicheren}>
+              {syncing ? "Späichert…" : "💾 Bewertungsraster fir " + klasse + " · " + periode + " späicheren"}
+            </button>
+          </>
+        )}
+      </main>
+      {toast && <div className="toast">{toast}</div>}
+    </div>
+  );
+}
+ReactDOM.createRoot(document.getElementById("root")).render(<App />);
+</script>
+<style>
+* { box-sizing: border-box; } body { margin: 0; font-family: sans-serif; background: #f6f8f6; color: #1c2621; }
+.topbar { padding: 14px 22px; background: #00A94F; color: #fff; display: flex; gap: 10px; align-items: baseline; }
+.brand-mark { font-weight: 800; } .content { max-width: 720px; margin: 0 auto; padding: 24px 20px 60px; }
+.warn { background: #fbe8c6; color: #8a5a12; font-size: 12px; padding: 12px 16px; border-radius: 10px; margin-bottom: 16px; line-height: 1.5; }
+.card { background: #fff; border: 1px solid #e2e8e3; border-radius: 12px; padding: 18px 20px; margin-bottom: 14px; }
+.grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.field { display: flex; flex-direction: column; gap: 4px; margin-bottom: 12px; font-size: 12.5px; font-weight: 700; color: #294f3c; }
+.input, .select, .textarea { border: 1px solid #c9d5cd; border-radius: 7px; padding: 8px 10px; font-size: 13.5px; font-family: inherit; width: 100%; }
+.textarea { resize: vertical; }
+.notice { font-size: 12.5px; color: #6d7d74; background: #eef3ef; padding: 10px 14px; border-radius: 8px; margin-bottom: 14px; line-height: 1.5; }
+.notice code { background: #fff; padding: 1px 5px; border-radius: 4px; }
+.grupp-head { display: flex; gap: 8px; align-items: center; margin-bottom: 12px; }
+.input-titel { flex: 1; font-weight: 700; font-size: 14px; }
+.select-typ { width: 150px; flex-shrink: 0; }
+.item-row { display: grid; grid-template-columns: 1fr 60px auto; gap: 8px; align-items: start; margin-bottom: 8px; padding-bottom: 8px; border-bottom: 1px dashed #eef1ef; }
+.input-name { grid-column: 1; }
+.input-max { grid-column: 2; text-align: right; }
+.textarea-indikatoren { grid-column: 1 / 3; margin-top: 6px; font-size: 12px; }
+.icon-btn { grid-column: 3; font-size: 11px; color: #99392f; background: #fbe4e1; border: none; padding: 6px 10px; border-radius: 6px; cursor: pointer; height: fit-content; white-space: nowrap; }
+.btn-gen { font-size: 11.5px; font-weight: 700; color: #00A94F; background: #eef3ef; border: 1px solid #c9d5cd; padding: 6px 12px; border-radius: 7px; cursor: pointer; margin-top: 4px; }
+.btn { font-size: 13.5px; font-weight: 700; padding: 12px 18px; border-radius: 8px; border: none; cursor: pointer; width: 100%; margin-top: 6px; }
+.btn-primary { background: #00A94F; color: #fff; }
+.btn-primary:disabled { background: #b7c6bd; cursor: not-allowed; }
+.btn-ghost { background: #eef3ef; color: #294f3c; border: 1px solid #c9d5cd; margin-bottom: 14px; }
+.summary-card { background: #f6f8f6; }
+.hint { font-size: 11.5px; color: #6d7d74; line-height: 1.5; margin-top: 4px; }
+.error { color: #8a2b1f; background: #fbe4e1; padding: 8px 12px; border-radius: 8px; font-size: 12.5px; margin-bottom: 12px; }
+.toast { position: fixed; bottom: 22px; left: 50%; transform: translateX(-50%); background: #1c2621; color: #fff; padding: 10px 18px; border-radius: 8px; font-size: 13px; max-width: 90vw; text-align: center; }
+</style>
+</body>
+</html>
