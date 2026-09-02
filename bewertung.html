@@ -94,7 +94,10 @@ const REMARKEN_VORLAGEN = {
   ],
 };
 
-const STRUKTUR_2GSE = {
+/* Fallback-Struktur (wird nur benotzt, wann d'Backend-Bewertungsraster
+   nach net gesied ass oder net erreichbar ass). D'Standard-Quell ass elo
+   d'Bewertungsraster-Sheet iwwer den Backend — kuck bauStrukturVunRaster(). */
+const STRUKTUR_2GSE_FALLBACK = {
   "Trimester 1": {
     offizielleSkala: 270,
     wochenberichte: { max: 60, label: "Wochenberichte (12 × 5P)" },
@@ -204,7 +207,7 @@ const STRUKTUR_2GSE = {
   },
 };
 
-const STRUKTUR_1GSE = {
+const STRUKTUR_1GSE_FALLBACK = {
   "Semester 1": {
     offizielleSkala: 210,
     wochenberichte: { max: 60, label: "Wochenberichte (12 × 5P)" },
@@ -280,6 +283,51 @@ const STRUKTUR_1GSE = {
   },
 };
 
+/* M6: Baut aus den rohen Bewertungsraster-Zeilen vum Backend d'selwecht
+   Struktur wéi STRUKTUR_2GSE_FALLBACK/STRUKTUR_1GSE_FALLBACK. Gëtt null
+   zréck, wann d'Backend-Raster (nach) eidel ass — dann gëtt de Fallback
+   benotzt. */
+function bauStrukturVunRaster(raster) {
+  if (!raster || raster.length === 0) return null;
+  const perKlasse = {};
+  raster.forEach((r) => {
+    const klasse = r.Klasse;
+    const periode = r.Periode;
+    if (!klasse || !periode) return;
+    if (!perKlasse[klasse]) perKlasse[klasse] = {};
+    if (!perKlasse[klasse][periode]) {
+      perKlasse[klasse][periode] = {
+        offizielleSkala: Number(r.OffizielleSkala) || 0,
+        wochenberichte: { max: Number(r.WochenberichteMax) || 0, label: r.WochenberichteLabel || "" },
+        gruppenMap: {},
+      };
+    }
+    const per = perKlasse[klasse][periode];
+    const gKey = r.GruppeOrder + "|" + r.GruppeTitel;
+    if (!per.gruppenMap[gKey]) {
+      per.gruppenMap[gKey] = { order: Number(r.GruppeOrder) || 0, titel: r.GruppeTitel, typ: r.GruppeTyp, items: [] };
+    }
+    per.gruppenMap[gKey].items.push({
+      order: Number(r.ItemOrder) || 0, name: r.ItemName, max: Number(r.ItemMax) || 0, indikatoren: r.ItemIndikatoren || "",
+    });
+  });
+  const resultat = {};
+  Object.keys(perKlasse).forEach((klasse) => {
+    resultat[klasse] = {};
+    Object.keys(perKlasse[klasse]).forEach((periode) => {
+      const per = perKlasse[klasse][periode];
+      const gruppen = Object.values(per.gruppenMap)
+        .sort((a, b) => a.order - b.order)
+        .map((g) => ({
+          titel: g.titel, typ: g.typ,
+          items: [...g.items].sort((a, b) => a.order - b.order).map(({ order, ...rest }) => rest),
+        }));
+      resultat[klasse][periode] = { offizielleSkala: per.offizielleSkala, wochenberichte: per.wochenberichte, gruppen };
+    });
+  });
+  return resultat;
+}
+
 function uid() { return Date.now().toString(36) + Math.random().toString(36).slice(2, 6); }
 
 function initKategorien(struktur, periode) {
@@ -338,6 +386,19 @@ function App() {
     [personen]
   );
 
+  // M6: Bewertungsraster vum Backend lueden (erfuerdert Prof-Token, well
+  // et Deel vum authentifizéierten doGet ass). Fallback op déi
+  // hart-codéiert, verifizéiert Struktur, wann d'Backend-Raster eidel ass.
+  const [rasterVunBackend, setRasterVunBackend] = useState(null);
+  useEffect(() => {
+    const token = window.PPREN_SESSION?.token || "";
+    if (!token) return;
+    fetch(WEB_APP_URL + "?token=" + encodeURIComponent(token))
+      .then((r) => r.json())
+      .then((d) => setRasterVunBackend(bauStrukturVunRaster(d.bewertungsraster)))
+      .catch(() => {});
+  }, []);
+
   const [schuelerId, setSchuelerId] = useState("");
   const [periode, setPeriode] = useState("");
   const [kategorien, setKategorien] = useState([]);
@@ -357,8 +418,10 @@ function App() {
 
   const currentSchueler = SCHUELER.find((s) => s.id === schuelerId);
   const istGSE2 = currentSchueler?.klasse === "2GSE";
-  const struktur = istGSE2 ? STRUKTUR_2GSE : STRUKTUR_1GSE;
-  const perioden = istGSE2 ? PERIODEN_2GSE : PERIODEN_1GSE;
+  const struktur = istGSE2
+    ? (rasterVunBackend?.["2GSE"] || STRUKTUR_2GSE_FALLBACK)
+    : (rasterVunBackend?.["1GSE"] || STRUKTUR_1GSE_FALLBACK);
+  const perioden = Object.keys(struktur);
   const def = periode ? struktur[periode] : null;
 
   const schuelerWaehlen = (id) => {
@@ -376,7 +439,7 @@ function App() {
   };
 
   const periodeWaehlen = async (p) => {
-    const s = istGSE2 ? STRUKTUR_2GSE : STRUKTUR_1GSE;
+    const s = struktur;
     setPeriode(p);
     setKategorien(initKategorien(s, p));
     setGruppenState(initGruppenState(s, p));
