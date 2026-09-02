@@ -41,6 +41,82 @@ function dmyZuIso(dmy) {
   return `${j}-${m}-${t}`;
 }
 
+// ===== M8: .ics-Kalenner-Export =====
+function pad(n) { return String(n).padStart(2, "0"); }
+
+function nowStamp() {
+  const d = new Date();
+  return `${d.getUTCFullYear()}${pad(d.getUTCMonth() + 1)}${pad(d.getUTCDate())}T${pad(d.getUTCHours())}${pad(d.getUTCMinutes())}${pad(d.getUTCSeconds())}Z`;
+}
+
+function escapeIcs(text) {
+  return String(text).replace(/\\/g, "\\\\").replace(/;/g, "\\;").replace(/,/g, "\\,").replace(/\n/g, "\\n");
+}
+
+/** Baut een eenzelnen VEVENT-Block. Mat Zäit: 30 Min. Dauer. Ouni Zäit: ganzen Dag. */
+function baueIcsEvent(r) {
+  const [t, m, j] = (r.Datum || "").split(".");
+  if (!t || !m || !j) return "";
+  const uid = (r.ID || `${j}${m}${t}-${Math.random().toString(36).slice(2)}`) + "@ppren-projektplan";
+  const summary = `PPREN: ${r.Typ} — ${r.Schüler}`;
+  let dtstartZeil, dtendZeil;
+
+  if (r.Zäit) {
+    const [hh, mi] = r.Zäit.split(":");
+    const dtstart = `${j}${m}${t}T${pad(hh)}${pad(mi)}00`;
+    let endH = parseInt(hh, 10);
+    let endM = parseInt(mi, 10) + 30;
+    if (endM >= 60) { endM -= 60; endH += 1; }
+    if (endH >= 24) endH -= 24;
+    const dtend = `${j}${m}${t}T${pad(endH)}${pad(endM)}00`;
+    dtstartZeil = `DTSTART:${dtstart}`;
+    dtendZeil = `DTEND:${dtend}`;
+  } else {
+    const dtstart = `${j}${m}${t}`;
+    const d = new Date(Number(j), Number(m) - 1, Number(t));
+    d.setDate(d.getDate() + 1);
+    const dtend = `${d.getFullYear()}${pad(d.getMonth() + 1)}${pad(d.getDate())}`;
+    dtstartZeil = `DTSTART;VALUE=DATE:${dtstart}`;
+    dtendZeil = `DTEND;VALUE=DATE:${dtend}`;
+  }
+
+  const beschreiwung = (r.Notiz || "").trim();
+  const lines = [
+    "BEGIN:VEVENT",
+    `UID:${uid}`,
+    `DTSTAMP:${nowStamp()}`,
+    dtstartZeil,
+    dtendZeil,
+    `SUMMARY:${escapeIcs(summary)}`,
+    beschreiwung ? `DESCRIPTION:${escapeIcs(beschreiwung)}` : null,
+    "END:VEVENT",
+  ].filter(Boolean);
+  return lines.join("\r\n");
+}
+
+function baueIcsKalenner(liste) {
+  const events = liste.map(baueIcsEvent).filter(Boolean).join("\r\n");
+  return [
+    "BEGIN:VCALENDAR",
+    "VERSION:2.0",
+    "PRODID:-//PPREN//Rendezvousen//DE",
+    "CALSCALE:GREGORIAN",
+    events,
+    "END:VCALENDAR",
+  ].join("\r\n");
+}
+
+function laadIcsErof(inhalt, dateiName) {
+  const blob = new Blob([inhalt], { type: "text/calendar;charset=utf-8" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = dateiName;
+  a.click();
+  URL.revokeObjectURL(url);
+}
+// ===== Enn M8 =====
+
 function App() {
   // M1: Nimm live vum Backend lueden, keng hart-codéiert Lëscht méi.
   const [personen, setPersonen] = useState([]);
@@ -139,6 +215,16 @@ function App() {
     }
   };
 
+  const exportAlles = () => {
+    if (nurZukunft.length === 0) return;
+    laadIcsErof(baueIcsKalenner(nurZukunft), "PPREN_Rendezvousen.ics");
+  };
+
+  const exportEent = (r) => {
+    const dateiName = `PPREN_${(r.Schüler || "").replace(/\s+/g, "_")}_${(r.Datum || "").replace(/\./g, "-")}.ics`;
+    laadIcsErof(baueIcsKalenner([r]), dateiName);
+  };
+
   return (
     <div className="wrap">
       <header className="topbar">
@@ -188,12 +274,18 @@ function App() {
         </section>
 
         <section className="card">
-          <h2>Opstoend Rendez-vous'er</h2>
+          <div className="card-head-row">
+            <h2>Opstoend Rendez-vous'er</h2>
+            <button className="btn-gen" disabled={nurZukunft.length === 0} onClick={exportAlles}>
+              📆 Alles als .ics exportéieren
+            </button>
+          </div>
+          <p className="hint">Den Export funktionéiert mat Google Kalenner, Outlook, Apple Kalenner asw. — Datei einfach opmaachen oder an den eegene Kalenner importéieren.</p>
           {loading && <p className="notice">Lädt…</p>}
           {!loading && nurZukunft.length === 0 && <p className="notice">Nach keng geplangt.</p>}
           {!loading && nurZukunft.length > 0 && (
             <table className="tabelle">
-              <thead><tr><th>Datum</th><th>Zäit</th><th>Schüler/-in</th><th>Typ</th><th>Erënnert?</th><th></th></tr></thead>
+              <thead><tr><th>Datum</th><th>Zäit</th><th>Schüler/-in</th><th>Typ</th><th>Erënnert?</th><th></th><th></th></tr></thead>
               <tbody>
                 {nurZukunft.map((r, i) => (
                   <tr key={i}>
@@ -202,6 +294,7 @@ function App() {
                     <td>{r.Schüler}</td>
                     <td>{r.Typ}</td>
                     <td><span className={`pill ${r.Erënnert === "Jo" ? "pill-done" : "pill-pending"}`}>{r.Erënnert === "Jo" ? "Jo" : "Nach net"}</span></td>
+                    <td><button className="icon-btn icon-btn-kal" onClick={() => exportEent(r)} title="Als .ics exportéieren">📅</button></td>
                     <td><button className="icon-btn" onClick={() => läschen(r.ID)}>✕</button></td>
                   </tr>
                 ))}
@@ -241,6 +334,8 @@ body { margin: 0; font-family: -apple-system, "Segoe UI", Inter, Arial, sans-ser
 .content { max-width: 720px; margin: 0 auto; padding: 24px 20px 60px; }
 .card { background: #fff; border: 1px solid #e2e8e3; border-radius: 12px; padding: 18px 20px; margin-bottom: 16px; }
 .card h2 { font-size: 15px; margin: 0 0 12px; color: #00A94F; }
+.card-head-row { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 8px; margin-bottom: 4px; }
+.card-head-row h2 { margin: 0; }
 .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
 .field { display: flex; flex-direction: column; gap: 4px; margin-bottom: 14px; }
 .field-label { font-size: 12.5px; font-weight: 700; color: #294f3c; }
@@ -252,6 +347,8 @@ body { margin: 0; font-family: -apple-system, "Segoe UI", Inter, Arial, sans-ser
 .btn { font-size: 13.5px; font-weight: 700; padding: 10px 18px; border-radius: 8px; border: none; cursor: pointer; }
 .btn-primary { background: #00A94F; color: #fff; }
 .btn-primary:disabled { background: #b7c6bd; cursor: not-allowed; }
+.btn-gen { font-size: 11.5px; font-weight: 700; color: #00A94F; background: #eef3ef; border: 1px solid #c9d5cd; padding: 6px 12px; border-radius: 7px; cursor: pointer; white-space: nowrap; }
+.btn-gen:disabled { color: #b7c6bd; cursor: not-allowed; }
 .tabelle { width: 100%; border-collapse: collapse; margin-top: 4px; }
 .tabelle th { text-align: left; font-size: 11px; text-transform: uppercase; color: #6d7d74; padding: 6px 8px; border-bottom: 1px solid #eef1ef; }
 .tabelle td { padding: 7px 8px; font-size: 13px; border-bottom: 1px solid #f4f6f4; }
@@ -259,6 +356,7 @@ body { margin: 0; font-family: -apple-system, "Segoe UI", Inter, Arial, sans-ser
 .pill-pending { background: #e6e9e6; color: #55625a; }
 .pill-done { background: #d7ecdd; color: #00A94F; }
 .icon-btn { border: none; background: transparent; color: #99392f; cursor: pointer; font-size: 13px; width: 24px; height: 24px; border-radius: 6px; }
+.icon-btn-kal { color: #4576B5; }
 .toast { position: fixed; bottom: 22px; left: 50%; transform: translateX(-50%); background: #1c2621; color: #fff; padding: 10px 18px; border-radius: 8px; font-size: 13px; }
 </style>
 </body>
