@@ -99,6 +99,13 @@ function App() {
 
   const currentSchueler = SCHUELER.find((s) => s.id === schuelerId);
 
+  // M1 (Bugfix): Wann d'Lueden feelschléit oder de Server "ok:false" mellt
+  // (z.B. Session grad ofgelaf), goufen d'Arrayen einfach op eidel gesat an
+  // de Späicheren-Knäppchen blouf aktiv — e Klick huet dann d'ganz
+  // Meilensteng-Zeil vum Schüler mat enger eideler JSON iwwerschriwwen
+  // (speichereMeilensteng ersetzt de ganzen Inhalt, ouni ze fusionéieren).
+  // Elo: bei "ok:false" gëtt en Feeler geworf, deen an 'error' lant, an de
+  // Späicheren-Knäppchen bleift gespaart, bis en erfollegräicht Lueden gëtt.
   const lade = (id) => {
     const s = SCHUELER.find((x) => x.id === id);
     if (!s) return;
@@ -107,6 +114,7 @@ function App() {
     fetch(WEB_APP_URL + "?token=" + encodeURIComponent(window.PPREN_SESSION?.token || ""))
       .then((res) => res.json())
       .then((data) => {
+        if (!data.ok) throw new Error(data.error || "Feeler beim Lueden.");
         let gespäichert = [];
         const eintrag = (data.meilensteng || []).find((m) => m.Schüler === s.name);
         if (eintrag && eintrag["Meilensteng (JSON)"]) {
@@ -142,7 +150,7 @@ function App() {
         setOffiziell(offiziellFuerKlass);
         setWochenberichte((data.wochenberichte || []).filter((w) => w.Schüler === s.name));
       })
-      .catch(() => setError("Konnte Meilensteng net lueden."))
+      .catch((e) => setError("Konnte Meilensteng net lueden" + (e.message ? ": " + e.message : "") + " — Späicheren ass gespaart, bis d'Lueden erëm klappt (Säit nei lueden probéieren)."))
       .finally(() => setLoading(false));
   };
 
@@ -270,7 +278,7 @@ function App() {
         {loading && <div className="empty">Lädt…</div>}
         {error && <div className="empty error">{error}</div>}
 
-        {schuelerId && !loading && (
+        {schuelerId && !loading && !error && (
           <>
             <section className="card">
               <div className="card-head">
@@ -411,7 +419,7 @@ function App() {
             </section>
 
             <div className="actions">
-              <button className="btn btn-primary" disabled={syncing} onClick={speicheren}>
+              <button className="btn btn-primary" disabled={syncing || !!error} onClick={speicheren}>
                 {syncing ? "Späichert…" : "💾 Späicheren"}
               </button>
             </div>
