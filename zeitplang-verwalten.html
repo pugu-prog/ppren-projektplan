@@ -69,16 +69,23 @@ function App() {
   const [toast, setToast] = useState(null);
   const dateiInputRef = useRef(null);
 
+  // M1 (Bugfix): Wann d'Lueden feelschléit, blouf 'meilensteng' bis elo op der
+  // leschter (evtl. eideler) Wäert stoen, mä de Späicher-Knäppchen war
+  // trotzdeem aktiv — e Klick huet dann d'ganz Klass-Meilensteng duerch eng
+  // eidel Lëscht ersat (speichereOffiziellZaitplang läscht alles virum
+  // Nei-Schreiwen). Elo: bei engem Ladefeeler gëtt 'error' gesat, an de
+  // Späicheren-Knäppchen bleift gespaart, bis en erfollegräich Lueden gëtt.
   const lade = () => {
     setLoading(true);
     setError(null);
     fetch(WEB_APP_URL + "?token=" + encodeURIComponent(window.PPREN_SESSION?.token || ""))
       .then((res) => res.json())
       .then((data) => {
+        if (!data.ok) throw new Error(data.error || "Feeler beim Lueden.");
         const gefiltert = (data.offiziellZaitplang || []).filter((m) => m.Klasse === klasse);
         setMeilensteng(gefiltert.map((m) => ({ id: uid(), datum: m.Datum, titel: m.Titel, kategorie: m.Kategorie || "Event" })));
       })
-      .catch(() => setError("Konnte Zäitplang net lueden."))
+      .catch((e) => setError("Konnte Zäitplang net lueden" + (e.message ? ": " + e.message : "") + " — Späicheren ass gespaart, bis d'Lueden erëm klappt (Säit nei lueden probéieren)."))
       .finally(() => setLoading(false));
   };
   useEffect(() => { lade(); }, [klasse]);
@@ -93,6 +100,11 @@ function App() {
   const removeZeil = (id) => setMeilensteng((ms) => ms.filter((m) => m.id !== id));
 
   const speicheren = async () => {
+    // Zousätzlech Sécherheet: wann d'Lëscht eidel ass, sécher goen, datt dat
+    // gewollt ass (an net just en net-erkannten Ladefeeler war).
+    if (sortéiert.length === 0 && !confirm(`D'Lëscht ass eidel — dëst läscht ALL Meilensteng fir ${klasse}. Sécher weiderfueren?`)) {
+      return;
+    }
     setSyncing(true);
     setError(null);
     try {
@@ -218,9 +230,10 @@ function App() {
         </section>
 
         <div className="actions">
-          <button className="btn btn-primary" disabled={syncing || loading} onClick={speicheren}>
+          <button className="btn btn-primary" disabled={syncing || loading || !!error} onClick={speicheren}>
             {syncing ? "Späichert…" : `💾 Fir ${klasse} späicheren`}
           </button>
+          {!!error && <p className="hint" style={{ marginTop: "8px" }}>Späicheren ass gespaart, well d'Lueden net geklappt huet — sou gëtt näischt aus Versinn iwwerschriwwen. Säit nei lueden a probéieren.</p>}
         </div>
       </main>
       {toast && <div className="toast">{toast}</div>}
