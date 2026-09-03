@@ -1,0 +1,395 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<link rel="icon" type="image/png" href="LogoSE_weisHintergrund.png" />
+<title>PPREN Präsentatioun — Direktioun</title>
+<style>
+* { box-sizing: border-box; }
+html, body { margin: 0; height: 100%; font-family: -apple-system, "Segoe UI", Calibri, Arial, sans-serif; background: #1c2621; color: #1c2621; overflow: hidden; }
+.stage-wrap { height: 100vh; display: flex; align-items: center; justify-content: center; padding: 20px; }
+.stage { width: 100%; max-width: 1180px; aspect-ratio: 16/9; position: relative; }
+.slide { position: absolute; inset: 0; background: #fff; border-radius: 14px; box-shadow: 0 24px 60px rgba(0,0,0,0.45); opacity: 0; pointer-events: none; transition: opacity 0.35s ease; overflow: hidden; display: flex; flex-direction: column; }
+.slide.active { opacity: 1; pointer-events: auto; }
+
+/* ===== Titel/Ofschloss-Slides ===== */
+.slide.dark { background: linear-gradient(160deg, #1c2621, #294f3c); color: #fff; justify-content: center; padding: 60px 70px; }
+.dark .bar { height: 6px; width: 100px; background: #F67E1B; border-radius: 3px; margin-bottom: 22px; }
+.dark h1 { font-size: 40px; margin: 0 0 12px; font-weight: 800; }
+.dark p.sub { font-size: 16px; color: #c9d5cd; max-width: 640px; line-height: 1.6; margin: 0 0 24px; }
+.dark ul { list-style: none; padding: 0; margin: 0; display: grid; gap: 9px; }
+.dark li { font-size: 13.5px; color: #eef3ef; display: flex; align-items: center; gap: 10px; }
+.dark li::before { content: "✓"; color: #48B5CA; font-weight: 900; }
+.dark .footline { position: absolute; bottom: 42px; left: 70px; font-size: 12px; color: #48B5CA; font-weight: 700; }
+
+/* ===== Inhalts-Slides ===== */
+.pad { padding: 34px 44px 26px; height: 100%; display: flex; flex-direction: column; }
+.tag { display: inline-block; padding: 6px 16px; border-radius: 20px; color: #fff; font-size: 10.5px; font-weight: 800; letter-spacing: 0.04em; margin-bottom: 14px; align-self: flex-start; }
+h2.slide-title { font-size: 25px; font-weight: 800; color: #1c2621; margin: 0 0 18px; }
+.two-col { display: grid; grid-template-columns: 1fr 1.05fr; gap: 28px; flex: 1; min-height: 0; }
+.two-col.wide-left { grid-template-columns: 1.15fr 1fr; }
+.bul { list-style: none; margin: 0; padding: 0; display: grid; gap: 12px; align-content: start; }
+.bul li { font-size: 13px; line-height: 1.5; color: #1c2621; padding-left: 20px; position: relative; }
+.bul li::before { content: "●"; position: absolute; left: 0; color: #1c2621; font-size: 8px; top: 6px; }
+
+/* ===== Browser-Mockup ===== */
+.browser-frame { background: #fff; border: 1px solid #e2e8e3; border-radius: 10px; box-shadow: 0 8px 24px rgba(0,0,0,0.12); overflow: hidden; display: flex; flex-direction: column; height: 100%; }
+.browser-bar { background: #eef1ef; padding: 7px 10px; display: flex; align-items: center; gap: 6px; border-bottom: 1px solid #e2e8e3; }
+.bdot { width: 8px; height: 8px; border-radius: 50%; }
+.bdot.r { background: #ee6a5f; } .bdot.y { background: #f5bd4f; } .bdot.g { background: #61c454; }
+.mock-body { flex: 1; overflow: hidden; background: #f6f8f6; display: flex; flex-direction: column; }
+.app-topbar { background: #00A94F; color: #fff; padding: 10px 16px; font-size: 11px; font-weight: 800; letter-spacing: 0.03em; }
+.app-topbar .sub { font-weight: 400; opacity: 0.85; font-size: 10px; }
+.app-inner { padding: 14px 16px; flex: 1; overflow: hidden; }
+.app-card { background: #fff; border: 1px solid #e2e8e3; border-radius: 9px; padding: 11px 13px; margin-bottom: 9px; }
+.app-card h3 { margin: 0 0 6px; font-size: 10.5px; color: #00A94F; }
+.pos-row { display: flex; align-items: center; gap: 8px; padding: 4px 0; border-bottom: 1px dashed #eef1ef; font-size: 10px; }
+.pos-row .nm { flex: 1; font-weight: 600; }
+.pos-row .pt { width: 34px; border: 1px solid #c9d5cd; border-radius: 5px; text-align: center; padding: 2px; font-size: 10px; background: #fbfcfb; }
+.pill { display: inline-block; font-size: 9px; font-weight: 700; padding: 2px 9px; border-radius: 20px; margin: 2px 4px 2px 0; }
+.pill-g { background: #d7ecdd; color: #00A94F; } .pill-r { background: #fbe4e1; color: #99392f; } .pill-o { background: #fbe8c6; color: #8a5a12; }
+.mini-btn { display: inline-block; font-size: 8.5px; font-weight: 700; padding: 5px 10px; border-radius: 6px; }
+.mini-btn.primary { background: #00A94F; color: #fff; }
+.mini-btn.ghost { background: #eef3ef; color: #294f3c; border: 1px solid #c9d5cd; }
+.textarea-mock { border: 1px dashed #c9d5cd; border-radius: 6px; padding: 7px 9px; font-size: 9px; color: #6d7d74; font-family: ui-monospace, monospace; background: #fbfcfb; line-height: 1.5; }
+.card-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+.mini-card { background: #fff; border: 1px solid #e2e8e3; border-radius: 8px; padding: 9px; text-align: center; font-size: 9.5px; font-weight: 700; }
+.mini-card .ic { font-size: 16px; display: block; margin-bottom: 4px; }
+.status-flow { display: flex; align-items: center; gap: 5px; font-size: 9px; }
+.status-step { padding: 4px 9px; border-radius: 20px; background: #eef1ef; color: #6d7d74; }
+.status-step.active { background: #d7ecdd; color: #00A94F; font-weight: 700; }
+.gantt-row { display: flex; align-items: center; gap: 8px; margin-bottom: 6px; }
+.gantt-label { width: 78px; font-size: 9px; color: #1c2621; }
+.gantt-track { flex: 1; height: 14px; position: relative; }
+.gantt-bar { position: absolute; height: 12px; border-radius: 6px; top: 1px; }
+.progress-mock { height: 8px; border-radius: 4px; background: #eef1ef; overflow: hidden; margin: 4px 0; }
+.progress-mock .fill { height: 100%; background: #00A94F; }
+.timer-circle { width: 68px; height: 68px; border-radius: 50%; border: 3px solid #00A94F; display: flex; align-items: center; justify-content: center; font-weight: 800; color: #00A94F; font-size: 15px; margin: 6px auto; }
+
+/* ===== Architektur-Diagramm ===== */
+.arch-row { display: flex; align-items: stretch; gap: 14px; flex: 1; }
+.arch-box { flex: 1; border: 2px solid; border-radius: 10px; overflow: hidden; display: flex; flex-direction: column; }
+.arch-head { padding: 9px; text-align: center; font-weight: 800; color: #fff; font-size: 13px; }
+.arch-sub { text-align: center; font-size: 10.5px; font-weight: 700; padding: 6px 0 2px; }
+.arch-body { padding: 10px 14px; font-size: 10.5px; line-height: 1.7; flex: 1; }
+.arch-arrow { display: flex; align-items: center; font-size: 24px; color: #6d7d74; font-weight: 900; }
+
+/* ===== Tabell (Status) ===== */
+table.status-table { width: 100%; border-collapse: collapse; font-size: 11px; }
+table.status-table th { background: #1c2621; color: #fff; padding: 7px 10px; text-align: left; }
+table.status-table td { padding: 6px 10px; border-bottom: 1px solid #eef1ef; }
+table.status-table tr:nth-child(even) td { background: #f6f8f6; }
+.status-ok { color: #00A94F; font-weight: 700; }
+.status-warn { color: #8a5a12; font-weight: 700; }
+
+/* ===== Dateschutz-Warnbox ===== */
+.warn-box { background: #fbe8c6; border-radius: 10px; padding: 16px 18px; height: 100%; overflow: auto; }
+.warn-box h4 { margin: 0 0 10px; color: #8a5a12; font-size: 13px; }
+.warn-box ul { margin: 0; padding-left: 16px; }
+.warn-box li { font-size: 11px; color: #8a5a12; margin-bottom: 8px; line-height: 1.5; }
+
+/* ===== Steuerung (nëmmen um Bildschierm, net am Drock) ===== */
+.controls { position: fixed; bottom: 14px; left: 0; right: 0; display: flex; align-items: center; justify-content: center; gap: 14px; z-index: 50; }
+.ctrl-btn { background: rgba(255,255,255,0.95); border: none; width: 38px; height: 38px; border-radius: 50%; cursor: pointer; font-size: 15px; box-shadow: 0 3px 10px rgba(0,0,0,0.3); }
+.ctrl-btn:hover { background: #fff; }
+.dots { display: flex; gap: 5px; }
+.dot { width: 7px; height: 7px; border-radius: 50%; background: rgba(255,255,255,0.35); cursor: pointer; }
+.dot.active { background: #F67E1B; width: 20px; border-radius: 4px; }
+.counter { color: #c9d5cd; font-size: 12px; min-width: 44px; }
+.hint { position: fixed; top: 14px; right: 18px; color: #c9d5cd; font-size: 11px; z-index: 50; }
+.hint a { color: #48B5CA; text-decoration: none; }
+
+/* ===== Drock (all Slide op eng Säit) ===== */
+@media print {
+  html, body { overflow: visible; background: #fff; height: auto; }
+  .stage-wrap { padding: 0; height: auto; display: block; }
+  .stage { max-width: none; aspect-ratio: auto; }
+  .slide { position: relative; inset: auto; opacity: 1 !important; pointer-events: auto; box-shadow: none; border-radius: 0;
+    page-break-after: always; width: 100%; height: 100vh; }
+  .controls, .hint { display: none !important; }
+}
+</style>
+</head>
+<body>
+<div class="hint">⌨️ ← → fir ze blieren  ·  Drock/Cmd+P fir als PDF ze exportéieren  ·  <a href="praesentatiounen.html">← Zréck zu allen Presentatiounen</a></div>
+<div class="stage-wrap"><div class="stage" id="stage"></div></div>
+<div class="controls">
+  <button class="ctrl-btn" onclick="goTo(idx-1)">◀</button>
+  <div class="dots" id="dots"></div>
+  <button class="ctrl-btn" onclick="goTo(idx+1)">▶</button>
+  <span class="counter" id="counter"></span>
+</div>
+<script>
+function tag(text, color) { return `<span class="tag" style="background:${color}">${text}</span>`; }
+function bul(items) { return `<ul class="bul">${items.map(t => `<li>${t}</li>`).join("")}</ul>`; }
+function frame(inner) { return `<div class="browser-frame"><div class="browser-bar"><span class="bdot r"></span><span class="bdot y"></span><span class="bdot g"></span></div><div class="mock-body">${inner}</div></div>`; }
+function topbar(title, sub) { return `<div class="app-topbar">${title}<span class="sub">  · ${sub}</span></div>`; }
+
+const G = "#00A94F", O = "#F67E1B", B = "#4576B5", T = "#48B5CA", D = "#1c2621", RED = "#99392F";
+
+const SLIDES = [
+{ type: "dark", html: `
+  <div class="bar"></div>
+  <h1>PPREN ONLINE-PLATTFORM</h1>
+  <p class="sub">Digitaliséiert Verwaltung vum Projet Personnel Encadré — vum Projektplang bis zur Notenberechnung</p>
+  <div class="footline">Sciences Environnementales · Lycée Technique d'Ettelbruck · Presentatioun fir d'Direktioun</div>` },
+
+{ type: "content", tag: "IWWERSIICHT", tagColor: G, title: "Wat mir Iech haut weisen", full: `
+  <ul class="bul" style="gap:26px;max-width:720px;">
+    <li><strong>Firwat eng eege Plattform</strong> — de Kontext an d'Ziler hannert dem Projet</li>
+    <li><strong>Wéi et opgebaut ass</strong> — technesch Architektur an Zesummespill vun de Puzzelsteng</li>
+    <li><strong>All Funktioun am Detail</strong> — vum Login iwwer de Projektplang bis zur Notenberechnung</li>
+    <li><strong>Dateschutz</strong> — wou d'Daten leien a wéi se geschützt sinn</li>
+    <li><strong>Wou mir haut stinn</strong> — Status-Iwwersiicht an nächst Schrëtter</li>
+  </ul>` },
+
+{ type: "content", tag: "KONTEXT", tagColor: B, title: "Firwat eng eege Online-Plattform?", two: true, left: bul([
+    "De PPREN-Prozess huet vill bewegend Deeler: Projektplang, wöchentlech Berichter, Fachgespréicher, Ziel-Iwwerpréiwungen, Bewertungen — bis elo verdeelt op Excel-Tabellen, E-Mailen a Pabeier",
+    "Manuell Aarbecht fir Proffen: Punkte zesummerechnen, Deadlines nokucken, Dokumenter versichen",
+    "Kee zentraale Bléck fir de Schüler op säin eegene Fortschrëtt",
+    "Ziel: alles un engem Ort, automatiséiert wat sech automatiséiere léisst — awer konform mam offiziellen, verifizéierte Bewertungsbogen",
+  ]), right: frame(`${topbar("PPREN", "Iwwersiicht")}<div class="app-inner">
+    <div class="app-card"><h3>🎯 Ziel</h3><div style="font-size:9.5px;color:#6d7d74;">Eng Plattform fir Schüler a Proffen — automatiséiert, awer transparent</div></div>
+    <div style="display:flex;gap:8px;">
+      <div class="app-card" style="flex:1;"><h3>👥 Notzer</h3><div style="font-size:9.5px;color:#6d7d74;">~60 Schüler<br>7 Proffen</div></div>
+      <div class="app-card" style="flex:1;"><h3>📅 Zäitraum</h3><div style="font-size:9.5px;color:#6d7d74;">Ganzt Schouljoer<br>1GSE + 2GSE</div></div>
+    </div>
+    <div class="app-card"><h3>⚙️ Basis</h3><div style="font-size:9.5px;color:#6d7d74;">Google Sheets als Dateebank · Google Apps Script als Backend · GitHub Pages als Frontend</div></div>
+  </div>`) },
+
+{ type: "content", tag: "TECHNIK", tagColor: D, title: "Wéi ass d'Plattform opgebaut?", full: `
+  <p style="font-size:12px;color:#6d7d74;margin:0 0 18px;">Dräi Bausteng, déi zesummespillen — alles op bestoenden, gratis Google- a GitHub-Servicer, keng eege Server néideg.</p>
+  <div class="arch-row">
+    <div class="arch-box" style="border-color:${B}"><div class="arch-head" style="background:${B}">Frontend</div><div class="arch-sub" style="color:${B}">GitHub Pages</div>
+      <div class="arch-body">– 30+ HTML-Säiten (React)<br>– Login, Formulairen, Iwwersiichten<br>– Fräi zougänglech fir all Rechner</div></div>
+    <div class="arch-arrow">→</div>
+    <div class="arch-box" style="border-color:${G}"><div class="arch-head" style="background:${G}">Backend</div><div class="arch-sub" style="color:${G}">Google Apps Script</div>
+      <div class="arch-body">– Logik & Berechnungen<br>– Login/Session-Verwaltung<br>– Word/PDF-Generatioun<br>– E-Mail-Erënnerungen</div></div>
+    <div class="arch-arrow">→</div>
+    <div class="arch-box" style="border-color:${O}"><div class="arch-head" style="background:${O}">Dateebank</div><div class="arch-sub" style="color:${O}">Google Sheets</div>
+      <div class="arch-body">– All Persounen, Bewertungen,<br>Wochenberichter, Rendez-vousen<br>– Direkt an Excel/Sheets astellbar</div></div>
+  </div>` },
+
+{ type: "content", tag: "M1 · ZOUGANG", tagColor: G, title: "Sécheren Login fir jiddereen", two: true, left: bul([
+    "All Persoun mellt sech mat engem Untis-Code (oder Numm) + 4-stellegem PIN un",
+    "De Code ass net direkt ze roden — méi sécher wéi de vollen Numm",
+    "D'Roll (Prof/Schüler) gëtt automatesch server-säiteg festgestallt",
+    "Session-Token mat 18 Stonnen Gültegkeet",
+    "Deaktivéiert Persoune kënne sech net méi umellen",
+  ]), right: frame(`${topbar("PPREN", "Umeldung")}<div class="app-inner" style="display:flex;align-items:center;justify-content:center;">
+    <div class="app-card" style="width:78%;">
+      <div style="font-size:9px;font-weight:700;color:#294f3c;margin-bottom:4px;">Untis-Code (oder Numm)</div>
+      <div style="border:1px solid #c9d5cd;border-radius:5px;padding:6px 10px;font-size:10px;background:#fbfcfb;margin-bottom:10px;">putgu255</div>
+      <div style="font-size:9px;font-weight:700;color:#294f3c;margin-bottom:4px;">PIN (4 Zuelen)</div>
+      <div style="border:1px solid #c9d5cd;border-radius:5px;padding:6px 10px;font-size:11px;text-align:center;letter-spacing:5px;background:#fbfcfb;margin-bottom:12px;">••••</div>
+      <div class="mini-btn primary" style="display:block;text-align:center;">Umellen</div>
+    </div>
+  </div>`) },
+
+{ type: "content", tag: "M1 · PERSOUNEN", tagColor: G, title: "Persoune selwer verwalten", two: true, left: bul([
+    "Proffen kënne selwer Schüler/Kolleege bäisetzen — ouni Entwéckler néideg",
+    "Bulk-Import: eng ganz Klass op eemol aus Excel kopéieren",
+    "PINs ginn automatesch generéiert an eemol ugewisen",
+    "Persounen kënne mat engem Klick (de)aktivéiert ginn",
+    "Untis-Codeën optional nodroen, egal wéini",
+  ]), right: frame(`${topbar("PPREN", "Personen verwalten")}<div class="app-inner">
+    <div class="app-card"><h3>Nei Persoun</h3><div class="pos-row"><span class="nm">Numm: Léa Muller</span></div><div class="pos-row"><span class="nm">Klasse: 1GSE</span></div></div>
+    <div class="app-card"><h3>Vill Persoune mat enger Lëscht derbäisetzen</h3><div class="textarea-mock">Léa Muller;mulle123<br>Ben Weber;webbe456<br>Noah Schmit</div>
+      <div style="margin-top:8px;"><span class="mini-btn primary">📋 Lëscht derbäisetzen</span></div></div>
+  </div>`) },
+
+{ type: "content", tag: "M2 · PROJEKTPLANG", tagColor: B, title: "Projektplang erstellen a fräiginn", two: true, left: bul([
+    "Schüler fëllt Grunddaten, Inhalt, Ziler, Meilensteng, Aufgabenteilung a Kostenplang aus",
+    "Status-Flow: Entworf → Areecht → Freigin & digital ënnerschriwwen",
+    "No der Fräigab ass de Projektplang gespaart — nëmmen de Betreier kann e nees opmaachen",
+    "Automatesch Erstellung vun engem richtege Word-Dokument (mat Deckblat) op Google Drive",
+    "Meilensteng bidirektional mam Planungstool synchroniséiert",
+  ]), right: frame(`${topbar("PPREN", "Projektplang")}<div class="app-inner">
+    <div class="app-card"><h3>Titel & Inhalt</h3><div style="font-size:9.5px;color:#6d7d74;">Wasserqualitéit vun der Attert<br>Ziler: Mesponkte bis Enn Oktober definéiert</div></div>
+    <div class="status-flow" style="margin:10px 0;"><span class="status-step">Entworf</span>→<span class="status-step active">Areecht</span>→<span class="status-step">Freigin</span></div>
+    <div class="app-card"><h3>Meilensteng</h3><div style="font-size:9px;color:#6d7d74;">📅 07.10 — Projektplang ofginn<br>📅 15.11 — Éischt Messreih ofgeschloss</div></div>
+  </div>`) },
+
+{ type: "content", tag: "M3 · SUIVI", tagColor: T, title: "Fortschrëtt op ee Bléck", two: true, left: bul([
+    "Schüler gesäit säin Notestand, Punkten pro Kategorie a Meilensteng-Status",
+    "Budget-Fortschrëttsbar fir de Kostenplang",
+    "PDF-Link zum ganze Suivi-Dokument, dat de Prof féiert",
+    "Alles zesummegezunn aus de véier aneren Modulen",
+  ]), right: frame(`${topbar("PPREN", "Suivi")}<div class="app-inner">
+    <div class="app-card"><h3>Trimester 1 — 195 / 270 Punkten</h3><div class="progress-mock"><div class="fill" style="width:72%"></div></div></div>
+    <div class="app-card"><h3>Meilensteng</h3><span class="pill pill-g">✓ Projektplang</span><span class="pill pill-o">⏳ Éischt Miessung</span></div>
+    <div class="app-card"><h3>💰 Budget</h3><div style="font-size:9.5px;color:#6d7d74;">312 € / 500 € genotzt</div></div>
+  </div>`) },
+
+{ type: "content", tag: "M5 · WOCHENBERICHTER", tagColor: O, title: "Wöchentlech Berichter mat automatescher Korrektur", two: true, left: bul([
+    "Schüler gëtt all Woch e kuerze Bericht of — Zesummefaassung a Fortschrëtt",
+    "Ofgab bis Sonndes 22h, soss automatesch 0 Punkte (Trigger, keng manuell Aarbecht)",
+    "Prof korrigéiert mat engem festgeluechten Punkte-Schema (2+1,5+1+0,5P)",
+    "Erënnerung un de Schüler ouni ofginne Bericht (Sonndes 10h)",
+    "Entschëllegung-Funktioun mat Grond, fir berechtegt Ausnamen",
+  ]), right: frame(`${topbar("PPREN", "Wochenberichter korrigéieren")}<div class="app-inner">
+    ${["Léa Muller", "Ben Weber", "Noah Schmit"].map((n, i) => `<div class="app-card"><h3>Woch 3 — ${n}</h3>${i === 0 ? '<span class="pill pill-g">✓ Bewäert (4,5/5)</span>' : '<span class="pill pill-o">⏳ Agereecht</span>'}</div>`).join("")}
+  </div>`) },
+
+{ type: "content", tag: "M6 · BEWERTUNG", tagColor: G, title: "Bewertung mat automatescher Punktesammlung", two: true, left: bul([
+    "Punkte pro Positioun, Punkten aus Wochenberichter/Fachgespréich/Ziel-Iwwerpréiwung automatesch iwwerholl",
+    "Remarquen-Bausteng (positiv/negativ) generéieren de Kommentar mat engem Klick",
+    "Finaliséieren spaart d'Bewertung — nëmmen de Prof kann nees opmaachen",
+    "All 5 Perioden Punkt-fir-Punkt géint déi offiziell PDFen verifizéiert",
+    "Automatesch Synchroniséierung an d'Suivi-Dokument",
+  ]), right: frame(`${topbar("PPREN", "Bewertung")}<div class="app-inner">
+    <div class="app-card"><h3>Umsetzung des Projektes</h3>
+      <div class="pos-row"><span class="nm">Bewältigung des Themas</span><span class="pt">26</span><span>/30</span></div>
+      <div class="pos-row"><span class="nm">Dokumentation</span><span class="pt">28</span><span>/30</span></div></div>
+    <div><span class="pill pill-g">✓ Hohe Autonomie erkennbar</span><span class="pill pill-r">✗ Fortschrëtt ze schwaach</span></div>
+    <div style="margin-top:6px;"><span class="mini-btn ghost">🖊️ Kommentar generéieren</span></div>
+  </div>`) },
+
+{ type: "content", tag: "M6 · FLEXIBILITÉIT", tagColor: G, title: "Bewertungsraster elo selwer upassbar", two: true, left: bul([
+    "D'Punkte-Struktur ass net méi hart am Code, mä an enger Sheet gespäichert",
+    "Nei Admin-Säit: Gruppen, Positiounen, Max-Punkten an Indikatoren visuell änneren",
+    "Ännerungen gëllen direkt fir all Proffen am Bewertungsformulaire",
+    "Sécherheetsnetz: bei enger eideler Sheet gëllt automatesch déi verifizéiert Original-Struktur",
+  ]), right: frame(`${topbar("PPREN", "Bewertungsraster verwalten")}<div class="app-inner">
+    <div class="app-card"><h3>Planung / Themenfindung</h3><div style="font-size:9px;color:#6d7d74;">Positioun: Projektplan — Max: 30P</div></div>
+    <div class="app-card"><h3>Umsetzung des Projektes</h3><div style="font-size:9px;color:#6d7d74;">Bewältigung — 30P · Dokumentation — 30P</div></div>
+    <div style="margin-top:6px;"><span class="mini-btn primary">💾 Bewertungsraster späicheren</span></div>
+  </div>`) },
+
+{ type: "content", tag: "M7 · NOTENEXPORT", tagColor: B, title: "Notentabell mat engem Klick exportéieren", two: true, left: bul([
+    "Richtege .xlsx-Export mat faarwegen Notenzellen (gréng/rout), autofilter, gespaarter Kappzeil",
+    "Beim Export vun 'Alle Klassen' e separaat Blat pro Klass",
+    "CSV-Export als einfach Alternativ weiderhin verfügbar",
+    "Ëmmer aktuell, well direkt aus den Bewertungsdate generéiert",
+  ]), right: frame(`${topbar("PPREN", "Notentabell")}<div class="app-inner">
+    <table style="width:100%;border-collapse:collapse;font-size:9px;">
+    <tr style="background:${G};color:#fff;"><th style="padding:5px;">Schüler</th><th>Tri.1</th><th>Tri.2</th><th>Note</th></tr>
+    <tr><td style="padding:5px;">Léa Muller</td><td style="text-align:center;">48,2</td><td style="text-align:center;">51,0</td><td style="text-align:center;background:#d7ecdd;color:${G};font-weight:700;">49,6</td></tr>
+    <tr style="background:#f6f8f6;"><td style="padding:5px;">Ben Weber</td><td style="text-align:center;">39,5</td><td style="text-align:center;">42,1</td><td style="text-align:center;background:#fbe4e1;color:${RED};font-weight:700;">40,8</td></tr>
+    </table>
+    <div style="margin-top:10px;"><span class="mini-btn primary">📊 Als .xlsx exportéieren</span></div>
+  </div>`) },
+
+{ type: "content", tag: "M8 · RENDEZ-VOUSEN", tagColor: T, title: "Rendez-vousen plangen a mam Kalenner synchroniséieren", two: true, left: bul([
+    "Fachgespréich- oder Ziel-Iwwerpréiwung-Rendez-vousen mat Datum, Zäit a Notiz plangen",
+    "Automatesch E-Mail-Erënnerung un de Schüler 2 Deeg virdrun",
+    "Export als .ics-Datei — importéierbar a Google Calendar, Outlook oder Apple Kalenner",
+    "Iwwersiicht vun opstoende a vergaangene Rendez-vousen",
+  ]), right: frame(`${topbar("PPREN", "Rendez-vousen")}<div class="app-inner">
+    <div class="app-card"><h3>Neien Rendez-vous plangen</h3><div style="font-size:9px;color:#6d7d74;">Léa Muller (1GSE) — Fachgespréich — 12.11.2026</div></div>
+    <div class="app-card"><div style="display:flex;justify-content:space-between;align-items:center;"><h3 style="margin:0;">Opstoend</h3><span class="mini-btn ghost">📆 Als .ics exportéieren</span></div>
+      <div style="font-size:9px;color:#6d7d74;margin-top:6px;">12.11 — Léa Muller — Fachgespréich<br>14.11 — Ben Weber — Ziel-Iwwerpréiwung</div></div>
+  </div>`) },
+
+{ type: "content", tag: "M9 · PLANUNG", tagColor: O, title: "Meilensteng-Planung a Gantt-Chart", two: true, left: bul([
+    "Prof an Schüler gesinn zesumme d'Meilensteng pro Projet",
+    "Zentral offiziell Zäitplang, deen de Prof festleet an fir all Schüler gëllt",
+    "Bidirektional mam Projektplang synchroniséiert",
+    "Vakanzen a Feierdeeg ginn automatesch als Warnung ugewisen",
+  ]), right: frame(`${topbar("PPREN", "Gantt-Chart")}<div class="app-inner">
+    <div class="gantt-row"><span class="gantt-label">Projektplang</span><div class="gantt-track"><div class="gantt-bar" style="left:2%;width:20%;background:${G}"></div></div></div>
+    <div class="gantt-row"><span class="gantt-label">Recherche</span><div class="gantt-track"><div class="gantt-bar" style="left:22%;width:35%;background:${B}"></div></div></div>
+    <div class="gantt-row"><span class="gantt-label">Miessungen</span><div class="gantt-track"><div class="gantt-bar" style="left:45%;width:35%;background:${O}"></div></div></div>
+    <div class="gantt-row"><span class="gantt-label">Dokumentatioun</span><div class="gantt-track"><div class="gantt-bar" style="left:68%;width:30%;background:${T}"></div></div></div>
+  </div>`) },
+
+{ type: "content", tag: "M10 · MËNDLECH", tagColor: B, title: "Fachgespréich- an Ziel-Iwwerpréiwungs-Tools", two: true, left: bul([
+    "Fachgespréich-Tool mat Timer, zwou Varianten (A/B) a Froen-Import aus Word/PDF",
+    "Ziel-Iwwerpréiwung: kuerze Rendez-vous ouni grouss Preparatioun néideg",
+    "Béid feieren hir Punkten automatesch an d'Bewertungsformulaire",
+    "Notize kënnen direkt wärend dem Gespréich festgehale ginn",
+  ]), right: frame(`${topbar("PPREN", "Fachgespréich")}<div class="app-inner" style="text-align:center;">
+    <div class="timer-circle">08:42</div>
+    <div class="app-card" style="text-align:left;"><h3>Froen — Variante A</h3><div style="font-size:9px;color:#6d7d74;">1. Erklär de Waasserkreeslaf.<br>2. Wat beaflosst de pH-Wäert?<br>Punkte: 8 / 10</div></div>
+  </div>`) },
+
+{ type: "content", tag: "M11 · TEXTGENERATIOUN", tagColor: G, title: "Automatesch generéiert Bemierkungen", two: true, left: bul([
+    "Prof wielt aus virdefinéierte positiv/negativ Remarquen aus",
+    "System setzt doraus e passenden, perséinlechen Text zesummen",
+    "Spuert Zäit beim Schreiwen, bleift awer ëmmer individuell upassbar",
+    "Sachlech-Qualitéit-Remarquen ginn automatesch bäigemëscht, wou relevant",
+  ]), right: frame(`${topbar("PPREN", "Bewertung")}<div class="app-inner">
+    <div><span class="pill pill-g">✓ Sehr engagéiert Mataarbecht</span><span class="pill pill-g">✓ Gutt Selbstorganisatioun</span><span class="pill pill-r">✗ Termine net ëmmer agehalen</span></div>
+    <div class="app-card" style="margin-top:8px;"><h3>🖊️ Generéierten Text</h3><div style="font-size:9px;color:#6d7d74;">Léa zeigte: Sehr engagéiert Mataarbecht; Gutt Selbstorganisatioun. Verbesserungspotenzial: Termine net ëmmer agehalen.</div></div>
+  </div>`) },
+
+{ type: "content", tag: "DATESCHUTZ", tagColor: RED, title: "Wou leien d'Daten, a wéi sinn se geschützt?", two: true, left: bul([
+    "Alle perséinlech Date leien am Google Workspace vun der Schoul — Google Sheets & Google Drive, net op engem eegenen oder friemen Server",
+    "De Programmcode op GitHub enthält keng Persounendaten — nëmmen d'Struktur vun der Plattform",
+    "PINs ginn ni am Klartext gespäichert — nëmmen als gehashten Wäert (SHA-256 + individuellen Salt)",
+    "Zougang nëmmen mat gültege Login-Session — jiddereen gesäit nëmmen déi eege Date, ausser de Prof",
+    "Deaktivéiert Persoune verléieren direkt de Login-Zougang",
+  ]), right: `<div class="warn-box"><h4>⚠️ Fir d'Direktioun ze klären</h4><ul>
+    <li>D'DSGVO-Verantwortung fir d'Daten läit beim Schoulbetreiwer (Google Workspace for Education Ofkommes), net bei dësem Tool selwer</li>
+    <li>Rechtlech Basis, Retentiounsfristen an de genaue Serverstanduert sollten iwwert de Dateschutzbeoptraten offiziell confirméiert ginn</li>
+    <li>Kee Login-Formulaire vun engem Drëttland — all Login/Backend leeft iwwer Google Apps Script vum Schoul-Kont</li>
+    <li>Empfeelung: dëse Punkt virum flächendeckenden Asaz formell mam Dateschutzbeoptraten ofstëmmen</li>
+  </ul></div>` },
+
+{ type: "content", tag: "STATUS", tagColor: D, title: "Wou mir haut stinn", full: `
+  <table class="status-table">
+    <tr><th>Modul</th><th>Beschreiwung</th><th>Status</th></tr>
+    <tr><td>M1</td><td>Login & Personen-Verwaltung</td><td class="status-ok">✅ Fäerdeg</td></tr>
+    <tr><td>M2</td><td>Projektplang</td><td class="status-ok">✅ Fäerdeg</td></tr>
+    <tr><td>M3</td><td>Suivi</td><td class="status-ok">✅ Fäerdeg</td></tr>
+    <tr><td>M4</td><td>Dokumentatioun</td><td class="status-warn">⚠️ Deelweis</td></tr>
+    <tr><td>M5</td><td>Wochenberichter</td><td class="status-ok">✅ Fäerdeg</td></tr>
+    <tr><td>M6</td><td>Bewertung & Bewertungsraster</td><td class="status-ok">✅ Fäerdeg</td></tr>
+    <tr><td>M7</td><td>Notenexport</td><td class="status-ok">✅ Fäerdeg</td></tr>
+    <tr><td>M8</td><td>Rendez-vousen & Kalenner</td><td class="status-ok">✅ Fäerdeg</td></tr>
+    <tr><td>M9</td><td>Planung & Gantt</td><td class="status-ok">✅ Fäerdeg</td></tr>
+    <tr><td>M10</td><td>Fachgespréich & Ziel-Iwwerpréiwung</td><td class="status-ok">✅ Fäerdeg</td></tr>
+    <tr><td>M11</td><td>Automatesch Bemierkungen</td><td class="status-ok">✅ Fäerdeg</td></tr>
+  </table>` },
+
+{ type: "content", tag: "AUSBLÉCK", tagColor: O, title: "Wat als nächst kënnt", full: `
+  <div style="display:grid;gap:12px;">
+    <div class="app-card" style="padding:14px 16px;"><h3 style="font-size:13px;">📚 M4 — Dokumentatioun</h3><div style="font-size:10.5px;color:#6d7d74;">SharePoint-Integratioun méi déif ausbauen — bräicht Azure-AD-Registréierung duerch d'Schoul-IT</div></div>
+    <div class="app-card" style="padding:14px 16px;"><h3 style="font-size:13px;">🎥 Onboarding-Material</h3><div style="font-size:10.5px;color:#6d7d74;">Detailléiert Anleitungen fir Proffen a Schüler</div></div>
+    <div class="app-card" style="padding:14px 16px;"><h3 style="font-size:13px;">📈 Feedback aus dem Alldag</h3><div style="font-size:10.5px;color:#6d7d74;">No den éischte Wochen am richtege Betrib upassen</div></div>
+  </div>` },
+
+{ type: "dark", html: `
+  <div class="bar"></div>
+  <h1>Merci fir Är Zäit</h1>
+  <p class="sub">Froen? Ech weisen d'Plattform gär och live.</p>
+  <div class="footline">pugu-prog.github.io/ppren-projektplan</div>` },
+];
+
+// ===== Rendering =====
+const stage = document.getElementById("stage");
+let idx = 0;
+
+function renderSlide(sl) {
+  if (sl.type === "dark") return `<div class="slide dark">${sl.html}</div>`;
+  const bodyInner = sl.full
+    ? sl.full
+    : `<div class="two-col ${sl.wideLeft ? "wide-left" : ""}"><div>${sl.left}</div><div>${sl.right}</div></div>`;
+  return `<div class="slide"><div class="pad">${tag(sl.tag, sl.tagColor)}<h2 class="slide-title">${sl.title}</h2>${bodyInner}</div></div>`;
+}
+
+SLIDES.forEach((sl) => { stage.insertAdjacentHTML("beforeend", renderSlide(sl)); });
+const slideEls = document.querySelectorAll(".slide");
+const dotsEl = document.getElementById("dots");
+SLIDES.forEach((_, i) => {
+  const d = document.createElement("div");
+  d.className = "dot" + (i === 0 ? " active" : "");
+  d.onclick = () => goTo(i);
+  dotsEl.appendChild(d);
+});
+
+function goTo(n) {
+  idx = Math.max(0, Math.min(SLIDES.length - 1, n));
+  slideEls.forEach((el, i) => el.classList.toggle("active", i === idx));
+  document.querySelectorAll(".dot").forEach((d, i) => d.classList.toggle("active", i === idx));
+  document.getElementById("counter").textContent = (idx + 1) + " / " + SLIDES.length;
+}
+document.addEventListener("keydown", (e) => {
+  if (e.key === "ArrowRight" || e.key === " ") { e.preventDefault(); goTo(idx + 1); }
+  if (e.key === "ArrowLeft") goTo(idx - 1);
+});
+goTo(0);
+</script>
+</body>
+</html>
