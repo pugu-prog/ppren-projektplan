@@ -32,6 +32,7 @@ function App() {
   const [klasse, setKlasse] = useState("1GSE");
   const [email, setEmail] = useState("");
   const [untisCode, setUntisCode] = useState("");
+  const [passwuert, setPasswuert] = useState("");
   const [syncing, setSyncing] = useState(false);
   const [error, setError] = useState(null);
   const [neiPin, setNeiPin] = useState(null);
@@ -43,6 +44,12 @@ function App() {
   const [bulkSyncing, setBulkSyncing] = useState(false);
   const [bulkError, setBulkError] = useState(null);
   const [bulkResultater, setBulkResultater] = useState(null);
+
+  // Passwuert-Reset pro Persoun (Inline-Formular)
+  const [resetNumm, setResetNumm] = useState(null);
+  const [resetPasswuert, setResetPasswuert] = useState("");
+  const [resetSyncing, setResetSyncing] = useState(false);
+  const [resetErgebnis, setResetErgebnis] = useState(null);
 
   const token = () => window.PPREN_SESSION?.token || "";
 
@@ -67,12 +74,13 @@ function App() {
         body: JSON.stringify({
           typ: "personSpäicheren", proffToken: token(), numm: numm.trim(), rolle,
           klasse: rolle === "Schüler" ? klasse : "", email: email.trim(), untisCode: untisCode.trim(),
+          pin: passwuert.trim(),
         }),
       });
       const data = await res.json();
       if (!data.ok) throw new Error(data.error);
       if (data.neiPin) setNeiPin({ numm: numm.trim(), pin: data.neiPin });
-      setNumm(""); setEmail(""); setUntisCode("");
+      setNumm(""); setEmail(""); setUntisCode(""); setPasswuert("");
       lade();
     } catch (e) {
       setError(e.message);
@@ -122,6 +130,48 @@ function App() {
     } catch (e) { alert(e.message); }
   };
 
+  const permanentLaeschen = async (p) => {
+    if (!confirm(`"${p.numm}" PERMANENT läschen? Dëst kann net réckgängeg gemaach ginn — all Login-Zougang geet verluer.`)) return;
+    if (!confirm(`Sécher? Ee leschte Kéier: "${p.numm}" wierklech endgülteg läschen?`)) return;
+    try {
+      const res = await fetch(WEB_APP_URL, {
+        method: "POST",
+        headers: { "Content-Type": "text/plain;charset=utf-8" },
+        body: JSON.stringify({ typ: "personLoeschen", proffToken: token(), numm: p.numm }),
+      });
+      const data = await res.json();
+      if (!data.ok) throw new Error(data.error);
+      lade();
+    } catch (e) { alert(e.message); }
+  };
+
+  const passwuertAendernOeffnen = (p) => {
+    setResetNumm(p.numm);
+    setResetPasswuert("");
+    setResetErgebnis(null);
+  };
+
+  const passwuertAendernAbsenden = async () => {
+    setResetSyncing(true);
+    try {
+      const res = await fetch(WEB_APP_URL, {
+        method: "POST",
+        headers: { "Content-Type": "text/plain;charset=utf-8" },
+        body: JSON.stringify({
+          typ: "pinZuruecksetzen", proffToken: token(), numm: resetNumm,
+          neiesPasswuert: resetPasswuert.trim(),
+        }),
+      });
+      const data = await res.json();
+      if (!data.ok) throw new Error(data.error);
+      setResetErgebnis(data.pin);
+    } catch (e) {
+      alert(e.message);
+    } finally {
+      setResetSyncing(false);
+    }
+  };
+
   const anzuelNei = bulkResultater ? bulkResultater.filter((r) => r.status === "nei").length : 0;
   const anzuelSchoDo = bulkResultater ? bulkResultater.filter((r) => r.status === "scho do").length : 0;
 
@@ -154,12 +204,16 @@ function App() {
             <span>Untis-Code (optional — 3 Buschtawen Familljennumm + 2 Buschtawen Virnumm + 3 Zuelen)</span>
             <input className="input" value={untisCode} onChange={(e) => setUntisCode(e.target.value)} placeholder="z.B. putgu255" />
           </label>
+          <label className="field">
+            <span>Passwuert (optional — mindestens 6 Zeechen fir e stäerkert Passwuert unzeginn; eidel loossen fir en automateschen 4-Zuel-PIN)</span>
+            <input className="input" type="text" value={passwuert} onChange={(e) => setPasswuert(e.target.value)} placeholder="z.B. Waasser2027!" />
+          </label>
           <label className="field"><span>Email (optional)</span><input className="input" value={email} onChange={(e) => setEmail(e.target.value)} /></label>
           {error && <p className="error">{error}</p>}
           <button className="btn" disabled={syncing} onClick={speicheren}>{syncing ? "…" : "➕ Derbäisetzen"}</button>
           {neiPin && (
             <div className="pin-box">
-              <span>Neie PIN fir <strong>{neiPin.numm}</strong>:</span>
+              <span>Neie PIN/Passwuert fir <strong>{neiPin.numm}</strong>:</span>
               <span className="pin-zuel">{neiPin.pin}</span>
             </div>
           )}
@@ -230,10 +284,41 @@ function App() {
               <thead><tr><th>Numm</th><th>Roll</th><th>Klasse</th><th>Untis-Code</th><th></th></tr></thead>
               <tbody>
                 {personen.map((p, i) => (
-                  <tr key={i}>
-                    <td>{p.numm}</td><td>{p.rolle}</td><td>{p.klasse || "–"}</td><td>{p.untisCode || "–"}</td>
-                    <td><button className="icon-btn" onClick={() => toggleAktiv(p)}>Deaktivéieren</button></td>
-                  </tr>
+                  <React.Fragment key={i}>
+                    <tr>
+                      <td>{p.numm}</td><td>{p.rolle}</td><td>{p.klasse || "–"}</td><td>{p.untisCode || "–"}</td>
+                      <td className="aktioun-zell">
+                        <button className="icon-btn icon-btn-blo" onClick={() => passwuertAendernOeffnen(p)}>🔑 Passwuert</button>
+                        <button className="icon-btn" onClick={() => toggleAktiv(p)}>Deaktivéieren</button>
+                        <button className="icon-btn icon-btn-rout" onClick={() => permanentLaeschen(p)}>🗑️ Läschen</button>
+                      </td>
+                    </tr>
+                    {resetNumm === p.numm && (
+                      <tr className="reset-zeil">
+                        <td colSpan={5}>
+                          <div className="reset-box">
+                            <span className="reset-label">Neit Passwuert fir <strong>{p.numm}</strong> setzen:</span>
+                            <input
+                              className="input reset-input"
+                              type="text"
+                              value={resetPasswuert}
+                              onChange={(e) => setResetPasswuert(e.target.value)}
+                              placeholder="mindestens 6 Zeechen fir e stäerkert Passwuert, oder eidel fir automatesche 4-Zuel-PIN"
+                            />
+                            <button className="btn-klein" disabled={resetSyncing} onClick={passwuertAendernAbsenden}>
+                              {resetSyncing ? "…" : "Späicheren"}
+                            </button>
+                            <button className="btn-klein btn-klein-ghost" onClick={() => setResetNumm(null)}>Ofbriechen</button>
+                            {resetErgebnis && (
+                              <div className="reset-ergebnis">
+                                ✅ Neit Passwuert/PIN: <span className="pin-zuel-klein">{resetErgebnis}</span>
+                              </div>
+                            )}
+                          </div>
+                        </td>
+                      </tr>
+                    )}
+                  </React.Fragment>
                 ))}
               </tbody>
             </table>
@@ -248,7 +333,7 @@ ReactDOM.createRoot(document.getElementById("root")).render(<App />);
 <style>
 * { box-sizing: border-box; } body { margin: 0; font-family: sans-serif; background: #f6f8f6; color: #1c2621; }
 .topbar { padding: 14px 22px; background: #00A94F; color: #fff; display: flex; gap: 10px; align-items: baseline; }
-.brand-mark { font-weight: 800; } .content { max-width: 600px; margin: 0 auto; padding: 24px 20px; }
+.brand-mark { font-weight: 800; } .content { max-width: 640px; margin: 0 auto; padding: 24px 20px; }
 .card { background: #fff; border: 1px solid #e2e8e3; border-radius: 12px; padding: 18px 20px; margin-bottom: 16px; }
 .card h2 { color: #00A94F; margin-top: 0; }
 .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
@@ -261,14 +346,25 @@ ReactDOM.createRoot(document.getElementById("root")).render(<App />);
 .btn:disabled { background: #b7c6bd; cursor: not-allowed; }
 .error { color: #8a2b1f; background: #fbe4e1; padding: 8px 12px; border-radius: 8px; font-size: 12.5px; margin-bottom: 12px; }
 .pin-box { margin-top: 12px; background: #eef3ef; padding: 12px; border-radius: 8px; text-align: center; }
-.pin-zuel { display: block; font-size: 24px; font-weight: 800; color: #00A94F; letter-spacing: 6px; }
+.pin-zuel { display: block; font-size: 24px; font-weight: 800; color: #00A94F; letter-spacing: 6px; word-break: break-all; }
 .bulk-resultat { margin-top: 14px; padding-top: 14px; border-top: 1px solid #eef1ef; }
 .bulk-summary { font-size: 13px; font-weight: 700; color: #294f3c; margin: 0 0 10px; }
 .pin-zell { font-weight: 800; color: #00A94F; letter-spacing: 2px; }
 .tabelle { width: 100%; border-collapse: collapse; }
 .tabelle th { text-align: left; font-size: 11px; color: #6d7d74; padding: 6px; }
 .tabelle td { padding: 7px 6px; font-size: 13px; border-top: 1px solid #f4f6f4; }
-.icon-btn { font-size: 11px; color: #99392f; background: #fbe4e1; border: none; padding: 4px 8px; border-radius: 6px; cursor: pointer; }
+.aktioun-zell { display: flex; gap: 6px; flex-wrap: wrap; justify-content: flex-end; }
+.icon-btn { font-size: 11px; color: #99392f; background: #fbe4e1; border: none; padding: 4px 8px; border-radius: 6px; cursor: pointer; white-space: nowrap; }
+.icon-btn-blo { color: #4576B5; background: #eaf0f8; }
+.icon-btn-rout { color: #fff; background: #99392f; }
+.reset-zeil td { background: #fafbfa; padding: 10px 6px; }
+.reset-box { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+.reset-label { font-size: 12.5px; font-weight: 700; color: #294f3c; }
+.reset-input { flex: 1; min-width: 220px; }
+.btn-klein { background: #00A94F; color: #fff; border: none; padding: 7px 12px; border-radius: 7px; font-size: 12px; font-weight: 700; cursor: pointer; }
+.btn-klein-ghost { background: #eef3ef; color: #294f3c; }
+.reset-ergebnis { width: 100%; font-size: 12.5px; color: #00A94F; font-weight: 700; }
+.pin-zuel-klein { font-size: 15px; letter-spacing: 2px; }
 </style>
 </body>
 </html>
