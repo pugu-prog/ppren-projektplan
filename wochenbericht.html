@@ -31,6 +31,10 @@ const WEB_APP_URL = "https://script.google.com/macros/s/AKfycbwNDO4bJv1lYKvwg57T
 const PERIODEN_2GSE = ["Trimester 1", "Trimester 2", "Trimester 3"];
 const PERIODEN_1GSE = ["Semester 1", "Semester 2"];
 
+// Wochenberichter fänken éischt mat der Woch vum 21.09.2026 un — virdrun
+// (z.B. an de éischte Woche(n) nom Schouljoresufank) gëtt näischt erwaart.
+const WOCHENBERICHT_START_ISO = "2026-09-21";
+
 function montagDerWoche(datum) {
   const d = new Date(datum);
   const tag = d.getDay();
@@ -45,6 +49,12 @@ function heutigeWocheLabel() {
   const sonntag = new Date(montag);
   sonntag.setDate(montag.getDate() + 6);
   return `${formatDatum(montag)} – ${formatDatum(sonntag)}`;
+}
+/** True, wa mer nach virun der offizieller Startwoch (21.09.2026) sinn. */
+function nachVirWochenberichtStart() {
+  const montag = montagDerWoche(new Date());
+  const montagIso = montag.toISOString().slice(0, 10);
+  return montagIso < WOCHENBERICHT_START_ISO;
 }
 /** Extrahéiert den éischte Kalennerdatum aus engem Woche-Label ("dd.mm.yyyy – dd.mm.yyyy"). */
 function ersteDatumVunWoche(wocheLabel) {
@@ -112,6 +122,7 @@ function App() {
   const currentSchueler = SCHUELER.find((s) => s.id === schuelerId);
   const istGSE2 = currentSchueler?.klasse === "2GSE";
   const perioden = istGSE2 ? PERIODEN_2GSE : PERIODEN_1GSE;
+  const nachVirStart = nachVirWochenberichtStart();
 
   const lade = () => {
     if (!currentSchueler) return;
@@ -257,7 +268,16 @@ function App() {
           </div>
         </section>
 
-        {schuelerId && periode && wocheGespaart && (
+        {schuelerId && nachVirStart && (
+          <div className="card">
+            <p className="notice">
+              📅 D'Wochenberichter fänken éischt mat der Woch vum <strong>21.09.2026</strong> un — bis dohinner
+              ass nach näischt ofzeginn. Kuck hei nach eng Kéier laanscht, soubal et esou wäit ass.
+            </p>
+          </div>
+        )}
+
+        {schuelerId && periode && !nachVirStart && wocheGespaart && (
           <div className="card">
             <p className="notice">
               🔒 Fir dës Woch ({bericht.woche}) hues du schonn en Bericht ofginn, deen och scho <strong>bewäert</strong> ass —
@@ -266,7 +286,7 @@ function App() {
           </div>
         )}
 
-        {schuelerId && periode && !wocheGespaart && (
+        {schuelerId && periode && !nachVirStart && !wocheGespaart && (
           <>
             <section className="card">
               <h2>Neien Wochenbericht — {bericht.woche}</h2>
