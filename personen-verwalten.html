@@ -36,6 +36,7 @@ function App() {
   const [syncing, setSyncing] = useState(false);
   const [error, setError] = useState(null);
   const [neiPin, setNeiPin] = useState(null);
+  const [sessiounPins, setSessiounPins] = useState([]);
 
   // Bulk-Import (Lëscht vu Nimm, ee pro Zeil, optional mat Untis-Code)
   const [bulkNimm, setBulkNimm] = useState("");
@@ -79,7 +80,10 @@ function App() {
       });
       const data = await res.json();
       if (!data.ok) throw new Error(data.error);
-      if (data.neiPin) setNeiPin({ numm: numm.trim(), pin: data.neiPin });
+      if (data.neiPin) {
+        setNeiPin({ numm: numm.trim(), pin: data.neiPin });
+        setSessiounPins((l) => [...l, { numm: numm.trim(), pin: data.neiPin, zäit: new Date().toLocaleTimeString("de-DE") }]);
+      }
       setNumm(""); setEmail(""); setUntisCode(""); setPasswuert("");
       lade();
     } catch (e) {
@@ -165,11 +169,27 @@ function App() {
       const data = await res.json();
       if (!data.ok) throw new Error(data.error);
       setResetErgebnis(data.pin);
+      setSessiounPins((l) => [...l, { numm: resetNumm, pin: data.pin, zäit: new Date().toLocaleTimeString("de-DE") }]);
     } catch (e) {
       alert(e.message);
     } finally {
       setResetSyncing(false);
     }
+  };
+
+  const pinListeEroflueden = () => {
+    if (sessiounPins.length === 0) return;
+    const kopfZeil = "PPREN – Passwierder/PINs generéiert an dëser Sessioun (" + new Date().toLocaleDateString("de-DE") + ")\n" +
+      "⚠️ Dës Datei enthält Kloertext-Passwierder — sécher späicheren an duerno läschen!\n\n";
+    const zeilen = sessiounPins.map((p) => `${p.numm.padEnd(28)} ${p.pin}   (${p.zäit})`).join("\n");
+    const inhalt = kopfZeil + zeilen + "\n";
+    const blob = new Blob([inhalt], { type: "text/plain;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `PPREN_Passwierder_${new Date().toISOString().slice(0, 10)}.txt`;
+    a.click();
+    URL.revokeObjectURL(url);
   };
 
   const anzuelNei = bulkResultater ? bulkResultater.filter((r) => r.status === "nei").length : 0;
@@ -182,6 +202,12 @@ function App() {
         <span className="brand-sub">Personen verwalten · nëmmen Proffen</span>
       </header>
       <main className="content">
+        {sessiounPins.length > 0 && (
+          <div className="download-banner">
+            <span>📄 {sessiounPins.length} nei Passwuert/PIN{sessiounPins.length > 1 ? "er" : ""} an dëser Sessioun generéiert.</span>
+            <button className="btn-klein" onClick={pinListeEroflueden}>⬇️ Lëscht eroflueden</button>
+          </div>
+        )}
         <section className="card">
           <h2>Nei Persoun</h2>
           <div className="grid2">
@@ -335,6 +361,7 @@ ReactDOM.createRoot(document.getElementById("root")).render(<App />);
 .topbar { padding: 14px 22px; background: #00A94F; color: #fff; display: flex; gap: 10px; align-items: baseline; }
 .brand-mark { font-weight: 800; } .content { max-width: 640px; margin: 0 auto; padding: 24px 20px; }
 .card { background: #fff; border: 1px solid #e2e8e3; border-radius: 12px; padding: 18px 20px; margin-bottom: 16px; }
+.download-banner { display: flex; align-items: center; justify-content: space-between; gap: 10px; background: #eaf0f8; color: #294f3c; border: 1px solid #c3d3e6; border-radius: 10px; padding: 12px 16px; margin-bottom: 16px; font-size: 13px; font-weight: 600; flex-wrap: wrap; }
 .card h2 { color: #00A94F; margin-top: 0; }
 .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
 .field { display: flex; flex-direction: column; gap: 4px; margin-bottom: 12px; font-size: 12.5px; font-weight: 700; color: #294f3c; }
