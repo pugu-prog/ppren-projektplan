@@ -78,6 +78,13 @@ function App() {
     () => personen.filter((p) => p.rolle === "Schüler").map((p) => ({ id: p.numm, name: p.numm, klasse: p.klasse })),
     [personen]
   );
+  const KLASSEN = useMemo(() => ["alle", ...new Set(SCHUELER.map((s) => s.klasse).filter(Boolean))], [SCHUELER]);
+
+  const [filterKlasse, setFilterKlasse] = useState("alle");
+  const SCHUELER_GEFILTERT = useMemo(
+    () => (filterKlasse === "alle" ? SCHUELER : SCHUELER.filter((s) => s.klasse === filterKlasse)),
+    [SCHUELER, filterKlasse]
+  );
 
   const [schuelerId, setSchuelerId] = useState("");
   useEffect(() => {
@@ -204,13 +211,28 @@ function App() {
               <div className="identitaet-box">👤 {currentSchueler?.name} ({currentSchueler?.klasse})</div>
             </div>
           ) : (
-            <label className="field">
-              <span className="field-label">Schüler/-in</span>
-              <select className="select" value={schuelerId} onChange={(e) => setSchuelerId(e.target.value)}>
-                <option value="">– auswählen –</option>
-                {SCHUELER.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
-              </select>
-            </label>
+            <>
+              {KLASSEN.length > 2 && (
+                <div className="klasse-filter">
+                  {KLASSEN.map((k) => (
+                    <button
+                      key={k}
+                      className={`klasse-btn ${filterKlasse === k ? "active" : ""}`}
+                      onClick={() => { setFilterKlasse(k); if (currentSchueler && k !== "alle" && currentSchueler.klasse !== k) setSchuelerId(""); }}
+                    >
+                      {k === "alle" ? "Alle Klassen" : k}
+                    </button>
+                  ))}
+                </div>
+              )}
+              <label className="field">
+                <span className="field-label">Schüler/-in</span>
+                <select className="select" value={schuelerId} onChange={(e) => setSchuelerId(e.target.value)}>
+                  <option value="">– auswählen –</option>
+                  {SCHUELER_GEFILTERT.map((s) => <option key={s.id} value={s.id}>{s.name} ({s.klasse})</option>)}
+                </select>
+              </label>
+            </>
           )}
         </section>
 
@@ -520,6 +542,9 @@ body { margin: 0; font-family: -apple-system, "Segoe UI", Inter, Arial, sans-ser
 .field-label { font-size: 12.5px; font-weight: 700; color: #294f3c; }
 .select { border: 1px solid #c9d5cd; border-radius: 7px; padding: 9px 10px; font-size: 14px; font-family: inherit; background: #fff; width: 100%; }
 .identitaet-box { font-size: 13.5px; font-weight: 700; color: #294f3c; background: #eef3ef; padding: 9px 12px; border-radius: 7px; }
+.klasse-filter { display: flex; gap: 6px; margin-bottom: 12px; flex-wrap: wrap; }
+.klasse-btn { font-size: 12.5px; font-weight: 700; padding: 7px 14px; border-radius: 20px; border: 1px solid #c9d5cd; background: #fff; color: #55625a; cursor: pointer; }
+.klasse-btn.active { background: #00A94F; border-color: #00A94F; color: #fff; }
 .status-line { font-size: 13.5px; color: #55625a; margin: 0 0 16px; }
 .link-row { display: flex; gap: 10px; margin-top: 16px; }
 .btn { display: inline-block; font-size: 13.5px; font-weight: 700; padding: 10px 16px; border-radius: 8px; border: none; cursor: pointer; text-decoration: none; }
