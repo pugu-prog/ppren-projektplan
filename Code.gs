@@ -315,7 +315,7 @@ function doPost(e) {
       logout(data.token);
       return jsonResponse({ ok: true });
     } else if (data.typ === "pinZuruecksetzen") {
-      return jsonResponse(pinZuruecksetzen(data.numm, data.proffToken));
+      return jsonResponse(pinZuruecksetzen(data.numm, data.proffToken, data.neiesPasswuert));
     } else if (data.typ === "dokumentatiounLink") {
       return jsonResponse(speichereDokumentatiounLink(data.schueler, data.klasse, data.link));
     } else if (data.typ === "rendezvousPlangen") {
@@ -336,6 +336,8 @@ function doPost(e) {
       return jsonResponse(personSpäicheren(data));
     } else if (data.typ === "personDeaktivéieren") {
       return jsonResponse(personDeaktivéieren(data));
+    } else if (data.typ === "personLoeschen") {
+      return jsonResponse(personLoeschen(data));
     } else if (data.typ === "personenBulkSpäicheren") {
       return jsonResponse(personenBulkSpäicheren(data));
     } else if (data.typ === "bewertungsrasterSpäicheren") {
@@ -808,7 +810,10 @@ function personSpäicheren(data) {
   }
   sheet.appendRow([data.numm, data.rolle, data.klasse || "", data.email || "", "Jo", untisCode]);
 
-  const pin = String(Math.floor(1000 + Math.random() * 9000));
+  const gewenschtPasswuert = (data.pin || "").trim();
+  const pin = gewenschtPasswuert.length >= 6
+    ? gewenschtPasswuert
+    : String(Math.floor(1000 + Math.random() * 9000));
   const salt = Utilities.getUuid();
   getLoginSheet().appendRow([data.numm, data.rolle, data.klasse || "", hashPin(pin, salt), salt, untisCode]);
   return { ok: true, neiPin: pin };
@@ -880,6 +885,50 @@ function personDeaktivéieren(data) {
     }
   }
   return { ok: false, error: "Net fonnt." };
+}
+
+/**
+ * Läscht eng Persoun PERMANENT (Personen-Tab, Login-Tab an all hir
+ * aktiv Sessiounen). Nëmme Proffen dierfen dat, an een kann sech net
+ * selwer läschen (fir net aus Versinn de leschten oder aktuellen
+ * Prof-Zougang ze verléieren, ouni sech nach eng Kéier unzemellen).
+ * Am Géigesaz zu personDeaktivéieren() ass dëst net réckgängeg ze
+ * maachen — d'Persoun a säin Zougang si komplett fort.
+ */
+function personLoeschen(data) {
+  const session = pruefSession(data.proffToken);
+  if (!session.valid || session.rolle !== "Prof") {
+    return { ok: false, error: "Nëmme Proffen dierfen Persounen permanent läschen." };
+  }
+  if (!data.numm) return { ok: false, error: "Numm erfuerderlech." };
+  if (data.numm === session.numm) {
+    return { ok: false, error: "Du kanns däin eegene Kont net läschen (fir de Zougang net aus Versinn ze verléieren)." };
+  }
+
+  const personenSheet = getPersonenSheet();
+  const personenWerte = personenSheet.getDataRange().getValues();
+  let fonnt = false;
+  for (let i = personenWerte.length - 1; i >= 1; i--) {
+    if (personenWerte[i][0] === data.numm) {
+      personenSheet.deleteRow(i + 1);
+      fonnt = true;
+    }
+  }
+
+  const loginSheet = getLoginSheet();
+  const loginWerte = loginSheet.getDataRange().getValues();
+  for (let i = loginWerte.length - 1; i >= 1; i--) {
+    if (loginWerte[i][0] === data.numm) loginSheet.deleteRow(i + 1);
+  }
+
+  const sessionsSheet = getSessionsSheet();
+  const sessionsWerte = sessionsSheet.getDataRange().getValues();
+  for (let i = sessionsWerte.length - 1; i >= 1; i--) {
+    if (sessionsWerte[i][1] === data.numm) sessionsSheet.deleteRow(i + 1);
+  }
+
+  if (!fonnt) return { ok: false, error: "Persoun net fonnt." };
+  return { ok: true };
 }
 
 // ===== M6: Konfiguréierbaart Bewertungsraster =====
@@ -2491,16 +2540,26 @@ function logout(token) {
   }
 }
 
-function pinZuruecksetzen(numm, proffToken) {
+/**
+ * Setzt de PIN/Passwuert vun enger Persoun. Nëmme Proffen dierfen dat.
+ * Wann 'neiesPasswuert' ugi ass an op d'mannst 6 Zeechen huet, gëtt et
+ * 1:1 als neit Passwuert benotzt (méi staark wéi de Standard-4-Zuel-PIN
+ * — kann Buschtawen, Zuelen a Sonderzeechen enthalen). Soss gëtt wéi
+ * virdrun en zoufällege 4-Zuel-PIN generéiert.
+ */
+function pinZuruecksetzen(numm, proffToken, neiesPasswuert) {
   const session = pruefSession(proffToken);
   if (!session.valid || session.rolle !== "Prof") {
-    return { ok: false, error: "Nëmme Proffen dierfen PINs zrécksetzen." };
+    return { ok: false, error: "Nëmme Proffen dierfen PINs/Passwierder änneren." };
   }
   const sheet = getLoginSheet();
   const werte = sheet.getDataRange().getValues();
   for (let i = 1; i < werte.length; i++) {
     if (werte[i][0] === numm) {
-      const pin = String(Math.floor(1000 + Math.random() * 9000));
+      const gewenschtPasswuert = (neiesPasswuert || "").trim();
+      const pin = gewenschtPasswuert.length >= 6
+        ? gewenschtPasswuert
+        : String(Math.floor(1000 + Math.random() * 9000));
       const salt = Utilities.getUuid();
       sheet.getRange(i + 1, 4, 1, 2).setValues([[hashPin(pin, salt), salt]]);
       return { ok: true, numm, pin };
