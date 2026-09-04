@@ -114,6 +114,11 @@ function App() {
       const data = await res.json();
       if (!data.ok) throw new Error(data.error);
       setBulkResultater(data.resultater || []);
+      const jetzt = new Date().toLocaleTimeString("de-DE");
+      const neiPins = (data.resultater || [])
+        .filter((r) => r.status === "nei" && r.pin)
+        .map((r) => ({ numm: r.numm, pin: r.pin, zäit: jetzt }));
+      if (neiPins.length > 0) setSessiounPins((l) => [...l, ...neiPins]);
       setBulkNimm("");
       lade();
     } catch (e) {
