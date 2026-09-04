@@ -60,6 +60,13 @@ function formatDatumKuerz(iso) {
   if (isNaN(d)) return iso;
   return d.toLocaleDateString("de-DE", { day: "2-digit", month: "2-digit", year: "numeric" });
 }
+/** Wandelt "dd.mm.yyyy" (Rendezvousen-Format) an ISO "yyyy-mm-dd" fir Sortéieren/Vergläichen um. */
+function dmyZuIso(dmy) {
+  if (!dmy) return "";
+  const [t, m, j] = String(dmy).split(".");
+  if (!t || !m || !j) return "";
+  return `${j}-${m}-${t}`;
+}
 
 function App() {
   const istSchueler = window.PPREN_SESSION?.rolle === "Schüler";
@@ -102,6 +109,7 @@ function App() {
   const [zieluewerpreiwungen, setZieluewerpreiwungen] = useState([]);
   const [budgetInfo, setBudgetInfo] = useState(null); // { status, max } oder null wann näischt ugefrot
   const [ausgaben, setAusgaben] = useState([]);
+  const [rendezvousen, setRendezvousen] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [geladen, setGeladen] = useState(false);
@@ -129,6 +137,7 @@ function App() {
         const meinBudget = (data.budget || []).find((b) => b.Schüler === currentSchueler.name);
         setBudgetInfo(meinBudget ? { status: meinBudget.Status, max: Number(meinBudget.Max) || 500 } : null);
         setAusgaben((data.ausgaben || []).filter((a) => a.Schüler === currentSchueler.name));
+        setRendezvousen((data.rendezvousen || []).filter((r) => r.Schüler === currentSchueler.name));
 
         let gespäichert = [];
         const eintrag = (data.meilensteng || []).find((m) => m.Schüler === currentSchueler.name);
@@ -188,6 +197,45 @@ function App() {
     return { zeitleischt, wbNoMeilensteen };
   }, [meilensteng, wochenberichte, fachgespraeche, zieluewerpreiwungen]);
 
+  // ===== Gesamt-Iwwerbléck: nächst Ofgab, nächst Rendez-vous, Gesamt-Fortschrëtt =====
+  const iwwerbleck = useMemo(() => {
+    const heidegIso = new Date().toISOString().slice(0, 10);
+
+    const nächstOfgab = meilensteng
+      .filter((m) => m.kategorie === "Ofgab" && m.datum >= heidegIso)
+      .sort((a, b) => a.datum.localeCompare(b.datum))[0] || null;
+
+    const nächstRv = [...rendezvousen]
+      .map((r) => ({ ...r, isoDatum: dmyZuIso(r.Datum) }))
+      .filter((r) => r.isoDatum && r.isoDatum >= heidegIso)
+      .sort((a, b) => a.isoDatum.localeCompare(b.isoDatum))[0] || null;
+
+    const relevant = meilensteng.filter((m) => m.quell !== "Vakanz");
+    const erreecht = relevant.filter((m) => m.status === "Erreecht").length;
+    const fortschrëttProzent = relevant.length > 0 ? Math.round((erreecht / relevant.length) * 100) : 0;
+
+    return { nächstOfgab, nächstRv, fortschrëttProzent, gesamtMeilensteng: relevant.length, erreechtMeilensteng: erreecht };
+  }, [meilensteng, rendezvousen]);
+
+  // ===== Wochenberichter-Punkte-Zesummefaassung =====
+  const wbZesummefaassung = useMemo(() => {
+    let summe = 0, max = 0, verpasst = 0;
+    wochenberichte.forEach((w) => {
+      if (w.Status === "Entschëllegt") return;
+      if (w.Status === "Bewäert") {
+        try {
+          const p = JSON.parse(w["Punkte (JSON)"]);
+          summe += (p.zusammenfassung || 0) + (p.fortschritt || 0) + (p.anhaenge || 0) + (p.grammatik || 0);
+        } catch {}
+        max += 5;
+      } else if (w.Status === "Verpasst") {
+        verpasst++;
+        max += 5;
+      }
+    });
+    return { summe, max, verpasst };
+  }, [wochenberichte]);
+
   const drécken = () => {
     document.body.classList.add("print-journal");
     window.print();
@@ -241,6 +289,28 @@ function App() {
 
         {geladen && !loading && !error && (
           <>
+            {/* ===== Gesamt-Iwwerbléck: kompakte Kaart ganz uewen ===== */}
+            <section className="card iwwerbleck-card">
+              <span className="kapitel-label">Iwwerbléck</span>
+              <div className="iwwerbleck-grid">
+                <div className="iwwerbleck-item">
+                  <span className="iwwerbleck-label">Fortschrëtt</span>
+                  <span className="iwwerbleck-wert">{iwwerbleck.fortschrëttProzent}%</span>
+                  <span className="iwwerbleck-sub">{iwwerbleck.erreechtMeilensteng} / {iwwerbleck.gesamtMeilensteng} Meilensteng erreecht</span>
+                </div>
+                <div className="iwwerbleck-item">
+                  <span className="iwwerbleck-label">Nächst Ofgab</span>
+                  <span className="iwwerbleck-wert iwwerbleck-wert-klengt">{iwwerbleck.nächstOfgab ? iwwerbleck.nächstOfgab.titel : "–"}</span>
+                  <span className="iwwerbleck-sub">{iwwerbleck.nächstOfgab ? formatDatumKuerz(iwwerbleck.nächstOfgab.datum) : "keng geplangt"}</span>
+                </div>
+                <div className="iwwerbleck-item">
+                  <span className="iwwerbleck-label">Nächst Rendez-vous</span>
+                  <span className="iwwerbleck-wert iwwerbleck-wert-klengt">{iwwerbleck.nächstRv ? iwwerbleck.nächstRv.Typ : "–"}</span>
+                  <span className="iwwerbleck-sub">{iwwerbleck.nächstRv ? `${iwwerbleck.nächstRv.Datum}${iwwerbleck.nächstRv.Zäit ? " · " + iwwerbleck.nächstRv.Zäit : ""}` : "keen geplangt"}</span>
+                </div>
+              </div>
+            </section>
+
             <section className="card">
               <span className="kapitel-label">Kapitel 1</span>
               <h2>{projekt?.Titel || "(nach kee Projektplang ageraecht)"}</h2>
@@ -285,6 +355,9 @@ function App() {
                 {projekt?.["Projektplan-Link"] && (
                   <a className="btn btn-ghost" href={projekt["Projektplan-Link"]} target="_blank" rel="noreferrer">📝 Projektplan als Word öffnen</a>
                 )}
+                {projekt?.["Dokumentatioun-Link"] && (
+                  <a className="btn btn-ghost" href={projekt["Dokumentatioun-Link"]} target="_blank" rel="noreferrer">🔗 Dokumentatioun opmaachen</a>
+                )}
               </div>
             </section>
 
@@ -322,6 +395,92 @@ function App() {
               <div className="link-row">
                 <a className="btn btn-ghost" href="budget.html" target="_blank" rel="noreferrer">💰 Budget-Tool opmaachen</a>
               </div>
+            </section>
+
+            {/* ===== Wochenberichter: eege Iwwersiicht mat Status a Punkte pro Bericht ===== */}
+            <section className="card">
+              <span className="kapitel-label">Wochenberichter</span>
+              <h2 className="periode-h2">📋 Iwwersiicht</h2>
+              {wochenberichte.length === 0 ? (
+                <p className="notice">Nach keng Wochenberichter ofginn.</p>
+              ) : (
+                <>
+                  <p className="punkte-summe">Gesamt: {wbZesummefaassung.summe} / {wbZesummefaassung.max} Punkte{wbZesummefaassung.verpasst > 0 ? ` · ${wbZesummefaassung.verpasst} verpasst` : ""}</p>
+                  <table className="wb-tabelle">
+                    <thead>
+                      <tr><th>Woch</th><th>Status</th><th>Punkte</th></tr>
+                    </thead>
+                    <tbody>
+                      {[...wochenberichte].sort((a, b) => (ersteDatumVunWoche(a.Woche) || "").localeCompare(ersteDatumVunWoche(b.Woche) || "")).map((w, i) => {
+                        let punkteAnzeigen = "–";
+                        if (w.Status === "Bewäert") {
+                          try {
+                            const p = JSON.parse(w["Punkte (JSON)"]);
+                            punkteAnzeigen = `${(p.zusammenfassung || 0) + (p.fortschritt || 0) + (p.anhaenge || 0) + (p.grammatik || 0)} / 5`;
+                          } catch { punkteAnzeigen = "–"; }
+                        } else if (w.Status === "Verpasst") {
+                          punkteAnzeigen = "0 / 5";
+                        }
+                        return (
+                          <tr key={i}>
+                            <td>{w.Woche}</td>
+                            <td><span className={`journal-status journal-status-${{ "Bewäert": "erreecht", "Verpasst": "verspéit", "Agereecht": "neutral", "Entschëllegt": "ausstoend" }[w.Status] || "neutral"}`}>{w.Status}</span></td>
+                            <td>{punkteAnzeigen}</td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </>
+              )}
+              <div className="link-row">
+                <a className="btn btn-ghost" href="wochenbericht.html" target="_blank" rel="noreferrer">📝 Wochenbericht-Tool opmaachen</a>
+              </div>
+            </section>
+
+            {/* ===== Rendez-vousen: Termine mam Prof ===== */}
+            <section className="card">
+              <span className="kapitel-label">Rendez-vousen</span>
+              <h2 className="periode-h2">📅 Termine mam Prof</h2>
+              {rendezvousen.length === 0 ? (
+                <p className="notice">Nach keng Rendez-vousen geplangt.</p>
+              ) : (() => {
+                const heidegIso = new Date().toISOString().slice(0, 10);
+                const sortéiert = [...rendezvousen]
+                  .map((r) => ({ ...r, isoDatum: dmyZuIso(r.Datum) }))
+                  .sort((a, b) => a.isoDatum.localeCompare(b.isoDatum));
+                const zukunft = sortéiert.filter((r) => r.isoDatum >= heidegIso);
+                const vergaangen = sortéiert.filter((r) => r.isoDatum < heidegIso);
+                return (
+                  <>
+                    {zukunft.length === 0 && <p className="notice">Keng opstoend Rendez-vousen.</p>}
+                    {zukunft.length > 0 && (
+                      <ul className="rv-liste">
+                        {zukunft.map((r, i) => (
+                          <li key={i} className="rv-item rv-item-zukunft">
+                            <span className="rv-datum">{r.Datum}{r.Zäit ? ` · ${r.Zäit}` : ""}</span>
+                            <span className="rv-typ">{r.Typ}</span>
+                            {r.Notiz && <span className="rv-notiz">{r.Notiz}</span>}
+                          </li>
+                        ))}
+                      </ul>
+                    )}
+                    {vergaangen.length > 0 && (
+                      <>
+                        <span className="feld-sub-label">Vergaangen</span>
+                        <ul className="rv-liste">
+                          {vergaangen.slice(-5).map((r, i) => (
+                            <li key={i} className="rv-item">
+                              <span className="rv-datum">{r.Datum}</span>
+                              <span className="rv-typ">{r.Typ}</span>
+                            </li>
+                          ))}
+                        </ul>
+                      </>
+                    )}
+                  </>
+                );
+              })()}
             </section>
 
             {/* ===== Projet-Journal: chronologesche Verlaf — onofhängeg vum Projektplang-Status ===== */}
@@ -625,6 +784,28 @@ body { margin: 0; font-family: -apple-system, "Segoe UI", Inter, Arial, sans-ser
 .journal-wb-liste li { padding: 4px 0 4px 10px; font-size: 12px; line-height: 1.5; }
 .journal-wb-datum { display: block; font-size: 10.5px; color: #93a098; font-weight: 700; }
 .journal-wb-text { color: #55625a; }
+
+/* ===== Gesamt-Iwwerbléck ===== */
+.iwwerbleck-card { background: linear-gradient(135deg, #eef3ef, #fff); }
+.iwwerbleck-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 14px; margin-top: 6px; }
+.iwwerbleck-item { display: flex; flex-direction: column; gap: 2px; }
+.iwwerbleck-label { font-size: 10.5px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.03em; color: #6d7d74; }
+.iwwerbleck-wert { font-size: 22px; font-weight: 800; color: #00A94F; line-height: 1.2; }
+.iwwerbleck-wert-klengt { font-size: 14px; }
+.iwwerbleck-sub { font-size: 11.5px; color: #93a098; }
+
+/* ===== Wochenberichter-Tabelle ===== */
+.wb-tabelle { width: 100%; border-collapse: collapse; margin-top: 6px; }
+.wb-tabelle th { text-align: left; font-size: 10.5px; text-transform: uppercase; color: #93a098; padding: 5px 6px; border-bottom: 1px solid #eef1ef; }
+.wb-tabelle td { padding: 6px 6px; font-size: 12.5px; border-bottom: 1px solid #f4f6f4; }
+
+/* ===== Rendez-vousen ===== */
+.rv-liste { list-style: none; margin: 6px 0 0; padding: 0; display: flex; flex-direction: column; gap: 6px; }
+.rv-item { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; font-size: 12.5px; padding: 6px 8px; border-radius: 7px; background: #fafbfa; }
+.rv-item-zukunft { background: #eef3ef; }
+.rv-datum { font-weight: 700; color: #294f3c; min-width: 120px; }
+.rv-typ { color: #4576B5; font-weight: 600; }
+.rv-notiz { color: #6d7d74; font-size: 11.5px; flex-basis: 100%; }
 
 /* ===== Drock: nëmmen d'Journal weisen ===== */
 @media print {
