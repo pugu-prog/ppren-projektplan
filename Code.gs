@@ -1318,6 +1318,12 @@ function installRendezvousTrigger() {
   Logger.log("✅ Trigger installéiert: Rendez-vous-Erënnerung all Dag ~7.00h.");
 }
 
+// Wochenberichter fänken éischt mat dëser Woch un — alles dervir (z.B.
+// Test-Date aus der Entwécklung, oder d'éischt Woche(n) nom Schouljoresufank,
+// wou nach kee Bericht erwaart gëtt) gëtt weder per E-Mail erënnert nach
+// automatesch als "Verpasst" markéiert.
+const WOCHENBERICHT_START_ISO = "2026-09-21";
+
 function aktuellWocheLabel() {
   const heute = new Date();
   const tag = heute.getDay();
@@ -1330,7 +1336,19 @@ function aktuellWocheLabel() {
   return fmt(montag) + " – " + fmt(sonndeg);
 }
 
+/** Gëtt true zréck, wa mer nach virun der offizieller Startwoch (21.09.2026) sinn. */
+function nachVirWochenberichtStart() {
+  const heute = new Date();
+  const tag = heute.getDay();
+  const diffZuMontag = tag === 0 ? -6 : 1 - tag;
+  const montag = new Date(heute);
+  montag.setDate(heute.getDate() + diffZuMontag);
+  const montagIso = Utilities.formatDate(montag, "Europe/Luxembourg", "yyyy-MM-dd");
+  return montagIso < WOCHENBERICHT_START_ISO;
+}
+
 function sendeErennerungen() {
+  if (nachVirWochenberichtStart()) return; // nach net ugefaang — keng Erënnerungen
   const woche = aktuellWocheLabel();
   const sheet = getWochenberichteSheet();
   const werte = sheet.getDataRange().getValues();
@@ -1353,6 +1371,7 @@ function sendeErennerungen() {
 }
 
 function schliesseWochenberichterAb() {
+  if (nachVirWochenberichtStart()) return; // nach net ugefaang — näischt op "Verpasst" setzen
   const woche = aktuellWocheLabel();
   const sheet = getWochenberichteSheet();
   const werte = sheet.getDataRange().getValues();
@@ -1372,6 +1391,29 @@ function schliesseWochenberichterAb() {
       betreuerListe[0] || "", betreuerListe[1] || "", "",
     ]);
   });
+}
+
+/**
+ * Eemolegen Opraum: läscht all Wochenberichter-Zeilen (Test-Date oder
+ * Zeilen aus Wochen virun der offizieller Startwoch 21.09.2026). Nom
+ * Ausféieren gëtt et keng Wochenberichter méi virun dëser Woch am Sheet —
+ * d'Wochenberichter-System fänkt sauber mat der Woch vum 21.09. un.
+ */
+function raeumWochenberichterVirStart() {
+  const sheet = getWochenberichteSheet();
+  const werte = sheet.getDataRange().getValues();
+  let geläscht = 0;
+  for (let i = werte.length - 1; i >= 1; i--) {
+    const wocheLabel = werte[i][4]; // Spalt "Woche"
+    const m = String(wocheLabel || "").match(/(\d{2})\.(\d{2})\.(\d{4})/);
+    if (!m) continue;
+    const isoDatum = `${m[3]}-${m[2]}-${m[1]}`;
+    if (isoDatum < WOCHENBERICHT_START_ISO) {
+      sheet.deleteRow(i + 1);
+      geläscht++;
+    }
+  }
+  Logger.log("✅ " + geläscht + " Wochenberichter-Zeile(n) virun der Startwoch (" + WOCHENBERICHT_START_ISO + ") geläscht.");
 }
 
 function installWochenberichtTriggers() {
