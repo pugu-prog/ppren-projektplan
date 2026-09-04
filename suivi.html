@@ -271,34 +271,13 @@ function App() {
                 )}
               </div>
               <div className="feld-block">
-                <span className="feld-label">Kostenplan (max. 500 €)</span>
+                <span className="feld-label">Kostenplan (max. 500 €, geplangt)</span>
                 {planDetails?.kostenplanNoetig && (planDetails.kosten || []).length > 0 ? (
-                  <>
-                    <span className="feld-sub-label">Geplangt</span>
-                    <ul className="kosten-liste">
-                      {planDetails.kosten.map((k, i) => (
-                        <li key={i}>{k.bezeichnung}: <strong>{k.betrag} €</strong></li>
-                      ))}
-                    </ul>
-                    {budgetInfo?.status === "Genehmegt" ? (
-                      (() => {
-                        const summeAusgi = ausgaben.reduce((s, a) => s + (Number(a.Betrag) || 0), 0);
-                        const prozent = Math.round((summeAusgi / budgetInfo.max) * 100);
-                        return (
-                          <div className="budget-block">
-                            <span className="feld-sub-label">Tatsächlech ausginn</span>
-                            <Fortschrittsbar prozent={prozent} farbe={prozent > 100 ? "#c0392b" : "#4576B5"} />
-                            <p className="budget-text">{summeAusgi.toFixed(2)} € von {budgetInfo.max} € ausginn ({prozent}%)</p>
-                            <a className="btn btn-ghost budget-link" href="budget.html" target="_blank" rel="noreferrer">💰 Budget-Tool opmaachen</a>
-                          </div>
-                        );
-                      })()
-                    ) : budgetInfo?.status === "Ageraecht" ? (
-                      <p className="feld-text feld-text-sub">⏳ Genehmegung ugefrot — waart nach op de Prof, ier Ausgaben ageraecht ka ginn.</p>
-                    ) : (
-                      <p className="feld-text feld-text-sub">Nach keng Genehmegung ugefrot. <a href="budget.html">Budget-Tool opmaachen →</a></p>
-                    )}
-                  </>
+                  <ul className="kosten-liste">
+                    {planDetails.kosten.map((k, i) => (
+                      <li key={i}>{k.bezeichnung}: <strong>{k.betrag} €</strong></li>
+                    ))}
+                  </ul>
                 ) : <p className="feld-text">{projekt ? "nicht erforderlich" : "–"}</p>}
               </div>
 
@@ -306,6 +285,42 @@ function App() {
                 {projekt?.["Projektplan-Link"] && (
                   <a className="btn btn-ghost" href={projekt["Projektplan-Link"]} target="_blank" rel="noreferrer">📝 Projektplan als Word öffnen</a>
                 )}
+              </div>
+            </section>
+
+            {/* ===== Budget: ëmmer ugewisen, onofhängeg vum Projektplang-Status ===== */}
+            <section className="card">
+              <span className="kapitel-label">Budget</span>
+              <h2 className="periode-h2">💰 Kostenplang / Ausgaben</h2>
+
+              {!budgetInfo && (
+                <p className="notice">Nach keng Budgetufro gestallt. <a href="budget.html">Budget-Tool opmaachen →</a></p>
+              )}
+
+              {budgetInfo?.status === "Ageraecht" && (
+                <p className="feld-text feld-text-sub">⏳ Genehmegung ugefrot ({budgetInfo.max} € Max) — waart nach op de Prof.</p>
+              )}
+
+              {budgetInfo?.status === "Genehmegt" && (() => {
+                const summeAusgi = ausgaben.reduce((s, a) => s + (Number(a.Betrag) || 0), 0);
+                const prozent = Math.round((summeAusgi / budgetInfo.max) * 100);
+                return (
+                  <>
+                    <Fortschrittsbar prozent={prozent} farbe={prozent > 100 ? "#c0392b" : "#4576B5"} />
+                    <p className="punkte-summe">{summeAusgi.toFixed(2)} € von {budgetInfo.max} € ausginn ({prozent}%)</p>
+                    {ausgaben.length > 0 && (
+                      <ul className="kosten-liste">
+                        {ausgaben.map((a, i) => (
+                          <li key={i}>{a.Bezeechnung}: <strong>{Number(a.Betrag).toFixed(2)} €</strong>{a.Datum ? ` · ${a.Datum}` : ""}</li>
+                        ))}
+                      </ul>
+                    )}
+                  </>
+                );
+              })()}
+
+              <div className="link-row">
+                <a className="btn btn-ghost" href="budget.html" target="_blank" rel="noreferrer">💰 Budget-Tool opmaachen</a>
               </div>
             </section>
 
