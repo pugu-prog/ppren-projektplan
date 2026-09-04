@@ -799,13 +799,31 @@ function personSpäicheren(data) {
   if (data.rolle === "Schüler" && !data.klasse) return { ok: false, error: "Klasse erfuerderlech fir Schüler." };
 
   const untisCode = (data.untisCode || "").trim();
+  const gewenschtPasswuertBestehend = (data.pin || "").trim();
   const sheet = getPersonenSheet();
   const werte = sheet.getDataRange().getValues();
   for (let i = 1; i < werte.length; i++) {
     if (werte[i][0] === data.numm) {
       sheet.getRange(i + 1, 1, 1, 6).setValues([[data.numm, data.rolle, data.klasse || "", data.email || "", "Jo", untisCode]]);
       aktualiséierUntisCodeAmLogin(data.numm, untisCode);
-      return { ok: true, neiPin: null };
+      // BUGFIX: virdru gouf en ugi Passwuert fir eng schonn EXISTÉIERENDE
+      // Persoun einfach ignoréiert (nëmmen den Untis-Code gouf aktualiséiert) —
+      // duerfir konnt een sech ni mam neie Passwuert umellen. Elo gëtt et,
+      // wann et op d'mannst 6 Zeechen huet, och wierklech an der Login-Tab gesat.
+      let neiPin = null;
+      if (gewenschtPasswuertBestehend.length >= 6) {
+        const loginSheet = getLoginSheet();
+        const loginWerte = loginSheet.getDataRange().getValues();
+        for (let j = 1; j < loginWerte.length; j++) {
+          if (loginWerte[j][0] === data.numm) {
+            const salt = Utilities.getUuid();
+            loginSheet.getRange(j + 1, 4, 1, 2).setValues([[hashPin(gewenschtPasswuertBestehend, salt), salt]]);
+            neiPin = gewenschtPasswuertBestehend;
+            break;
+          }
+        }
+      }
+      return { ok: true, neiPin };
     }
   }
   sheet.appendRow([data.numm, data.rolle, data.klasse || "", data.email || "", "Jo", untisCode]);
