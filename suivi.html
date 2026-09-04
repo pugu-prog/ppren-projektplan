@@ -241,85 +241,73 @@ function App() {
 
         {geladen && !loading && !error && (
           <>
-            {!projekt && (
-              <div className="card"><p className="notice">Für dich wurde noch kein Projektplan eingereicht. Wochenberichter, Meilensteng a Journal ginn hei drënner scho ugewisen, wa se existéieren.</p></div>
-            )}
+            <section className="card">
+              <span className="kapitel-label">Kapitel 1</span>
+              <h2>{projekt?.Titel || "(nach kee Projektplang ageraecht)"}</h2>
+              <p className="status-line">
+                Status: <strong>{projekt?.Status || "–"}</strong>
+                {" · "}Betreuer/-in: <strong>{projekt?.Betreuer || "–"}</strong>
+              </p>
 
-            {projekt && (
-              <section className="card">
-                <span className="kapitel-label">Kapitel 1</span>
-                <h2>{projekt.Titel || "(noch kein Titel)"}</h2>
-                <p className="status-line">
-                  Status: <strong>{projekt.Status}</strong>
-                  {" · "}Betreuer/-in: <strong>{projekt.Betreuer}</strong>
+              <div className="feld-block">
+                <span className="feld-label">Inhalt / Beschreibung</span>
+                <p className="feld-text">{planDetails?.inhalt || "–"}</p>
+              </div>
+              <div className="feld-block">
+                <span className="feld-label">Motivation</span>
+                <p className="feld-text">{planDetails?.motivation || "–"}</p>
+              </div>
+              <div className="feld-block">
+                <span className="feld-label">Ziele</span>
+                <p className="feld-text">{planDetails?.ziele || "–"}</p>
+              </div>
+              <div className="feld-block">
+                <span className="feld-label">Gruppenarbeit</span>
+                <p className="feld-text">
+                  {planDetails ? (planDetails.gruppenarbeit ? `Ja, mit ${planDetails.partner || "–"}` : "Nein, Einzelarbeit") : "–"}
                 </p>
-
-                {planDetails ? (
-                  <>
-                    <div className="feld-block">
-                      <span className="feld-label">Inhalt / Beschreibung</span>
-                      <p className="feld-text">{planDetails.inhalt || "–"}</p>
-                    </div>
-                    <div className="feld-block">
-                      <span className="feld-label">Motivation</span>
-                      <p className="feld-text">{planDetails.motivation || "–"}</p>
-                    </div>
-                    <div className="feld-block">
-                      <span className="feld-label">Ziele</span>
-                      <p className="feld-text">{planDetails.ziele || "–"}</p>
-                    </div>
-                    <div className="feld-block">
-                      <span className="feld-label">Gruppenarbeit</span>
-                      <p className="feld-text">
-                        {planDetails.gruppenarbeit ? `Ja, mit ${planDetails.partner || "–"}` : "Nein, Einzelarbeit"}
-                      </p>
-                      {planDetails.gruppenarbeit && planDetails.aufgabenteilung && (
-                        <p className="feld-text feld-text-sub">{planDetails.aufgabenteilung}</p>
-                      )}
-                    </div>
-                    <div className="feld-block">
-                      <span className="feld-label">Kostenplan (max. 500 €)</span>
-                      {planDetails.kostenplanNoetig && (planDetails.kosten || []).length > 0 ? (
-                        <>
-                          <span className="feld-sub-label">Geplangt</span>
-                          <ul className="kosten-liste">
-                            {planDetails.kosten.map((k, i) => (
-                              <li key={i}>{k.bezeichnung}: <strong>{k.betrag} €</strong></li>
-                            ))}
-                          </ul>
-                          {budgetInfo?.status === "Genehmegt" ? (
-                            (() => {
-                              const summeAusgi = ausgaben.reduce((s, a) => s + (Number(a.Betrag) || 0), 0);
-                              const prozent = Math.round((summeAusgi / budgetInfo.max) * 100);
-                              return (
-                                <div className="budget-block">
-                                  <span className="feld-sub-label">Tatsächlech ausginn</span>
-                                  <Fortschrittsbar prozent={prozent} farbe={prozent > 100 ? "#c0392b" : "#4576B5"} />
-                                  <p className="budget-text">{summeAusgi.toFixed(2)} € von {budgetInfo.max} € ausginn ({prozent}%)</p>
-                                  <a className="btn btn-ghost budget-link" href="budget.html" target="_blank" rel="noreferrer">💰 Budget-Tool opmaachen</a>
-                                </div>
-                              );
-                            })()
-                          ) : budgetInfo?.status === "Ageraecht" ? (
-                            <p className="feld-text feld-text-sub">⏳ Genehmegung ugefrot — waart nach op de Prof, ier Ausgaben ageraecht ka ginn.</p>
-                          ) : (
-                            <p className="feld-text feld-text-sub">Nach keng Genehmegung ugefrot. <a href="budget.html">Budget-Tool opmaachen →</a></p>
-                          )}
-                        </>
-                      ) : <p className="feld-text">nicht erforderlich</p>}
-                    </div>
-                  </>
-                ) : (
-                  <p className="notice">Details werden geladen, sobald der Projektplan komplett eingereicht ist.</p>
+                {planDetails?.gruppenarbeit && planDetails.aufgabenteilung && (
+                  <p className="feld-text feld-text-sub">{planDetails.aufgabenteilung}</p>
                 )}
+              </div>
+              <div className="feld-block">
+                <span className="feld-label">Kostenplan (max. 500 €)</span>
+                {planDetails?.kostenplanNoetig && (planDetails.kosten || []).length > 0 ? (
+                  <>
+                    <span className="feld-sub-label">Geplangt</span>
+                    <ul className="kosten-liste">
+                      {planDetails.kosten.map((k, i) => (
+                        <li key={i}>{k.bezeichnung}: <strong>{k.betrag} €</strong></li>
+                      ))}
+                    </ul>
+                    {budgetInfo?.status === "Genehmegt" ? (
+                      (() => {
+                        const summeAusgi = ausgaben.reduce((s, a) => s + (Number(a.Betrag) || 0), 0);
+                        const prozent = Math.round((summeAusgi / budgetInfo.max) * 100);
+                        return (
+                          <div className="budget-block">
+                            <span className="feld-sub-label">Tatsächlech ausginn</span>
+                            <Fortschrittsbar prozent={prozent} farbe={prozent > 100 ? "#c0392b" : "#4576B5"} />
+                            <p className="budget-text">{summeAusgi.toFixed(2)} € von {budgetInfo.max} € ausginn ({prozent}%)</p>
+                            <a className="btn btn-ghost budget-link" href="budget.html" target="_blank" rel="noreferrer">💰 Budget-Tool opmaachen</a>
+                          </div>
+                        );
+                      })()
+                    ) : budgetInfo?.status === "Ageraecht" ? (
+                      <p className="feld-text feld-text-sub">⏳ Genehmegung ugefrot — waart nach op de Prof, ier Ausgaben ageraecht ka ginn.</p>
+                    ) : (
+                      <p className="feld-text feld-text-sub">Nach keng Genehmegung ugefrot. <a href="budget.html">Budget-Tool opmaachen →</a></p>
+                    )}
+                  </>
+                ) : <p className="feld-text">{projekt ? "nicht erforderlich" : "–"}</p>}
+              </div>
 
-                <div className="link-row">
-                  {projekt["Projektplan-Link"] && (
-                    <a className="btn btn-ghost" href={projekt["Projektplan-Link"]} target="_blank" rel="noreferrer">📝 Projektplan als Word öffnen</a>
-                  )}
-                </div>
-              </section>
-            )}
+              <div className="link-row">
+                {projekt?.["Projektplan-Link"] && (
+                  <a className="btn btn-ghost" href={projekt["Projektplan-Link"]} target="_blank" rel="noreferrer">📝 Projektplan als Word öffnen</a>
+                )}
+              </div>
+            </section>
 
             {/* ===== Projet-Journal: chronologesche Verlaf — onofhängeg vum Projektplang-Status ===== */}
             {journal && (
