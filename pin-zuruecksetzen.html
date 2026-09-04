@@ -42,6 +42,7 @@ function App() {
 
   const [rolle, setRolle] = useState("Schüler");
   const [numm, setNumm] = useState("");
+  const [neiesPasswuert, setNeiesPasswuert] = useState("");
   const [syncing, setSyncing] = useState(false);
   const [error, setError] = useState(null);
   const [resultat, setResultat] = useState(null); // { numm, pin }
@@ -54,7 +55,7 @@ function App() {
       setError("Weg éischt en Numm auswielen.");
       return;
     }
-    if (!confirm(`De PIN vun "${numm}" wierklech zrécksetzen? Den ale PIN funktionéiert duerno net méi.`)) return;
+    if (!confirm(`De PIN/Passwuert vun "${numm}" wierklech zrécksetzen? Den ale PIN funktionéiert duerno net méi.`)) return;
     setSyncing(true);
     setError(null);
     setResultat(null);
@@ -64,11 +65,12 @@ function App() {
       const res = await fetch(WEB_APP_URL, {
         method: "POST",
         headers: { "Content-Type": "text/plain;charset=utf-8" },
-        body: JSON.stringify({ typ: "pinZuruecksetzen", numm, proffToken: token }),
+        body: JSON.stringify({ typ: "pinZuruecksetzen", numm, proffToken: token, neiesPasswuert: neiesPasswuert.trim() }),
       });
       const data = await res.json();
       if (!data.ok) throw new Error(data.error || "Onbekannte Feeler");
       setResultat({ numm: data.numm, pin: data.pin });
+      setNeiesPasswuert("");
     } catch (e) {
       setError(e.message);
     } finally {
@@ -110,24 +112,35 @@ function App() {
             </select>
           </label>
 
+          <label className="field">
+            <span className="field-label">Neit Passwuert (optional — mindestens 6 Zeechen fir e stäerkert Passwuert; eidel loossen fir en automateschen 4-Zuel-PIN)</span>
+            <input
+              className="select"
+              type="text"
+              value={neiesPasswuert}
+              onChange={(e) => setNeiesPasswuert(e.target.value)}
+              placeholder="z.B. Waasser2027!"
+            />
+          </label>
+
           {error && <p className="error">{error}</p>}
 
           <button className="btn btn-primary" disabled={syncing || !numm} onClick={zrécksetzen}>
-            {syncing ? "Setzt zréck…" : "🔑 PIN zrécksetzen"}
+            {syncing ? "Setzt zréck…" : "🔑 PIN/Passwuert zrécksetzen"}
           </button>
 
-          <p className="hint">De Backend generéiert en neie zoufällegen 4-stellege PIN a läscht den ale sofort. Deel de neie PIN direkt der Persoun mat.</p>
+          <p className="hint">Ouni eegent Passwuert generéiert de Backend en neie zoufällegen 4-stellege PIN a läscht den ale sofort. Deel de neie PIN/Passwuert direkt der Persoun mat.</p>
         </section>
 
         {resultat && (
           <section className="card resultat-card">
-            <span className="resultat-label">Neie PIN fir</span>
+            <span className="resultat-label">Neie PIN/Passwuert fir</span>
             <span className="resultat-numm">{resultat.numm}</span>
             <div className="pin-box">
               <span className="pin-zuel">{resultat.pin}</span>
               <button className="btn-gen" onClick={kopéieren}>{kopéiert ? "✓ Kopéiert" : "📋 Kopéieren"}</button>
             </div>
-            <p className="resultat-hint">⚠️ Dëse PIN gëtt hei nëmmen eemol ugewisen — notéier en oder deel en direkt matt.</p>
+            <p className="resultat-hint">⚠️ Dëse PIN/Passwuert gëtt hei nëmmen eemol ugewisen — notéier en oder deel en direkt matt.</p>
           </section>
         )}
       </main>
@@ -163,7 +176,7 @@ body { margin: 0; font-family: -apple-system, "Segoe UI", Inter, Arial, sans-ser
 .resultat-label { font-size: 11px; text-transform: uppercase; letter-spacing: 0.03em; color: #6d7d74; font-weight: 700; }
 .resultat-numm { display: block; font-size: 16px; font-weight: 800; color: #294f3c; margin: 4px 0 14px; }
 .pin-box { display: flex; align-items: center; justify-content: center; gap: 12px; background: #fff; border: 1px solid #c9d5cd; border-radius: 10px; padding: 14px; }
-.pin-zuel { font-size: 30px; font-weight: 800; letter-spacing: 10px; color: #00A94F; }
+.pin-zuel { font-size: 24px; font-weight: 800; letter-spacing: 4px; color: #00A94F; word-break: break-all; }
 .btn-gen { font-size: 11.5px; font-weight: 700; color: #00A94F; background: #eef3ef; border: 1px solid #c9d5cd; padding: 6px 12px; border-radius: 7px; cursor: pointer; white-space: nowrap; }
 .resultat-hint { font-size: 11.5px; color: #8a5a12; margin: 12px 0 0; }
 </style>
