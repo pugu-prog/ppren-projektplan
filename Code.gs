@@ -776,18 +776,21 @@ function getAktivePersonen() {
 
 /**
  * Aktualiséiert de Untis-Code an der Login-Tabell fir eng bestoend
- * Persoun (falls schonn e Login-Zougang existéiert). Gëtt roueg näischt
- * zréck, well dëst just en Hëllefsschrëtt bei personSpäicheren ass.
+ * Persoun (falls schonn e Login-Zougang existéiert). Gëtt true zréck,
+ * wann eng passend Zeil fonnt an aktualiséiert gouf, soss false (z.B.
+ * wann d'Login-Zeil aus iergendengem Grond feelt).
  */
 function aktualiséierUntisCodeAmLogin(numm, untisCode) {
   const loginSheet = getLoginSheet();
   const loginWerte = loginSheet.getDataRange().getValues();
+  const gesichtNumm = String(numm || "").trim();
   for (let j = 1; j < loginWerte.length; j++) {
-    if (loginWerte[j][0] === numm) {
+    if (String(loginWerte[j][0] || "").trim() === gesichtNumm) {
       loginSheet.getRange(j + 1, 6).setValue(untisCode);
-      return;
+      return true;
     }
   }
+  return false;
 }
 
 function personSpäicheren(data) {
@@ -808,22 +811,36 @@ function personSpäicheren(data) {
     if (String(werte[i][0] || "").trim() === data.numm) {
       sheet.getRange(i + 1, 1, 1, 6).setValues([[data.numm, data.rolle, data.klasse || "", data.email || "", "Jo", untisCode]]);
       aktualiséierUntisCodeAmLogin(data.numm, untisCode);
-      // BUGFIX: virdru gouf en ugi Passwuert fir eng schonn EXISTÉIERENDE
+      // BUGFIX 1: virdru gouf en ugi Passwuert fir eng schonn EXISTÉIERENDE
       // Persoun einfach ignoréiert (nëmmen den Untis-Code gouf aktualiséiert) —
       // duerfir konnt een sech ni mam neie Passwuert umellen. Elo gëtt et,
       // wann et op d'mannst 6 Zeechen huet, och wierklech an der Login-Tab gesat.
+      // BUGFIX 2: de Vergläich war ouni trim (Duplikater/Leerzeechen konnten de
+      // Login-Fund verhënneren) — elo robust mat trim. AN: wann d'Login-Zeil
+      // fir dës Persoun KOMPLETT feelt (z.B. duerch en Opraum aus Versinn
+      // mattgeläscht), gëtt se elo NEI ugeluecht, ustatt roueg näischt ze
+      // maachen — soss hätt d'Persoun guer kee Login-Zougang méi, ouni datt
+      // iergendee Feeler gemellt gëtt.
+      const loginSheet = getLoginSheet();
+      const loginWerte = loginSheet.getDataRange().getValues();
+      let loginZeilIndex = -1;
+      for (let j = 1; j < loginWerte.length; j++) {
+        if (String(loginWerte[j][0] || "").trim() === data.numm) { loginZeilIndex = j; break; }
+      }
       let neiPin = null;
-      if (gewenschtPasswuertBestehend.length >= 6) {
-        const loginSheet = getLoginSheet();
-        const loginWerte = loginSheet.getDataRange().getValues();
-        for (let j = 1; j < loginWerte.length; j++) {
-          if (loginWerte[j][0] === data.numm) {
-            const salt = Utilities.getUuid();
-            loginSheet.getRange(j + 1, 4, 1, 2).setValues([[hashPin(gewenschtPasswuertBestehend, salt), salt]]);
-            neiPin = gewenschtPasswuertBestehend;
-            break;
-          }
-        }
+      if (loginZeilIndex === -1) {
+        // Login-Zeil feelt komplett — nei ugeluecht mam gewënschte Passwuert
+        // (wa gëlteg) oder engem zoufällege 4-Zuel-PIN.
+        const pin = gewenschtPasswuertBestehend.length >= 6
+          ? gewenschtPasswuertBestehend
+          : String(Math.floor(1000 + Math.random() * 9000));
+        const salt = Utilities.getUuid();
+        loginSheet.appendRow([data.numm, data.rolle, data.klasse || "", hashPin(pin, salt), salt, untisCode]);
+        neiPin = pin;
+      } else if (gewenschtPasswuertBestehend.length >= 6) {
+        const salt = Utilities.getUuid();
+        loginSheet.getRange(loginZeilIndex + 1, 4, 1, 2).setValues([[hashPin(gewenschtPasswuertBestehend, salt), salt]]);
+        neiPin = gewenschtPasswuertBestehend;
       }
       return { ok: true, neiPin };
     }
@@ -1844,7 +1861,7 @@ function fuegeDeckblattEinFallback(body, dokumentTyp, data) {
     if (seBlob) {
       const grossesBild = linkeZelle.insertImage(0, seBlob.copyBlob());
       const grossBreite = 200;
-      const grossVerhaeltnis = grossesBild.getHeight() / grossesbild.getWidth();
+      const grossVerhaeltnis = grossesBild.getHeight() / grossesBild.getWidth();
       grossesBild.setWidth(grossBreite).setHeight(Math.round(grossBreite * grossVerhaeltnis));
     }
     if (ltettBlob) {
@@ -2557,7 +2574,7 @@ function login(nummOderCode, pin) {
   const personenSheet = getPersonenSheet();
   const pWerte = personenSheet.getDataRange().getValues();
   const persoonZeil = pWerte.slice(1).find(
-    (z) => z[0] === eingabe || (z[5] && String(z[5]).toLowerCase() === eingabeLower)
+    (z) => String(z[0] || "").trim() === eingabe || (z[5] && String(z[5]).toLowerCase() === eingabeLower)
   );
   if (persoonZeil && persoonZeil[4] === "Nee") {
     return { ok: false, error: "Dëse Zougang ass deaktivéiert. Frot de Prof." };
@@ -2567,7 +2584,10 @@ function login(nummOderCode, pin) {
   const werte = sheet.getDataRange().getValues();
   for (let i = 1; i < werte.length; i++) {
     const [numm, rolle, klasse, pinHash, salt, untisCode] = werte[i];
-    const stëmmtIwwerEng = numm === eingabe || (untisCode && String(untisCode).toLowerCase() === eingabeLower);
+    // BUGFIX: virdru ouni trim verglach — eng verstoppte Leerstell an der
+    // Login-Tab (z.B. duerch eng al Duplikat-Erstellung) huet de Login mam
+    // Numm ni klappe gelooss, och wann alles "richteg" ausgesinn huet.
+    const stëmmtIwwerEng = String(numm || "").trim() === eingabe || (untisCode && String(untisCode).toLowerCase() === eingabeLower);
     if (stëmmtIwwerEng) {
       if (hashPin(String(pin), salt) !== pinHash) {
         return { ok: false, error: "Falsche PIN." };
@@ -2621,18 +2641,19 @@ function pinZuruecksetzen(numm, proffToken, neiesPasswuert) {
   if (!session.valid || session.rolle !== "Prof") {
     return { ok: false, error: "Nëmme Proffen dierfen PINs/Passwierder änneren." };
   }
+  const gesichtNumm = String(numm || "").trim();
   const sheet = getLoginSheet();
   const werte = sheet.getDataRange().getValues();
   for (let i = 1; i < werte.length; i++) {
-    if (werte[i][0] === numm) {
+    if (String(werte[i][0] || "").trim() === gesichtNumm) {
       const gewenschtPasswuert = (neiesPasswuert || "").trim();
       const pin = gewenschtPasswuert.length >= 6
         ? gewenschtPasswuert
         : String(Math.floor(1000 + Math.random() * 9000));
       const salt = Utilities.getUuid();
       sheet.getRange(i + 1, 4, 1, 2).setValues([[hashPin(pin, salt), salt]]);
-      return { ok: true, numm, pin };
+      return { ok: true, numm: gesichtNumm, pin };
     }
   }
-  return { ok: false, error: "Numm net fonnt." };
+  return { ok: false, error: "Numm net fonnt an der Login-Tabell. Probéiert d'Persoun iwwer 'Nei Persoun' nach eng Kéier ze späicheren (dat erstellt eng Login-Zeil, falls se feelt)." };
 }
