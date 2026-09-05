@@ -65,8 +65,8 @@ function App() {
   }, []);
 
   const umellen = async () => {
-    if (!eingabe.trim() || pin.length !== 4) {
-      setError("Weg Untis-Code (oder Numm) an 4-stellegen PIN aginn.");
+    if (!eingabe.trim() || pin.length < 4) {
+      setError("Weg Untis-Code (oder Numm) an PIN/Passwuert (mindestens 4 Zeechen) aginn.");
       return;
     }
     setSyncing(true);
@@ -123,11 +123,13 @@ function App() {
           </label>
 
           <label className="field">
-            <span className="field-label">PIN (4 Zuelen)</span>
+            <span className="field-label">PIN oder Passwuert</span>
             <input
               id="pin-feld"
-              type="password" inputMode="numeric" maxLength={4} className="input pin-input"
-              value={pin} onChange={(e) => setPin(e.target.value.replace(/\D/g, "").slice(0, 4))}
+              type="password" autoCapitalize="none" autoCorrect="off" spellCheck="false"
+              className="input pin-input"
+              maxLength={64}
+              value={pin} onChange={(e) => setPin(e.target.value)}
               onKeyDown={(e) => e.key === "Enter" && umellen()}
             />
           </label>
@@ -138,7 +140,7 @@ function App() {
             {syncing ? "Mellt un…" : "Umellen"}
           </button>
 
-          <p className="footer-hint">Kee Untis-Code? Numm benotzen. PIN vergiess? Frot Ären Prof, en zréckzesetzen.</p>
+          <p className="footer-hint">Kee Untis-Code? Numm benotzen. PIN/Passwuert vergiess? Frot Ären Prof, en zréckzesetzen.</p>
         </div>
       </main>
 
@@ -180,7 +182,7 @@ body { margin: 0; font-family: -apple-system, "Segoe UI", Inter, Arial, sans-ser
 .field { display: flex; flex-direction: column; gap: 5px; margin-bottom: 16px; }
 .field-label { font-size: 12.5px; font-weight: 700; color: #294f3c; }
 .select, .input { border: 1px solid #c9d5cd; border-radius: 8px; padding: 10px 12px; font-size: 14px; font-family: inherit; background: #fff; color: #1c2621; width: 100%; }
-.pin-input { letter-spacing: 8px; font-size: 18px; font-weight: 700; text-align: center; }
+.pin-input { font-size: 16px; font-weight: 700; text-align: center; letter-spacing: 2px; }
 .error { color: #8a2b1f; font-size: 12.5px; background: #fbe4e1; padding: 8px 12px; border-radius: 8px; margin: -4px 0 14px; }
 .btn { width: 100%; font-size: 14px; font-weight: 700; padding: 12px; border-radius: 9px; border: none; cursor: pointer; }
 .btn-primary { background: #00A94F; color: #fff; }
