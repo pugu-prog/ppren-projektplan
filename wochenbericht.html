@@ -125,6 +125,12 @@ function App() {
   const istGSE2 = currentSchueler?.klasse === "2GSE";
   const perioden = istGSE2 ? PERIODEN_2GSE : PERIODEN_1GSE;
   const nachVirStart = nachVirWochenberichtStart();
+  // De Prof soll de Formulaire scho virun der offizieller Startwoch (21.09.)
+  // gesinn a Schüler kënnen erklären — nëmmen d'ofginn (Submit) bleift bis
+  // dohinner gespaart. Fir Schüler bleift de ganze Formulaire wéi virdrun
+  // verstoppt, well si nach näischt ofginn dierfen.
+  const previewOnlyVirStart = nachVirStart && !istSchueler;
+  const blockedByStart = nachVirStart && istSchueler;
 
   const lade = () => {
     if (!currentSchueler) return;
@@ -180,7 +186,7 @@ function App() {
     : null;
   const wocheGespaart = bestehendFuerWoche && bestehendFuerWoche.Status === "Bewäert";
 
-  const canSubmit = periode && bericht.zusammenfassung.trim() && bericht.fortschritt.trim() && !wocheGespaart;
+  const canSubmit = periode && bericht.zusammenfassung.trim() && bericht.fortschritt.trim() && !wocheGespaart && !previewOnlyVirStart;
 
   const absenden = async () => {
     if (!currentSchueler || !canSubmit) return;
@@ -280,7 +286,7 @@ function App() {
           </div>
         </section>
 
-        {schuelerId && nachVirStart && (
+        {schuelerId && blockedByStart && (
           <div className="card">
             <p className="notice">
               📅 D'Wochenberichter fänken éischt mat der Woch vum <strong>21.09.2026</strong> un — bis dohinner
@@ -289,7 +295,16 @@ function App() {
           </div>
         )}
 
-        {schuelerId && periode && !nachVirStart && wocheGespaart && (
+        {schuelerId && previewOnlyVirStart && (
+          <div className="card">
+            <p className="notice notice-preview">
+              👁️ Preview-Modus (als Prof): De Formulaire ass hei just zum Weisen/Erklären — d'Ofginn (Submit) ass fir
+              Schüler bis zur Startwoch vum <strong>21.09.2026</strong> gespaart.
+            </p>
+          </div>
+        )}
+
+        {schuelerId && periode && !blockedByStart && wocheGespaart && (
           <div className="card">
             <p className="notice">
               🔒 Fir dës Woch ({bericht.woche}) hues du schonn en Bericht ofginn, deen och scho <strong>bewäert</strong> ass —
@@ -298,7 +313,7 @@ function App() {
           </div>
         )}
 
-        {schuelerId && periode && !nachVirStart && !wocheGespaart && (
+        {schuelerId && periode && !blockedByStart && !wocheGespaart && (
           <>
             <section className="card">
               <h2>Neien Wochenbericht — {bericht.woche}</h2>
@@ -353,7 +368,7 @@ function App() {
               </label>
 
               <button className="btn btn-primary" disabled={!canSubmit || syncing} onClick={absenden}>
-                {syncing ? "Sendet…" : bericht.id ? "💾 Ännerung späicheren" : "📤 Ofginn"}
+                {syncing ? "Sendet…" : previewOnlyVirStart ? "🔒 Ofginn gespaart bis 21.09.2026" : bericht.id ? "💾 Ännerung späicheren" : "📤 Ofginn"}
               </button>
             </section>
 
@@ -418,6 +433,7 @@ body { margin: 0; font-family: -apple-system, "Segoe UI", Inter, Arial, sans-ser
 .identitaet-box { font-size: 13.5px; font-weight: 700; color: #294f3c; background: #eef3ef; padding: 9px 12px; border-radius: 7px; }
 .punkte-hint { font-size: 11.5px; color: #6d7d74; background: #eef3ef; padding: 8px 12px; border-radius: 7px; margin-bottom: 14px; }
 .notice { background: #fbe8c6; color: #8a5a12; font-size: 12.5px; padding: 10px 14px; border-radius: 8px; margin: 0; }
+.notice-preview { background: #eaf0f8; color: #294f3c; }
 .datei-liste { list-style: none; padding: 0; margin: 6px 0 0; font-size: 12px; color: #55625a; }
 .datei-liste li { padding: 3px 0; }
 .btn { font-size: 13.5px; font-weight: 700; padding: 10px 18px; border-radius: 8px; border: none; cursor: pointer; }
