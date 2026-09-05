@@ -100,13 +100,15 @@ function App() {
     [personen]
   );
 
+  const istSchueler = window.PPREN_SESSION?.rolle === "Schüler";
+
   const [schuelerId, setSchuelerId] = useState("");
   useEffect(() => {
-    if (!personenGelueden || schuelerId) return;
+    if (!personenGelueden || !istSchueler || schuelerId) return;
     const numm = window.PPREN_SESSION?.numm;
     if (numm && SCHUELER.find((s) => s.id === numm)) setSchuelerId(numm);
     // eslint-disable-next-line
-  }, [personenGelueden, SCHUELER]);
+  }, [personenGelueden, istSchueler, SCHUELER]);
 
   const [periode, setPeriode] = useState("");
   const [bericht, setBericht] = useState(leererBericht());
@@ -252,10 +254,20 @@ function App() {
       <main className="content">
         <section className="card">
           <div className="grid2">
-            <label className="field">
-              <span className="field-label">Ugemellt als</span>
-              <div className="identitaet-box">👤 {currentSchueler?.name} ({currentSchueler?.klasse})</div>
-            </label>
+            {istSchueler ? (
+              <label className="field">
+                <span className="field-label">Ugemellt als</span>
+                <div className="identitaet-box">👤 {currentSchueler?.name} ({currentSchueler?.klasse})</div>
+              </label>
+            ) : (
+              <label className="field">
+                <span className="field-label">Schüler/-in (als Prof)</span>
+                <select className="select" value={schuelerId} onChange={(e) => setSchuelerId(e.target.value)}>
+                  <option value="">– auswielen –</option>
+                  {SCHUELER.map((s) => <option key={s.id} value={s.id}>{s.name} ({s.klasse})</option>)}
+                </select>
+              </label>
+            )}
             {schuelerId && (
               <label className="field">
                 <span className="field-label">Periode</span>
