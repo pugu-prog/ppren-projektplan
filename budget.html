@@ -28,14 +28,6 @@ const { useState, useEffect, useMemo } = React;
 
 const WEB_APP_URL = "https://script.google.com/macros/s/AKfycbwNDO4bJv1lYKvwg57TnHzVHxLIJJikxD0ey7RHlraqa9nUSs8liBJycF38p4X--t_6/exec";
 
-const SCHUELER = [
-  { id: "lea_muller", name: "Léa Muller", klasse: "1GSE" },
-  { id: "ben_weber", name: "Ben Weber", klasse: "2GSE" },
-  { id: "noah_schmit", name: "Noah Schmit", klasse: "1GSE" },
-  { id: "mia_reuter", name: "Mia Reuter", klasse: "2GSE" },
-  { id: "tom_klein", name: "Tom Klein", klasse: "2GSE" },
-];
-
 const WARNUNGS_SCHWELL = 0.9; // F9.9: Warnung ab 90%
 
 function dateiZuBase64(datei) {
@@ -48,17 +40,38 @@ function dateiZuBase64(datei) {
 }
 
 function App() {
-  const [schuelerId] = useState(() => {
+  const istSchueler = window.PPREN_SESSION?.rolle === "Schüler";
+
+  // M1: Nimm live vum Backend lueden, keng hart-codéiert Lëscht méi.
+  const [personen, setPersonen] = useState([]);
+  const [personenGelueden, setPersonenGelueden] = useState(false);
+  useEffect(() => {
+    fetch(WEB_APP_URL + "?namen=1")
+      .then((r) => r.json())
+      .then((d) => setPersonen(d.personen || []))
+      .catch(() => {})
+      .finally(() => setPersonenGelueden(true));
+  }, []);
+  const SCHUELER = useMemo(
+    () => personen.filter((p) => p.rolle === "Schüler").map((p) => ({ id: p.numm, name: p.numm, klasse: p.klasse })),
+    [personen]
+  );
+
+  const [schuelerId, setSchuelerId] = useState("");
+  useEffect(() => {
+    if (!personenGelueden || !istSchueler || schuelerId) return;
     const numm = window.PPREN_SESSION?.numm;
-    return SCHUELER.find((s) => s.name === numm)?.id || "";
-  });
+    if (numm && SCHUELER.find((s) => s.id === numm)) setSchuelerId(numm);
+    // eslint-disable-next-line
+  }, [personenGelueden, istSchueler, SCHUELER]);
+
   const currentSchueler = SCHUELER.find((s) => s.id === schuelerId);
 
   const [geplangtKosten, setGeplangtKosten] = useState([]);
   const [budgetStatus, setBudgetStatus] = useState(null); // null | "Ageraecht" | "Genehmegt"
   const [budgetMax, setBudgetMax] = useState(500);
   const [ausgaben, setAusgaben] = useState([]);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(false);
   const [syncing, setSyncing] = useState(false);
   const [error, setError] = useState(null);
   const [toast, setToast] = useState(null);
@@ -78,11 +91,14 @@ function App() {
       if (raw) {
         const plan = JSON.parse(raw);
         if (plan.kostenplanNoetig) setGeplangtKosten(plan.kosten || []);
+      } else {
+        setGeplangtKosten([]);
       }
     } catch {}
   }, [schuelerId]);
 
   const lade = () => {
+    if (!currentSchueler) return;
     setLoading(true);
     setError(null);
     fetch(WEB_APP_URL + "?token=" + encodeURIComponent(window.PPREN_SESSION?.token || ""))
@@ -207,20 +223,32 @@ function App() {
 
       <main className="content">
         <section className="card">
-          <label className="field">
-            <span className="field-label">Ugemellt als</span>
-            <div className="identitaet-box">👤 {currentSchueler?.name} ({currentSchueler?.klasse})</div>
-          </label>
+          {istSchueler ? (
+            <label className="field">
+              <span className="field-label">Ugemellt als</span>
+              <div className="identitaet-box">👤 {currentSchueler?.name} ({currentSchueler?.klasse})</div>
+            </label>
+          ) : (
+            <label className="field">
+              <span className="field-label">Schüler/-in (als Prof)</span>
+              <select className="select" value={schuelerId} onChange={(e) => setSchuelerId(e.target.value)}>
+                <option value="">– auswielen –</option>
+                {SCHUELER.map((s) => <option key={s.id} value={s.id}>{s.name} ({s.klasse})</option>)}
+              </select>
+            </label>
+          )}
         </section>
+
+        {!schuelerId && !istSchueler && <div className="empty">Wielt e Schüler aus, fir säi Budget ze gesinn.</div>}
 
         {loading && <div className="empty">Lädt…</div>}
         {error && <div className="sync-error">{error}</div>}
 
-        {!loading && (
+        {schuelerId && !loading && (
           <>
             {geplangtKosten.length > 0 && (
               <section className="card">
-                <h2>Geplangte Käschten (aus dengem Projektplang)</h2>
+                <h2>Geplangte Käschten (aus dem Projektplang)</h2>
                 <ul className="plang-liste">
                   {geplangtKosten.filter((k) => k.bezeichnung).map((k, i) => (
                     <li key={i}><span>{k.bezeichnung}</span><strong>{k.betrag || 0} €</strong></li>
@@ -232,16 +260,23 @@ function App() {
             {(!budgetStatus) && (
               <section className="card">
                 <h2>Kostenplang genehmegen loossen</h2>
-                <p className="hint">Ier s du Ausgaben aginn kanns, muss den Prof de Kostenplang aus dengem Projektplang genehmegen (500 € Standard-Budget).</p>
-                <button className="btn btn-primary" disabled={syncing} onClick={genehmegungUfroen}>
-                  {syncing ? "Freet un…" : "📨 Genehmegung ufroen"}
-                </button>
+                <p className="hint">Ier Ausgaben ageginn ka ginn, muss den Prof de Kostenplang aus dem Projektplang genehmegen (500 € Standard-Budget).</p>
+                {istSchueler && (
+                  <button className="btn btn-primary" disabled={syncing} onClick={genehmegungUfroen}>
+                    {syncing ? "Freet un…" : "📨 Genehmegung ufroen"}
+                  </button>
+                )}
+                {!istSchueler && (
+                  <button className="btn btn-primary" disabled={syncing} onClick={genehmegungUfroen}>
+                    {syncing ? "Freet un…" : "📨 Kostenplang direkt genehmegen"}
+                  </button>
+                )}
               </section>
             )}
 
             {budgetStatus === "Ageraecht" && (
               <section className="card">
-                <div className="notice notice-pending">⏳ Genehmegung ugefrot — waart op de Prof, ier s du Ausgaben aginn kanns.</div>
+                <div className="notice notice-pending">⏳ Genehmegung ugefrot — waart op de Prof, ier Ausgaben ageginn kënne ginn.</div>
               </section>
             )}
 
@@ -294,7 +329,7 @@ function App() {
 
                 <section className="card">
                   <div className="card-head-row">
-                    <h2>Meng Ausgaben</h2>
+                    <h2>Ausgaben</h2>
                     {ausgaben.length > 0 && <button className="btn-gen" onClick={csvExport}>⬇️ CSV</button>}
                   </div>
                   {ausgaben.length === 0 && <p className="hint">Nach keng Ausgaben ageginn.</p>}
