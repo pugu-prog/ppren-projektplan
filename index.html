@@ -104,6 +104,8 @@ function App() {
     }
   }, []);
 
+  const istSchueler = window.PPREN_SESSION?.rolle === "Schüler";
+
   // M1: Nimm live vum Backend lueden (Personen-Tab), keng hart-codéiert
   // Lëscht méi. "id" ass hei einfach de Numm selwer (schonn eendeiteg).
   const [personen, setPersonen] = useState([]);
@@ -126,11 +128,11 @@ function App() {
 
   const [schuelerId, setSchuelerId] = useState("");
   useEffect(() => {
-    if (!personenGelueden || schuelerId) return;
+    if (!personenGelueden || !istSchueler || schuelerId) return;
     const numm = window.PPREN_SESSION?.numm;
     if (numm && SCHUELER.find((s) => s.id === numm)) setSchuelerId(numm);
     // eslint-disable-next-line
-  }, [personenGelueden, SCHUELER]);
+  }, [personenGelueden, istSchueler, SCHUELER]);
 
   const [plan, setPlan] = useState(emptyPlan());
   const [loaded, setLoaded] = useState(false);
@@ -269,9 +271,18 @@ function App() {
 
       <div className="layout">
         <aside className="sidebar">
-          <Field label="Ugemellt als">
-            <div className="identitaet-box">👤 {currentSchueler?.name || window.PPREN_SESSION?.numm} ({currentSchueler?.klasse})</div>
-          </Field>
+          {istSchueler ? (
+            <Field label="Ugemellt als">
+              <div className="identitaet-box">👤 {currentSchueler?.name || window.PPREN_SESSION?.numm} ({currentSchueler?.klasse})</div>
+            </Field>
+          ) : (
+            <Field label="Schüler/-in (als Prof)" hint="Als Prof kanns du de Projektplang vun engem Schüler nokucken, erklären oder mathëllefen auszefëllen.">
+              <select className="select" value={schuelerId} onChange={(e) => setSchuelerId(e.target.value)}>
+                <option value="">– auswielen –</option>
+                {SCHUELER.map((s) => <option key={s.id} value={s.id}>{s.name} ({s.klasse})</option>)}
+              </select>
+            </Field>
+          )}
           <button type="button" className="reset-btn" onClick={() => { localStorage.removeItem("ppren_token"); localStorage.removeItem("ppren_numm"); localStorage.removeItem("ppren_rolle"); localStorage.removeItem("ppren_klasse"); window.location.href = "login.html"; }}>Ofmellen</button>
 
           {schuelerId && (
@@ -289,7 +300,7 @@ function App() {
         </aside>
 
         <main className="content">
-          {!schuelerId && <div className="empty-state"><p>Wähl oben links deinen Namen aus, um deinen Projektplan zu öffnen oder zu erstellen.</p></div>}
+          {!schuelerId && <div className="empty-state"><p>{istSchueler ? "Wähl oben links deinen Namen aus, um deinen Projektplan zu öffnen oder zu erstellen." : "Wielt e Schüler aus, fir säin Projektplang ze gesinn."}</p></div>}
 
           {schuelerId && (
             <>
