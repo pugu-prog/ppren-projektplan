@@ -795,7 +795,9 @@ function personSpäicheren(data) {
   if (!session.valid || session.rolle !== "Prof") {
     return { ok: false, error: "Nëmme Proffen dierfen Persounen verwalten." };
   }
-  if (!data.numm || !data.rolle) return { ok: false, error: "Numm a Roll erfuerderlech." };
+  const numm = (data.numm || "").trim();
+  data.numm = numm; // getrimmten Numm iwwerall an dëser Funktioun benotzen, fir Duplikater duerch Leerzeechen ze verhënneren
+  if (!numm || !data.rolle) return { ok: false, error: "Numm a Roll erfuerderlech." };
   if (data.rolle === "Schüler" && !data.klasse) return { ok: false, error: "Klasse erfuerderlech fir Schüler." };
 
   const untisCode = (data.untisCode || "").trim();
@@ -803,7 +805,7 @@ function personSpäicheren(data) {
   const sheet = getPersonenSheet();
   const werte = sheet.getDataRange().getValues();
   for (let i = 1; i < werte.length; i++) {
-    if (werte[i][0] === data.numm) {
+    if (String(werte[i][0] || "").trim() === data.numm) {
       sheet.getRange(i + 1, 1, 1, 6).setValues([[data.numm, data.rolle, data.klasse || "", data.email || "", "Jo", untisCode]]);
       aktualiséierUntisCodeAmLogin(data.numm, untisCode);
       // BUGFIX: virdru gouf en ugi Passwuert fir eng schonn EXISTÉIERENDE
@@ -826,7 +828,14 @@ function personSpäicheren(data) {
       return { ok: true, neiPin };
     }
   }
-  sheet.appendRow([data.numm, data.rolle, data.klasse || "", data.email || "", "Jo", untisCode]);
+  // Email ass Pflicht bei enger neier Persoun (fir E-Mail-Erënnerungen,
+  // Notifikatiounen un de Betreier, asw.) — bei enger EXISTÉIERENDER
+  // Persoun (uewen) bleift et optional änneren, well d'Email do scho
+  // gesat kéint sinn.
+  const email = (data.email || "").trim();
+  if (!email) return { ok: false, error: "Email ass Pflicht bei enger neier Persoun." };
+
+  sheet.appendRow([data.numm, data.rolle, data.klasse || "", email, "Jo", untisCode]);
 
   const gewenschtPasswuert = (data.pin || "").trim();
   const pin = gewenschtPasswuert.length >= 6
@@ -1835,7 +1844,7 @@ function fuegeDeckblattEinFallback(body, dokumentTyp, data) {
     if (seBlob) {
       const grossesBild = linkeZelle.insertImage(0, seBlob.copyBlob());
       const grossBreite = 200;
-      const grossVerhaeltnis = grossesBild.getHeight() / grossesBild.getWidth();
+      const grossVerhaeltnis = grossesBild.getHeight() / grossesbild.getWidth();
       grossesBild.setWidth(grossBreite).setHeight(Math.round(grossBreite * grossVerhaeltnis));
     }
     if (ltettBlob) {
