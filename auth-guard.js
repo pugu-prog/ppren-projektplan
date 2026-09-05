@@ -11,6 +11,11 @@
  * Notzung: <script src="auth-guard.js"></script>  (virun de React-Scripten)
  * Fir Proffen-only Säiten: <script>PPREN_ERFUERDERT_ROLLE = "Prof";</script>
  * virum auth-guard.js Script-Tag setzen.
+ *
+ * WICHTEG: Proffen dierfen op JIDD Säit dran, och wa se eng aner Roll
+ * (z.B. "Schüler") verlaangt — sou kann e Prof engem Schüler eng Säit
+ * weisen/erklären oder am Numm vun engem Schüler eppes nokucken. Just
+ * ëmgedréint (Schüler op enger "Prof"-Säit) bleift gespaart.
  */
 (function () {
   const token = localStorage.getItem("ppren_token");
@@ -29,7 +34,7 @@
   }
 
   const erfuerdertRolle = window.PPREN_ERFUERDERT_ROLLE;
-  if (erfuerdertRolle && rolle !== erfuerdertRolle) {
+  if (erfuerdertRolle && rolle !== erfuerdertRolle && rolle !== "Prof") {
     document.write(
       '<div style="padding:60px 20px;text-align:center;font-family:sans-serif;color:#8a2b1f;">' +
       "<h2>Kee Zougrëff</h2><p>Dës Säit ass just fir " + erfuerdertRolle + ".</p>" +
@@ -103,9 +108,10 @@
       if (data.rolle && data.rolle !== rolle) {
         // Lokal gespäichert Roll stëmmt net mat där um Server iwwereneen —
         // lokal Wäert war entweder ëmgeängt oder ass veraltet. Ëmmer der
-        // Server-Wourecht vertrauen; wa se net méi op dëser Säit erlaabt ass,
-        // direkt erausschmeisen amplaz just d'localStorage ze aktualiséieren.
-        if (erfuerdertRolle && data.rolle !== erfuerdertRolle) {
+        // Server-Wourecht vertrauen; wa se net méi op dëser Säit erlaabt ass
+        // (a keen Prof ass, well Proffen iwwerall dierfen), direkt erausschmeisen
+        // amplaz just d'localStorage ze aktualiséieren.
+        if (erfuerdertRolle && data.rolle !== erfuerdertRolle && data.rolle !== "Prof") {
           localStorage.removeItem("ppren_token");
           localStorage.removeItem("ppren_numm");
           localStorage.removeItem("ppren_rolle");
