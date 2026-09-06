@@ -414,6 +414,7 @@ function App() {
   const [docUrl, setDocUrl] = useState(null);
   const [toast, setToast] = useState(null);
   const [finalisiert, setFinalisiert] = useState(false);
+  const [entworfGespäichert, setEntworfGespäichert] = useState(false);
   const [pruefeLaden, setPruefeLaden] = useState(false);
 
   const currentSchueler = SCHUELER.find((s) => s.id === schuelerId);
@@ -434,6 +435,7 @@ function App() {
     setAllgemeinAuswahl({});
     setKommentar("");
     setFinalisiert(false);
+    setEntworfGespäichert(false);
     setFgInfo(null);
     setZpInfo(null);
   };
@@ -451,6 +453,7 @@ function App() {
     setAllgemeinAuswahl({});
     setKommentar("");
     setFinalisiert(false);
+    setEntworfGespäichert(false);
 
     const schuelerName = SCHUELER.find((x) => x.id === schuelerId)?.name;
     if (!schuelerName || !p) return;
@@ -459,8 +462,15 @@ function App() {
       const res = await fetch(WEB_APP_URL + "?token=" + encodeURIComponent(window.PPREN_SESSION?.token || ""));
       const data = await res.json();
       const bestehend = (data.bewertungen || []).find((b) => b.Schüler === schuelerName && b.Periode === p);
-      if (bestehend && bestehend.Status === "Finalisiert") {
-        setFinalisiert(true);
+      if (bestehend) {
+        if (bestehend.Status === "Finalisiert") {
+          setFinalisiert(true);
+        } else if (bestehend.Status === "Entwurf") {
+          // Schonn e gespäichert Entworf fonnt — dee gëtt awer bewosst NET
+          // erëm an d'Feldere geluede (fir net eng laafend Ännerung z'iwwer-
+          // schreiwen); just en Hiweis, datt scho eppes existéiert.
+          setEntworfGespäichert(true);
+        }
       }
       const meng = (data.wochenberichte || []).filter((w) => w.Schüler === schuelerName && w.Periode === p);
       let summe = 0, anzahl = 0;
@@ -649,12 +659,17 @@ function App() {
       });
       const data = await res.json();
       if (!data.ok) throw new Error(data.error || "Unbekannter Fehler");
-      setDocUrl(data.url);
+      // Bei engem Entworf gëtt data.url = null zréck (well de Suivi-
+      // Dokument bewosst NET ugefaasst gouf) — dofir de bestoende docUrl
+      // just iwwerschreiwen, wann tatsächlech eng URL zréckkënnt.
+      if (data.url) setDocUrl(data.url);
       if (finalisieren) {
         setFinalisiert(true);
-        setToast("Bewertung finalisiert und gesperrt.");
+        setEntworfGespäichert(false);
+        setToast("✅ Bewertung validéiert an an de Suivi vum Schüler geschriwwen.");
       } else {
-        setToast("Bewertung gespeichert und ins Suivi übernommen.");
+        setEntworfGespäichert(true);
+        setToast("💾 Entworf gespäichert — nach NET am Suivi vum Schüler (just fir Iech sichtbar).");
       }
     } catch (e) {
       setSyncError("Konnte nicht speichern: " + e.message);
@@ -701,9 +716,19 @@ function App() {
         {def && finalisiert && !pruefeLaden && (
           <div className="card">
             <p className="notice">
-              🔒 Diese Bewertung ({periode}) ist bereits <strong>finalisiert</strong> und gesperrt — sie kann hier nicht
+              🔒 Diese Bewertung ({periode}) ist bereits <strong>finalisiert/validéiert</strong> und gesperrt — sie kann hier nicht
               mehr geändert werden. Zum erneuten Öffnen muss die Betreuer/-in in der Übersicht-Sheet (Tab „Bewertungen“)
               die Status-Spalte für diese Zeile von „Finalisiert“ auf „Entwurf“ ändern.
+            </p>
+          </div>
+        )}
+
+        {def && !finalisiert && entworfGespäichert && !pruefeLaden && (
+          <div className="card">
+            <p className="notice notice-draft">
+              📝 Fir dës Period existéiert scho e gespäicherte <strong>Entworf</strong> — deen ass nach NET am Suivi vum
+              Schüler ukomm. Dréckt op <strong>„✅ Validéieren“</strong>, soubal alles fäerdeg ass, fir en un de Schüler
+              weiderzeginn.
             </p>
           </div>
         )}
@@ -861,12 +886,20 @@ function App() {
               <textarea className="textarea gruppen-kommentar" rows={4} placeholder="Zusätzlicher freier Kommentar (optional)…" value={kommentar} onChange={(e) => setKommentar(e.target.value)} />
             </section>
 
+            <section className="card notice-card-validierung">
+              <p className="notice notice-info">
+                ℹ️ <strong>Éischt Entworf, duerno Validéieren:</strong> "Entworf späicheren" hält deng Punkten a
+                Kommentaren fest, ouni datt de Schüler eppes gesäit. Éischt wann s du op <strong>„✅ Validéieren“</strong>
+                dréckst, gëtt d'Bewertung tatsächlech an de Suivi vum Schüler geschriwwen (a gläichzäiteg gesperrt).
+              </p>
+            </section>
+
             <div className="actions">
               <button className="btn btn-ghost" disabled={!canSubmit || syncing} onClick={() => absenden(false)}>
-                {syncing ? "Speichert…" : "💾 Speichern (Entwurf)"}
+                {syncing ? "Speichert…" : "💾 Entworf späicheren (nach net am Suivi)"}
               </button>
               <button className="btn btn-primary" disabled={!canSubmit || syncing} onClick={() => absenden(true)}>
-                {syncing ? "Speichert…" : "✅ Finaliséieren"}
+                {syncing ? "Speichert…" : "✅ Validéieren (an de Suivi schécken)"}
               </button>
               {docUrl && <a className="doc-link" href={docUrl} target="_blank" rel="noreferrer">📄 Suivi öffnen ↗</a>}
             </div>
@@ -891,6 +924,9 @@ body { margin: 0; font-family: -apple-system, "Segoe UI", Inter, Arial, sans-ser
 .content { max-width: 720px; margin: 0 auto; padding: 24px 20px 60px; }
 .notice { background: #fbe8c6; color: #8a5a12; font-size: 12px; padding: 10px 14px; border-radius: 8px; margin: 10px 0 0; line-height: 1.45; }
 .notice-success { background: #d7ecdd; color: #00A94F; }
+.notice-draft { background: #eaf0f8; color: #294f3c; margin: 0; }
+.notice-info { background: #eaf0f8; color: #294f3c; margin: 0; }
+.notice-card-validierung { background: #eaf0f8; padding: 12px 16px; }
 .card { background: #fff; border: 1px solid #e2e8e3; border-radius: 12px; padding: 18px 20px; margin-bottom: 14px; }
 .card h2 { font-size: 14px; margin: 0 0 12px; color: #00A94F; }
 .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
@@ -924,7 +960,7 @@ body { margin: 0; font-family: -apple-system, "Segoe UI", Inter, Arial, sans-ser
 .note-row { display: flex; align-items: center; gap: 10px; margin-top: 10px; }
 .note-pill { background: #00A94F; color: #fff; padding: 6px 14px; border-radius: 20px; font-size: 14px; font-weight: 800; }
 .note-hint { font-size: 11.5px; color: #6d7d74; }
-.actions { display: flex; align-items: center; gap: 12px; padding: 4px 0 20px; }
+.actions { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; padding: 4px 0 20px; }
 .btn { font-size: 13.5px; font-weight: 700; padding: 10px 16px; border-radius: 8px; border: none; cursor: pointer; }
 .btn-primary { background: #00A94F; color: #fff; }
 .btn-ghost { background: #eef3ef; color: #294f3c; border: 1px solid #c9d5cd; }
