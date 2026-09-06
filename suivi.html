@@ -159,7 +159,13 @@ function App() {
       .finally(() => { setLoading(false); setGeladen(true); });
   }, [schuelerId]);
 
-  const bewertungFuer = (periode) => bewertungen.find((b) => b.Periode === periode);
+  // WICHTEG: Just eng VALIDÉIERT (finalisiert) Bewertung gëtt hei ugewisen —
+  // en Entworf (Status "Entwurf") ass just fir de Prof am Bewertungs-Tool
+  // sichtbar, ëmol och wann e Prof selwer duerch dëst Suivi-Tool guckt. Esou
+  // gesäit de Schüler nëmmen déi definitiv Punkten/Kommentaren, ni eng
+  // laafend, nach net fäerdeg Bewertung.
+  const bewertungFuer = (periode) => bewertungen.find((b) => b.Periode === periode && b.Status === "Finalisiert");
+  const entworfFuer = (periode) => bewertungen.find((b) => b.Periode === periode && b.Status !== "Finalisiert");
   const planDetails = projekt ? sicherJson(projekt["Projektplan-Details (JSON)"], null) : null;
 
   // ===== Projet-Journal: alles chronologesch zesummesetzen =====
@@ -612,7 +618,11 @@ function App() {
                     {b && <span className="pill pill-fertig">Note {b.Note} / 60</span>}
                   </div>
 
-                  {!b && <p className="notice">Fir dës Period läit nach keng Bewertung vir.</p>}
+                  {!b && <p className="notice">
+                    {!istSchueler && entworfFuer(periode)
+                      ? "📝 Entworf existéiert (nach net validéiert) — de Schüler gesäit dëst nach net. Fäerdeg maachen a validéieren am Bewertungs-Tool."
+                      : "Fir dës Period läit nach keng Bewertung vir."}
+                  </p>}
 
                   {b && (
                     <>
