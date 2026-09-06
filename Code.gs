@@ -2081,6 +2081,22 @@ function schreibeBewertung(data) {
     data.betreuer = getBetreuerFuerSchueler(data.schueler);
   }
 
+  const gesamt = (data.kategorien || []).reduce((s, k) => s + (Number(k.punkte) || 0), 0)
+    + (Number(data.wochenberichtePunkte) || 0);
+  const gesamtMax = (data.kategorien || []).reduce((s, k) => s + (Number(k.max) || 0), 0)
+    + (Number(data.wochenberichteMax) || 0);
+
+  // WICHTEG: Wann nach net validéiert (finalisiert), gëtt just an d'
+  // Bewertungen-Sheet gespäichert — de Suivi-Dokument vum Schüler gëtt
+  // guer net ugefaasst. Esou kann de Prof Punkten a Kommentaren an Rou
+  // eranzedroen a späicheren, ouni datt de Schüler eppes Onfäerdegt gesäit.
+  // Eréischt beim Dréckelen op "Validéieren" (finalisiert = true) gëtt de
+  // Suivi-Dokument tatsächlech geschriwwen an de Schüler gesäit et.
+  if (!data.finalisiert) {
+    aktualisiereBewertungsSheet(data, gesamt, gesamtMax, null, null);
+    return null;
+  }
+
   const ordner = getStudentFolder(data.schueler);
   const { doc, neu } = getOrCreateDoc(ordner, `_quelle_Suivi_${data.schueler}`, false);
   const body = doc.getBody();
@@ -2101,9 +2117,7 @@ function schreibeBewertung(data) {
   einfuegenSeitenumbruch();
   einfuegenAbsatz(headingText).setHeading(DocumentApp.ParagraphHeading.HEADING1);
   einfuegenAbsatz(`Stand: ${Utilities.formatDate(new Date(), "Europe/Luxembourg", "dd.MM.yyyy HH:mm")}`);
-  if (data.finalisiert) {
-    einfuegenAbsatz("✅ Finalisiert").setBold(true).setForegroundColor("#1F5C3B");
-  }
+  einfuegenAbsatz("✅ Validéiert / Finalisiert").setBold(true).setForegroundColor("#1F5C3B");
 
   const itemsProGruppe = {};
   (data.kategorien || []).forEach((k) => {
@@ -2159,10 +2173,6 @@ function schreibeBewertung(data) {
     einfuegenAbsatz("").setFontSize(4);
   }
 
-  const gesamt = (data.kategorien || []).reduce((s, k) => s + (Number(k.punkte) || 0), 0)
-    + (Number(data.wochenberichtePunkte) || 0);
-  const gesamtMax = (data.kategorien || []).reduce((s, k) => s + (Number(k.max) || 0), 0)
-    + (Number(data.wochenberichteMax) || 0);
   const noteAnzeige = data.noteBerechnet !== undefined ? data.noteBerechnet : null;
 
   einfuegenAbsatz(`Gesamt: ${gesamt} / ${gesamtMax} Punkte${noteAnzeige !== null ? `   ·   Note: ${noteAnzeige} / 60` : ""}`)
@@ -2352,6 +2362,15 @@ function aktualisiereBewertungsSheet(data, gesamt, gesamtMax, docUrl, pdfUrl) {
   for (let i = 1; i < werte.length; i++) {
     if (werte[i][0] === data.schueler && werte[i][1] === data.periode) { zeile = i + 1; break; }
   }
+  const bestehend = zeile > 0 ? werte[zeile - 1] : null;
+
+  // Bei enger Entworf-Späicherung (docUrl/pdfUrl = null, well de Suivi-
+  // Dokument net ugefaasst gouf) déi bestoend Links behalen, ustatt se mat
+  // eidel/null z'iwwerschreiwen — soss géing eng scho validéiert Bewertung
+  // hire Suivi-Link verléieren, just well den Prof nach eng Kéier "Entworf
+  // späicheren" gedréckt huet.
+  const finalDocUrl = (docUrl !== null && docUrl !== undefined) ? docUrl : (bestehend ? bestehend[7] : "");
+  const finalPdfUrl = (pdfUrl !== null && pdfUrl !== undefined) ? pdfUrl : (bestehend ? bestehend[8] : "");
 
   const note = data.noteBerechnet !== undefined
     ? data.noteBerechnet
@@ -2365,8 +2384,8 @@ function aktualisiereBewertungsSheet(data, gesamt, gesamtMax, docUrl, pdfUrl) {
     note,
     data.kommentar || "",
     Utilities.formatDate(new Date(), "Europe/Luxembourg", "dd.MM.yyyy HH:mm"),
-    docUrl,
-    pdfUrl || "",
+    finalDocUrl,
+    finalPdfUrl,
     JSON.stringify(data.kategorien || []),
     JSON.stringify(data.gruppenBemerkungen || []),
     JSON.stringify({ positiv: data.allgemeinPositiv || [], negativ: data.allgemeinNegativ || [] }),
