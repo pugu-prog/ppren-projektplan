@@ -89,6 +89,21 @@ table.status-table tr:nth-child(even) td { background: #f6f8f6; }
 .warn-box ul { margin: 0; padding-left: 16px; }
 .warn-box li { font-size: 11px; color: #8a5a12; margin-bottom: 8px; line-height: 1.5; }
 
+/* ===== Fakte-Kaarten (GSE-Kontext) ===== */
+.fact-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.fact-card { background: #fff; border: 1px solid #e2e8e3; border-radius: 9px; padding: 11px 13px; }
+.fact-card h3 { margin: 0 0 5px; font-size: 11px; color: #1c2621; }
+.fact-card div { font-size: 9.5px; color: #6d7d74; line-height: 1.5; }
+.tag-row { display: flex; flex-wrap: wrap; gap: 8px 16px; background: #eef3ef; border-radius: 9px; padding: 10px 13px; font-size: 10.5px; font-weight: 700; }
+
+/* ===== Oflaf-Etappen (4-Schrëtt-Prozess) ===== */
+.oflaf-row { display: flex; align-items: stretch; gap: 12px; flex: 1; margin-top: 6px; }
+.oflaf-step { flex: 1; border: 2px solid; border-radius: 10px; padding: 16px 10px 12px; position: relative; text-align: center; }
+.oflaf-num { position: absolute; top: -14px; left: 50%; transform: translateX(-50%); width: 28px; height: 28px; border-radius: 50%; color: #fff; font-weight: 800; font-size: 13px; display: flex; align-items: center; justify-content: center; }
+.oflaf-step h4 { margin: 10px 0 8px; font-size: 12.5px; color: #1c2621; }
+.oflaf-step div { font-size: 9.5px; color: #6d7d74; line-height: 1.6; }
+.oflaf-arrow { display: flex; align-items: center; font-size: 18px; color: #93a098; font-weight: 900; }
+
 /* ===== Steuerung (nëmmen um Bildschierm, net am Drock) ===== */
 .controls { position: fixed; bottom: 14px; left: 0; right: 0; display: flex; align-items: center; justify-content: center; gap: 14px; z-index: 50; }
 .ctrl-btn { background: rgba(255,255,255,0.95); border: none; width: 38px; height: 38px; border-radius: 50%; cursor: pointer; font-size: 15px; box-shadow: 0 3px 10px rgba(0,0,0,0.3); }
@@ -136,7 +151,8 @@ const SLIDES = [
   <div class="footline">Sciences Environnementales · Lycée Technique d'Ettelbruck · Presentatioun fir d'Direktioun</div>` },
 
 { type: "content", tag: "IWWERSIICHT", tagColor: G, title: "Wat mir Iech haut weisen", full: `
-  <ul class="bul" style="gap:26px;max-width:720px;">
+  <ul class="bul" style="gap:22px;max-width:720px;">
+    <li><strong>PPREN am Kontext vun der GSE</strong> — wat de PPREN ass a wéi en an d'Ausbildung passt</li>
     <li><strong>Firwat eng eege Plattform</strong> — de Kontext an d'Ziler hannert dem Projet</li>
     <li><strong>Wéi et opgebaut ass</strong> — technesch Architektur an Zesummespill vun de Puzzelsteng</li>
     <li><strong>All Funktioun am Detail</strong> — vum Login iwwer de Projektplang bis zur Notenberechnung</li>
@@ -144,11 +160,43 @@ const SLIDES = [
     <li><strong>Wou mir haut stinn</strong> — Status-Iwwersiicht an nächst Schrëtter</li>
   </ul>` },
 
+{ type: "content", tag: "GSE-KONTEXT", tagColor: O, title: "Wat ass de PPREN bei der GSE-Sektioun?", two: true, left: bul([
+    "D'GSE-Sektioun (Sciences Environnementales) vermëttelt Wëssen, Kompetenzen a Wäerter, fir eng nohalteg Zukunft aktiv matzegestalten — se verbënnt Natur, Technik, Wirtschaft a Gesellschaft",
+    "De PPREN (Projet Personnel Encadré) ass d'Häerzstéck vun dëser Ausbildung: d'Schüler plangen, setzen ëm, dokumentéieren, presentéieren a reflektéieren iwwer en eegene Projet",
+    "Praxisno, interdisziplinär a zukunftsorientéiert: vill Projeten, Étuden de cas a Feldaarbechten, déi op Beruffer am Ëmwelt- a Ressourcenschutz virbereeden",
+    "Leeft iwwer d'ganzt Schouljoer, an all Klass (1GSE + 2GSE) mat hirem eegene Rhythmus",
+  ]), right: `
+    <div class="fact-grid">
+      <div class="fact-card"><h3>⏱️ Stonneplang</h3><div>4 Wochestonnen<br>iwwer d'ganzt Joer</div></div>
+      <div class="fact-card"><h3>👥 Betreiung</h3><div>Ënnerschiddlech Fachrichtungen<br>2 Betreier/Projet</div></div>
+      <div class="fact-card"><h3>💰 Budget</h3><div>Bis zu 500 €<br>pro Schüler/Grupp</div></div>
+      <div class="fact-card"><h3>🤝 Partner</h3><div>Extern Experten<br>Betriber, aner Klassen</div></div>
+    </div>
+    <div class="tag-row" style="margin-top:12px;">
+      <span style="color:${G}">🌱 Nohaltegt Denken</span>
+      <span style="color:${B}">🤝 Teamaarbecht</span>
+      <span style="color:${O}">🔍 Problemléisung</span>
+      <span style="color:${T}">💬 Kommunikatioun</span>
+    </div>` },
+
+{ type: "content", tag: "OFLAF", tagColor: G, title: "PPREN Oflaf: vun der Planung bis zur Bewertung", full: `
+  <p style="font-size:12px;color:#6d7d74;margin:0 0 10px;">Véier Etappen, déi sech iwwer d'ganzt Joer widderhuelen a schrëttweis am Suivi vum Schüler zesummekommen.</p>
+  <div class="oflaf-row">
+    <div class="oflaf-step" style="border-color:${B}"><div class="oflaf-num" style="background:${B}">1</div><h4>Planung</h4><div>🎯 Ziler festleeën<br>🚩 Meilesteng definéieren</div></div>
+    <div class="oflaf-arrow">→</div>
+    <div class="oflaf-step" style="border-color:${G}"><div class="oflaf-num" style="background:${G}">2</div><h4>Ëmsetzung</h4><div>🛠️ Praktesch Ëmsetzung<br>📖 Theoretesch Ëmsetzung</div></div>
+    <div class="oflaf-arrow">→</div>
+    <div class="oflaf-step" style="border-color:${O}"><div class="oflaf-num" style="background:${O}">3</div><h4>Dokumentatioun</h4><div>📅 Wochenberichter<br>📝 Schrëftleche Bericht</div></div>
+    <div class="oflaf-arrow">→</div>
+    <div class="oflaf-step" style="border-color:${T}"><div class="oflaf-num" style="background:${T}">4</div><h4>Bewertung / Reflexioun</h4><div>✒️ Schrëftlech Préiwung<br>🗣️ Presentatioun & Fachgespréich</div></div>
+  </div>
+  <p style="font-size:11px;color:#93a098;font-style:italic;margin:14px 0 0;">Genee dëse Prozess bildt d'PPREN-Online-Plattform 1:1 of — dat weise mir Iech elo am Detail.</p>` },
+
 { type: "content", tag: "KONTEXT", tagColor: B, title: "Firwat eng eege Online-Plattform?", two: true, left: bul([
-    "De PPREN-Prozess huet vill bewegend Deeler: Projektplang, wöchentlech Berichter, Fachgespréicher, Ziel-Iwwerpréiwungen, Bewertungen — bis elo verdeelt op Excel-Tabellen, E-Mailen a Pabeier",
-    "Manuell Aarbecht fir Proffen: Punkte zesummerechnen, Deadlines nokucken, Dokumenter versichen",
-    "Kee zentraale Bléck fir de Schüler op säin eegene Fortschrëtt",
-    "Ziel: alles un engem Ort, automatiséiert wat sech automatiséiere léisst — awer konform mam offiziellen, verifizéierte Bewertungsbogen",
+    "De PPREN-Prozess huet vill beweeglech Deeler: Projektplang, wöchentlech Berichter, Fachgespréicher, Ziel-Iwwerpréiwungen, Bewertungen — bis elo verdeelt op Excel-Tabellen, E-Mailen a Pabeier",
+    "Manuell Aarbecht fir Proffen: Punkte zesummerechnen, Deadlines nokucken, Dokumenter hannendru lafen",
+    "Kee zentrale Bléck fir de Schüler op säin eegene Fortschrëtt",
+    "Ziel: alles un engem Ort, automatiséiert wat sech automatiséiere léisst — awer konform mam offiziellen, verifizéierten Bewertungsbogen",
   ]), right: frame(`${topbar("PPREN", "Iwwersiicht")}<div class="app-inner">
     <div class="app-card"><h3>🎯 Ziel</h3><div style="font-size:9.5px;color:#6d7d74;">Eng Plattform fir Schüler a Proffen — automatiséiert, awer transparent</div></div>
     <div style="display:flex;gap:8px;">
@@ -172,7 +220,7 @@ const SLIDES = [
   </div>` },
 
 { type: "content", tag: "M1 · ZOUGANG", tagColor: G, title: "Sécheren Login fir jiddereen", two: true, left: bul([
-    "All Persoun mellt sech mat engem Untis-Code (oder Numm) + 4-stellegem PIN un",
+    "All Persoun mellt sech mat engem Untis-Code (oder Numm) + PIN oder Passwuert un",
     "De Code ass net direkt ze roden — méi sécher wéi de vollen Numm",
     "D'Roll (Prof/Schüler) gëtt automatesch server-säiteg festgestallt",
     "Session-Token mat 18 Stonnen Gültegkeet",
@@ -180,8 +228,8 @@ const SLIDES = [
   ]), right: frame(`${topbar("PPREN", "Umeldung")}<div class="app-inner" style="display:flex;align-items:center;justify-content:center;">
     <div class="app-card" style="width:78%;">
       <div style="font-size:9px;font-weight:700;color:#294f3c;margin-bottom:4px;">Untis-Code (oder Numm)</div>
-      <div style="border:1px solid #c9d5cd;border-radius:5px;padding:6px 10px;font-size:10px;background:#fbfcfb;margin-bottom:10px;">putgu255</div>
-      <div style="font-size:9px;font-weight:700;color:#294f3c;margin-bottom:4px;">PIN (4 Zuelen)</div>
+      <div style="border:1px solid #c9d5cd;border-radius:5px;padding:6px 10px;font-size:10px;background:#fbfcfb;margin-bottom:10px;">mmustermann123</div>
+      <div style="font-size:9px;font-weight:700;color:#294f3c;margin-bottom:4px;">PIN oder Passwuert</div>
       <div style="border:1px solid #c9d5cd;border-radius:5px;padding:6px 10px;font-size:11px;text-align:center;letter-spacing:5px;background:#fbfcfb;margin-bottom:12px;">••••</div>
       <div class="mini-btn primary" style="display:block;text-align:center;">Umellen</div>
     </div>
@@ -201,13 +249,13 @@ const SLIDES = [
 
 { type: "content", tag: "M2 · PROJEKTPLANG", tagColor: B, title: "Projektplang erstellen a fräiginn", two: true, left: bul([
     "Schüler fëllt Grunddaten, Inhalt, Ziler, Meilensteng, Aufgabenteilung a Kostenplang aus",
-    "Status-Flow: Entworf → Areecht → Freigin & digital ënnerschriwwen",
+    "Status-Flow: Entworf → Areecht → Fräiginn & digital ënnerschriwwen",
     "No der Fräigab ass de Projektplang gespaart — nëmmen de Betreier kann e nees opmaachen",
     "Automatesch Erstellung vun engem richtege Word-Dokument (mat Deckblat) op Google Drive",
     "Meilensteng bidirektional mam Planungstool synchroniséiert",
   ]), right: frame(`${topbar("PPREN", "Projektplang")}<div class="app-inner">
     <div class="app-card"><h3>Titel & Inhalt</h3><div style="font-size:9.5px;color:#6d7d74;">Wasserqualitéit vun der Attert<br>Ziler: Mesponkte bis Enn Oktober definéiert</div></div>
-    <div class="status-flow" style="margin:10px 0;"><span class="status-step">Entworf</span>→<span class="status-step active">Areecht</span>→<span class="status-step">Freigin</span></div>
+    <div class="status-flow" style="margin:10px 0;"><span class="status-step">Entworf</span>→<span class="status-step active">Areecht</span>→<span class="status-step">Fräiginn</span></div>
     <div class="app-card"><h3>Meilensteng</h3><div style="font-size:9px;color:#6d7d74;">📅 07.10 — Projektplang ofginn<br>📅 15.11 — Éischt Messreih ofgeschloss</div></div>
   </div>`) },
 
@@ -235,15 +283,15 @@ const SLIDES = [
 { type: "content", tag: "M6 · BEWERTUNG", tagColor: G, title: "Bewertung mat automatescher Punktesammlung", two: true, left: bul([
     "Punkte pro Positioun, Punkten aus Wochenberichter/Fachgespréich/Ziel-Iwwerpréiwung automatesch iwwerholl",
     "Remarquen-Bausteng (positiv/negativ) generéieren de Kommentar mat engem Klick",
-    "Finaliséieren spaart d'Bewertung — nëmmen de Prof kann nees opmaachen",
+    "Entworf späicheren (nach net am Suivi) → Validéieren schreift endgülteg an de Suivi vum Schüler a spaart",
     "All 5 Perioden Punkt-fir-Punkt géint déi offiziell PDFen verifizéiert",
-    "Automatesch Synchroniséierung an d'Suivi-Dokument",
+    "Automatesch Synchroniséierung an d'Suivi-Dokument (nëmmen nom Validéieren)",
   ]), right: frame(`${topbar("PPREN", "Bewertung")}<div class="app-inner">
     <div class="app-card"><h3>Umsetzung des Projektes</h3>
       <div class="pos-row"><span class="nm">Bewältigung des Themas</span><span class="pt">26</span><span>/30</span></div>
       <div class="pos-row"><span class="nm">Dokumentation</span><span class="pt">28</span><span>/30</span></div></div>
     <div><span class="pill pill-g">✓ Hohe Autonomie erkennbar</span><span class="pill pill-r">✗ Fortschrëtt ze schwaach</span></div>
-    <div style="margin-top:6px;"><span class="mini-btn ghost">🖊️ Kommentar generéieren</span></div>
+    <div style="margin-top:8px;display:flex;gap:6px;"><span class="mini-btn ghost">💾 Entworf späicheren</span><span class="mini-btn primary">✅ Validéieren</span></div>
   </div>`) },
 
 { type: "content", tag: "M6 · FLEXIBILITÉIT", tagColor: G, title: "Bewertungsraster elo selwer upassbar", two: true, left: bul([
@@ -297,7 +345,7 @@ const SLIDES = [
 { type: "content", tag: "M10 · MËNDLECH", tagColor: B, title: "Fachgespréich- an Ziel-Iwwerpréiwungs-Tools", two: true, left: bul([
     "Fachgespréich-Tool mat Timer, zwou Varianten (A/B) a Froen-Import aus Word/PDF",
     "Ziel-Iwwerpréiwung: kuerze Rendez-vous ouni grouss Preparatioun néideg",
-    "Béid feieren hir Punkten automatesch an d'Bewertungsformulaire",
+    "Béid féieren hir Punkten automatesch an d'Bewertungsformulaire",
     "Notize kënnen direkt wärend dem Gespréich festgehale ginn",
   ]), right: frame(`${topbar("PPREN", "Fachgespréich")}<div class="app-inner" style="text-align:center;">
     <div class="timer-circle">08:42</div>
@@ -315,7 +363,7 @@ const SLIDES = [
   </div>`) },
 
 { type: "content", tag: "DATESCHUTZ", tagColor: RED, title: "Wou leien d'Daten, a wéi sinn se geschützt?", two: true, left: bul([
-    "Alle perséinlech Date leien am Google Workspace vun der Schoul — Google Sheets & Google Drive, net op engem eegenen oder friemen Server",
+    "All perséinlech Date leien am Google Workspace vun der Schoul — Google Sheets & Google Drive, net op engem eegenen oder friemen Server",
     "De Programmcode op GitHub enthält keng Persounendaten — nëmmen d'Struktur vun der Plattform",
     "PINs ginn ni am Klartext gespäichert — nëmmen als gehashten Wäert (SHA-256 + individuellen Salt)",
     "Zougang nëmmen mat gültege Login-Session — jiddereen gesäit nëmmen déi eege Date, ausser de Prof",
@@ -324,7 +372,7 @@ const SLIDES = [
     <li>D'DSGVO-Verantwortung fir d'Daten läit beim Schoulbetreiwer (Google Workspace for Education Ofkommes), net bei dësem Tool selwer</li>
     <li>Rechtlech Basis, Retentiounsfristen an de genaue Serverstanduert sollten iwwert de Dateschutzbeoptraten offiziell confirméiert ginn</li>
     <li>Kee Login-Formulaire vun engem Drëttland — all Login/Backend leeft iwwer Google Apps Script vum Schoul-Kont</li>
-    <li>Empfeelung: dëse Punkt virum flächendeckenden Asaz formell mam Dateschutzbeoptraten ofstëmmen</li>
+    <li>Empfeelung: dëse Punkt virum definitiven Asaz formell mam Dateschutzbeoptraten ofstëmmen</li>
   </ul></div>` },
 
 { type: "content", tag: "STATUS", tagColor: D, title: "Wou mir haut stinn", full: `
