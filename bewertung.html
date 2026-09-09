@@ -382,7 +382,7 @@ function App() {
       .catch(() => {});
   }, []);
   const SCHUELER = useMemo(
-    () => personen.filter((p) => p.rolle === "Schüler").map((p) => ({ id: p.numm, name: p.numm, klasse: p.klasse })),
+    () => personen.filter((p) => p.rolle === "Schüler").map((p) => ({ id: p.numm, name: p.numm, virnumm: p.virnumm || "", klasse: p.klasse })),
     [personen]
   );
 
@@ -566,7 +566,7 @@ function App() {
     setGruppenState((gs) => ({ ...gs, [gruppe]: { ...(gs[gruppe] || { auswahl: {} }), kommentar: text } }));
   };
 
-  const vornameSchueler = () => (currentSchueler?.name || "").split(" ")[0] || "";
+  const vornameSchueler = () => currentSchueler?.virnumm || "";
 
   const formuliereAusRemarquen = (vorname, positiv, negativ) => {
     const teile = [];
@@ -696,7 +696,7 @@ function App() {
               <span className="field-label">Schüler/-in</span>
               <select className="select" value={schuelerId} onChange={(e) => schuelerWaehlen(e.target.value)}>
                 <option value="">– auswählen –</option>
-                {SCHUELER.map((s) => <option key={s.id} value={s.id}>{s.name} ({s.klasse})</option>)}
+                {SCHUELER.map((s) => <option key={s.id} value={s.id}>{s.virnumm ? `${s.virnumm} — ` : ""}{s.name} ({s.klasse})</option>)}
               </select>
             </label>
             <label className="field">
