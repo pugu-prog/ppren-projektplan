@@ -45,13 +45,6 @@ const TEMPLATE_DOC_ID = "1kFM0tOdYrtpPRD6pyU7Rqrz0bDp8-1lR";
 const OVERVIEW_SHEET_ID = "1eAdAoDkiQMnowCV2sl1mrmTh3GT6W-_946uI06L3JAQ";
 const LOGO_FILE_ID = "12x_Q2xM-olpOeF8luCF-9uX2oFiPPBNW";
 
-const SCHUELER_EMAILS = {
-  "Léa Muller": "lea.muller@lycee.lu",
-  "Ben Weber": "ben.weber@lycee.lu",
-  "Noah Schmit": "noah.schmit@lycee.lu",
-  "Mia Reuter": "mia.reuter@lycee.lu",
-  "Tom Klein": "tom.klein@lycee.lu",
-};
 const LEHRER_EMAILS = {
   "Guy Putz": "guy.putz@lycee.lu",
   "Pol Medernach": "pol.medernach@lycee.lu",
@@ -724,73 +717,90 @@ function speichereZieluewerpreiwung(data) {
   return zeileWerte[0];
 }
 
-const SCHUELER_LISTE = [
-  { name: "Léa Muller", klasse: "1GSE" },
-  { name: "Ben Weber", klasse: "2GSE" },
-  { name: "Noah Schmit", klasse: "1GSE" },
-  { name: "Mia Reuter", klasse: "2GSE" },
-  { name: "Tom Klein", klasse: "2GSE" },
-];
-
 function getPersonenSheet() {
   const ss = SpreadsheetApp.openById(OVERVIEW_SHEET_ID);
   let sheet = ss.getSheetByName("Personen");
   if (!sheet) {
     sheet = ss.insertSheet("Personen");
-    sheet.appendRow(["Numm", "Roll", "Klasse", "Email", "Aktiv", "Untis-Code"]);
-  } else {
-    // Migratioun fir Sheets, déi virun der Untis-Code-Ëmstellung ugeluecht goufen
-    const header = sheet.getRange(1, 1, 1, Math.max(sheet.getLastColumn(), 1)).getValues()[0];
-    if (header.length < 6 || header[5] !== "Untis-Code") {
-      sheet.getRange(1, 6).setValue("Untis-Code");
-    }
+    // NEIT SCHEMA (Matrikel-Ëmstellung): fir Schüler gëtt keen ganzen Numm
+    // méi gespäichert — LoginId ass hir Matrikelnummer (z.B. 26-1GSE-01),
+    // Virnumm ass just fir perséinlech Uspriechen (Bewertungskommentaren,
+    // Dropdown-Ufweis). D'Kolonn "Numm" bleift nëmmen fir Proffen (déi als
+    // Personal keng Matrikel brauchen) gefëllt — dat ass gläichzäiteg och
+    // hir LoginId.
+    sheet.appendRow(["LoginId", "Virnumm", "Numm", "Rolle", "Klasse", "Email", "Aktiv"]);
   }
   return sheet;
 }
 
-function seedPersonenVunListen() {
+/**
+ * Generéiert eng nei, nach net benotzte Matrikelnummer fir eng Klass,
+ * Format {Schouljoer 2 Zifferen}-{Klass}-{lafend Nummer, 2 Zifferen}
+ * (z.B. 26-1GSE-01, 26-2GSE-03). D'lafend Nummer fänkt pro Klass nei bei 1 un.
+ */
+function generéierMatrikel(klasse) {
+  const joer = getSchuljahrLabel().split("-")[0].slice(-2);
+  const prefix = joer + "-" + klasse + "-";
   const sheet = getPersonenSheet();
   const werte = sheet.getDataRange().getValues();
-  const bestehend = new Set(werte.slice(1).map((z) => z[0]));
-  let neiZuel = 0;
-  SCHUELER_LISTE.forEach((s) => {
-    if (bestehend.has(s.name)) return;
-    sheet.appendRow([s.name, "Schüler", s.klasse, SCHUELER_EMAILS[s.name] || "", "Jo", ""]);
-    neiZuel++;
+  let max = 0;
+  werte.slice(1).forEach((z) => {
+    const loginId = String(z[0] || "");
+    if (loginId.indexOf(prefix) === 0) {
+      const n = parseInt(loginId.slice(prefix.length), 10);
+      if (!isNaN(n) && n > max) max = n;
+    }
   });
-  Object.keys(LEHRER_EMAILS).forEach((numm) => {
-    if (bestehend.has(numm)) return;
-    sheet.appendRow([numm, "Prof", "", LEHRER_EMAILS[numm], "Jo", ""]);
-    neiZuel++;
+  return prefix + String(max + 1).padStart(2, "0");
+}
+
+/**
+ * Eemoleg Test-Seed no der Matrikel-Ëmstellung: leescht déi al (Numm-
+ * baséiert) Test-Schüler-Zeilen aus Personen+Login a leet nei, Matrikel-
+ * baséiert Test-Schüler un. Gëtt d'Zortslëscht Matrikel→Virnumm zréck, déi
+ * am Execution-Log gewisen gëtt (fir Guy ausserhalb ze späicheren — d'Sheet
+ * selwer enthält keen Familljennumm méi).
+ */
+function seedTestSchuelerMatrikel() {
+  const TEST_SCHUELER = [
+    { virnumm: "Léa", klasse: "1GSE" },
+    { virnumm: "Ben", klasse: "2GSE" },
+    { virnumm: "Noah", klasse: "1GSE" },
+    { virnumm: "Tom", klasse: "2GSE" },
+  ];
+  const personenSheet = getPersonenSheet();
+  const loginSheet = getLoginSheet();
+
+  // Al Test-Schüler-Zeilen ewechhuelen (Rolle "Schüler"), Proffen bleiwen.
+  [personenSheet, loginSheet].forEach((sheet) => {
+    const werte = sheet.getDataRange().getValues();
+    const rolleSpalt = sheet === personenSheet ? 3 : 1;
+    for (let i = werte.length - 1; i >= 1; i--) {
+      if (werte[i][rolleSpalt] === "Schüler") sheet.deleteRow(i + 1);
+    }
   });
-  Logger.log("✅ " + neiZuel + " Persoun(en) an de Personen-Tab kopéiert.");
+
+  const resultat = [];
+  TEST_SCHUELER.forEach((s) => {
+    const matrikel = generéierMatrikel(s.klasse);
+    personenSheet.appendRow([matrikel, s.virnumm, "", "Schüler", s.klasse, "", "Jo"]);
+    const pin = String(Math.floor(1000 + Math.random() * 9000));
+    const salt = Utilities.getUuid();
+    loginSheet.appendRow([matrikel, "Schüler", s.klasse, hashPin(pin, salt), salt]);
+    resultat.push({ matrikel, virnumm: s.virnumm, klasse: s.klasse, pin });
+  });
+  Logger.log("✅ " + resultat.length + " Test-Schüler mat neier Matrikel ugeluecht:\n" + JSON.stringify(resultat, null, 2));
+  Logger.log("⚠️ Späichert dës Zortslëscht (Matrikel ↔ Virnumm) ausserhalb vum System, wann Dir se braucht — d'Sheet selwer enthält just de Virnumm, kee Familljennumm.");
+  return resultat;
 }
 
 function getAktivePersonen() {
   const sheet = getPersonenSheet();
   const werte = sheet.getDataRange().getValues();
+  // z[0]=LoginId z[1]=Virnumm z[2]=Numm(nëmmen Proffen) z[3]=Rolle z[4]=Klasse z[5]=Email z[6]=Aktiv
   return werte.slice(1)
-    .filter((z) => z[4] !== "Nee")
-    .map((z) => ({ numm: z[0], rolle: z[1], klasse: z[2], untisCode: z[5] || "" }));
-}
-
-/**
- * Aktualiséiert de Untis-Code an der Login-Tabell fir eng bestoend
- * Persoun (falls schonn e Login-Zougang existéiert). Gëtt true zréck,
- * wann eng passend Zeil fonnt an aktualiséiert gouf, soss false (z.B.
- * wann d'Login-Zeil aus iergendengem Grond feelt).
- */
-function aktualiséierUntisCodeAmLogin(numm, untisCode) {
-  const loginSheet = getLoginSheet();
-  const loginWerte = loginSheet.getDataRange().getValues();
-  const gesichtNumm = String(numm || "").trim();
-  for (let j = 1; j < loginWerte.length; j++) {
-    if (String(loginWerte[j][0] || "").trim() === gesichtNumm) {
-      loginSheet.getRange(j + 1, 6).setValue(untisCode);
-      return true;
-    }
-  }
-  return false;
+    .filter((z) => z[6] !== "Nee")
+    .map((z) => ({ numm: z[0], virnumm: z[1] || "", rolle: z[3], klasse: z[4] }));
 }
 
 function personSpäicheren(data) {
@@ -798,79 +808,67 @@ function personSpäicheren(data) {
   if (!session.valid || session.rolle !== "Prof") {
     return { ok: false, error: "Nëmme Proffen dierfen Persounen verwalten." };
   }
-  const numm = (data.numm || "").trim();
-  data.numm = numm; // getrimmten Numm iwwerall an dëser Funktioun benotzen, fir Duplikater duerch Leerzeechen ze verhënneren
-  if (!numm || !data.rolle) return { ok: false, error: "Numm a Roll erfuerderlech." };
+  // "numm" ass hei d'LoginId: fir Proffen hire ganze Numm, fir Schüler hir
+  // Matrikelnummer (mat generéierMatrikel(klasse) erstallen, wann nach
+  // keng existéiert — de Prof gëtt keen Familljennumm méi an, just de
+  // Virnumm an d'Klass).
+  let loginId = (data.numm || "").trim();
+  if (!loginId && data.rolle === "Schüler" && data.klasse) {
+    loginId = generéierMatrikel(data.klasse);
+  }
+  data.numm = loginId;
+  if (!loginId || !data.rolle) return { ok: false, error: "LoginId (Matrikel/Numm) a Roll erfuerderlech." };
   if (data.rolle === "Schüler" && !data.klasse) return { ok: false, error: "Klasse erfuerderlech fir Schüler." };
 
-  const untisCode = (data.untisCode || "").trim();
+  const virnumm = (data.virnumm || "").trim();
+  const vollNumm = data.rolle === "Prof" ? loginId : "";
   const gewenschtPasswuertBestehend = (data.pin || "").trim();
   const sheet = getPersonenSheet();
   const werte = sheet.getDataRange().getValues();
   for (let i = 1; i < werte.length; i++) {
-    if (String(werte[i][0] || "").trim() === data.numm) {
-      sheet.getRange(i + 1, 1, 1, 6).setValues([[data.numm, data.rolle, data.klasse || "", data.email || "", "Jo", untisCode]]);
-      aktualiséierUntisCodeAmLogin(data.numm, untisCode);
-      // BUGFIX 1: virdru gouf en ugi Passwuert fir eng schonn EXISTÉIERENDE
-      // Persoun einfach ignoréiert (nëmmen den Untis-Code gouf aktualiséiert) —
-      // duerfir konnt een sech ni mam neie Passwuert umellen. Elo gëtt et,
-      // wann et op d'mannst 6 Zeechen huet, och wierklech an der Login-Tab gesat.
-      // BUGFIX 2: de Vergläich war ouni trim (Duplikater/Leerzeechen konnten de
-      // Login-Fund verhënneren) — elo robust mat trim. AN: wann d'Login-Zeil
-      // fir dës Persoun KOMPLETT feelt (z.B. duerch en Opraum aus Versinn
-      // mattgeläscht), gëtt se elo NEI ugeluecht, ustatt roueg näischt ze
-      // maachen — soss hätt d'Persoun guer kee Login-Zougang méi, ouni datt
-      // iergendee Feeler gemellt gëtt.
+    if (String(werte[i][0] || "").trim() === loginId) {
+      sheet.getRange(i + 1, 1, 1, 7).setValues([[loginId, virnumm || werte[i][1], vollNumm, data.rolle, data.klasse || "", data.email || werte[i][5], "Jo"]]);
       const loginSheet = getLoginSheet();
       const loginWerte = loginSheet.getDataRange().getValues();
       let loginZeilIndex = -1;
       for (let j = 1; j < loginWerte.length; j++) {
-        if (String(loginWerte[j][0] || "").trim() === data.numm) { loginZeilIndex = j; break; }
+        if (String(loginWerte[j][0] || "").trim() === loginId) { loginZeilIndex = j; break; }
       }
       let neiPin = null;
       if (loginZeilIndex === -1) {
-        // Login-Zeil feelt komplett — nei ugeluecht mam gewënschte Passwuert
-        // (wa gëlteg) oder engem zoufällege 4-Zuel-PIN.
         const pin = gewenschtPasswuertBestehend.length >= 6
           ? gewenschtPasswuertBestehend
           : String(Math.floor(1000 + Math.random() * 9000));
         const salt = Utilities.getUuid();
-        loginSheet.appendRow([data.numm, data.rolle, data.klasse || "", hashPin(pin, salt), salt, untisCode]);
+        loginSheet.appendRow([loginId, data.rolle, data.klasse || "", hashPin(pin, salt), salt]);
         neiPin = pin;
       } else if (gewenschtPasswuertBestehend.length >= 6) {
         const salt = Utilities.getUuid();
         loginSheet.getRange(loginZeilIndex + 1, 4, 1, 2).setValues([[hashPin(gewenschtPasswuertBestehend, salt), salt]]);
         neiPin = gewenschtPasswuertBestehend;
       }
-      return { ok: true, neiPin };
+      return { ok: true, neiPin, matrikel: loginId };
     }
   }
-  // Email ass Pflicht bei enger neier Persoun (fir E-Mail-Erënnerungen,
-  // Notifikatiounen un de Betreier, asw.) — bei enger EXISTÉIERENDER
-  // Persoun (uewen) bleift et optional änneren, well d'Email do scho
-  // gesat kéint sinn.
   const email = (data.email || "").trim();
-  if (!email) return { ok: false, error: "Email ass Pflicht bei enger neier Persoun." };
+  if (data.rolle === "Prof" && !email) return { ok: false, error: "Email ass Pflicht bei enger neier Persoun." };
 
-  sheet.appendRow([data.numm, data.rolle, data.klasse || "", email, "Jo", untisCode]);
+  sheet.appendRow([loginId, virnumm, vollNumm, data.rolle, data.klasse || "", email, "Jo"]);
 
   const gewenschtPasswuert = (data.pin || "").trim();
   const pin = gewenschtPasswuert.length >= 6
     ? gewenschtPasswuert
     : String(Math.floor(1000 + Math.random() * 9000));
   const salt = Utilities.getUuid();
-  getLoginSheet().appendRow([data.numm, data.rolle, data.klasse || "", hashPin(pin, salt), salt, untisCode]);
-  return { ok: true, neiPin: pin };
+  getLoginSheet().appendRow([loginId, data.rolle, data.klasse || "", hashPin(pin, salt), salt]);
+  return { ok: true, neiPin: pin, matrikel: loginId };
 }
 
 /**
- * Setzt eng ganz Lëscht vu Nimm op eemol als nei Persounen an (z.B. eng
- * ganz Klass Schüler). Nëmme Proffen dierfen dat. Persounen, déi et
- * scho gëtt, ginn iwwersprongen (Numm bleift eendeiteg). Jiddereng Zeil
- * kann optional en Untis-Code matbréngen, Format "Numm;UntisCode"
- * (Semikolon-getrennt) — den Untis-Code kann och eidel gelooss ginn a
- * spéider nogedroe ginn. Gëtt eng Lëscht vun {numm, pin, untisCode,
- * status} zréck, fir d'Resultater unzeweisen.
+ * Setzt eng ganz Lëscht vu Persoune op eemol un (z.B. eng ganz Klass
+ * Schüler). Nëmme Proffen dierfen dat. Jiddereng Zeil huet Format
+ * "Virnumm" (Matrikel gëtt automatesch generéiert) — fir Proffen weiderhin
+ * hire vollen Numm. Gëtt eng Lëscht vun {numm, pin, virnumm, status} zréck.
  */
 function personenBulkSpäicheren(data) {
   const session = pruefSession(data.proffToken);
@@ -881,35 +879,40 @@ function personenBulkSpäicheren(data) {
   if (rolle === "Schüler" && !data.klasse) {
     return { ok: false, error: "Klasse erfuerderlech fir Schüler." };
   }
+  // Fir Proffen: eng Zeil pro ganze Numm (=LoginId). Fir Schüler: eng Zeil
+  // pro Virnumm — d'Matrikel gëtt hei automatesch generéiert, keen
+  // Familljennumm gëtt ugefrot oder gespäichert.
   const zeilen = (data.nimm || [])
     .map((n) => String(n).trim())
     .filter(Boolean);
-  if (zeilen.length === 0) return { ok: false, error: "Keng Nimm ugi." };
+  if (zeilen.length === 0) return { ok: false, error: "Keng Zeilen ugi." };
 
   const sheet = getPersonenSheet();
   const loginSheet = getLoginSheet();
-  const bestehend = new Set(sheet.getDataRange().getValues().slice(1).map((z) => z[0]));
-  const scho_gesinn = new Set();
+  const bestehendNimm = new Set(sheet.getDataRange().getValues().slice(1).map((z) => z[2])); // Numm-Kolonn (nëmmen Proffen)
   const resultater = [];
 
   zeilen.forEach((zeil) => {
-    const teile = zeil.split(";").map((t) => t.trim());
-    const numm = teile[0];
-    const untisCode = teile[1] || "";
-    if (!numm) return;
-
-    if (bestehend.has(numm) || scho_gesinn.has(numm)) {
-      resultater.push({ numm, pin: null, untisCode, status: "scho do" });
+    if (rolle === "Prof") {
+      const loginId = zeil;
+      if (bestehendNimm.has(loginId)) {
+        resultater.push({ numm: loginId, pin: null, status: "scho do" });
+        return;
+      }
+      sheet.appendRow([loginId, "", loginId, "Prof", "", "", "Jo"]);
+      const pin = String(Math.floor(1000 + Math.random() * 9000));
+      const salt = Utilities.getUuid();
+      loginSheet.appendRow([loginId, "Prof", "", hashPin(pin, salt), salt]);
+      resultater.push({ numm: loginId, pin, status: "nei" });
       return;
     }
-    scho_gesinn.add(numm);
-    const klass = rolle === "Schüler" ? data.klasse : "";
-    sheet.appendRow([numm, rolle, klass, "", "Jo", untisCode]);
-
+    const virnumm = zeil;
+    const matrikel = generéierMatrikel(data.klasse);
+    sheet.appendRow([matrikel, virnumm, "", "Schüler", data.klasse, "", "Jo"]);
     const pin = String(Math.floor(1000 + Math.random() * 9000));
     const salt = Utilities.getUuid();
-    loginSheet.appendRow([numm, rolle, klass, hashPin(pin, salt), salt, untisCode]);
-    resultater.push({ numm, pin, untisCode, status: "nei" });
+    loginSheet.appendRow([matrikel, "Schüler", data.klasse, hashPin(pin, salt), salt]);
+    resultater.push({ numm: matrikel, virnumm, pin, status: "nei" });
   });
 
   return { ok: true, resultater };
@@ -924,7 +927,7 @@ function personDeaktivéieren(data) {
   const werte = sheet.getDataRange().getValues();
   for (let i = 1; i < werte.length; i++) {
     if (werte[i][0] === data.numm) {
-      sheet.getRange(i + 1, 5).setValue(data.aktiv ? "Jo" : "Nee");
+      sheet.getRange(i + 1, 7).setValue(data.aktiv ? "Jo" : "Nee");
       return { ok: true };
     }
   }
@@ -1332,19 +1335,21 @@ function sendeRendezvousErennerungen() {
   const zielDatum = new Date(haut);
   zielDatum.setDate(haut.getDate() + 2);
   const zielDatumStr = Utilities.formatDate(zielDatum, "Europe/Luxembourg", "dd.MM.yyyy");
+  const emailMap = {};
+  getAktivSchuelerMatEmail().forEach((s) => { emailMap[s.matrikel] = { email: s.email, virnumm: s.virnumm }; });
 
   for (let i = 1; i < werte.length; i++) {
     const [id, schueler, , typ, datum, zaeit, notiz, , erënnert] = werte[i];
     if (erënnert === "Jo") continue;
     if (datum !== zielDatumStr) continue;
 
-    const email = SCHUELER_EMAILS[schueler];
-    if (email) {
+    const info = emailMap[schueler];
+    if (info && info.email) {
       try {
         MailApp.sendEmail({
-          to: email,
+          to: info.email,
           subject: "PPREN: " + typ + " an 2 Deeg (" + datum + (zaeit ? ", " + zaeit : "") + ")",
-          body: "Hallo " + schueler.split(" ")[0] + ",\n\nDenk drun: en/eng " + typ + " ass geplangt fir de " + datum +
+          body: "Hallo " + (info.virnumm || "") + ",\n\nDenk drun: en/eng " + typ + " ass geplangt fir de " + datum +
             (zaeit ? " um " + zaeit : "") + ".\n" + (notiz ? "\nNotiz vum Prof: " + notiz + "\n" : "") +
             "\nBereet dech w.e.g. gutt vir.",
         });
@@ -1391,6 +1396,19 @@ function nachVirWochenberichtStart() {
   return montagIso < WOCHENBERICHT_START_ISO;
 }
 
+/**
+ * Nëmmen intern benotzt (E-Mail-Versand) — am Géigesaz zu
+ * getAktivePersonen() gëtt dës Funktioun NIE un d'Frontend erausginn,
+ * well se d'Email-Adress enthält.
+ */
+function getAktivSchuelerMatEmail() {
+  const sheet = getPersonenSheet();
+  const werte = sheet.getDataRange().getValues();
+  return werte.slice(1)
+    .filter((z) => z[6] !== "Nee" && z[3] === "Schüler")
+    .map((z) => ({ matrikel: z[0], virnumm: z[1] || "", klasse: z[4], email: z[5] || "" }));
+}
+
 function sendeErennerungen() {
   if (nachVirWochenberichtStart()) return; // nach net ugefaang — keng Erënnerungen
   const woche = aktuellWocheLabel();
@@ -1398,15 +1416,14 @@ function sendeErennerungen() {
   const werte = sheet.getDataRange().getValues();
   const ofginn = new Set(werte.slice(1).filter((z) => z[4] === woche).map((z) => z[1]));
 
-  SCHUELER_LISTE.forEach((s) => {
-    if (ofginn.has(s.name)) return;
-    const email = SCHUELER_EMAILS[s.name];
-    if (!email) return;
+  getAktivSchuelerMatEmail().forEach((s) => {
+    if (ofginn.has(s.matrikel)) return;
+    if (!s.email) return;
     try {
       MailApp.sendEmail({
-        to: email,
+        to: s.email,
         subject: "PPREN: Wochenbericht net vergiessen (haut Owend 22.00h zou)",
-        body: "Hallo " + s.name.split(" ")[0] + ",\n\nDu hues fir dës Woch (" + woche + ") nach kee Wochenbericht ofginn. " +
+        body: "Hallo " + (s.virnumm || "") + ",\n\nDu hues fir dës Woch (" + woche + ") nach kee Wochenbericht ofginn. " +
           "D'Ofgab ass haut Owend um 22.00h — duerno gëtt automatesch 0 Punkte gesat.\n\n" +
           "Hei ofginn: https://pugu-prog.github.io/ppren-projektplan/wochenbericht.html",
       });
@@ -1422,14 +1439,14 @@ function schliesseWochenberichterAb() {
   const ofginn = new Set(werte.slice(1).filter((z) => z[4] === woche).map((z) => z[1]));
   const jetzt = Utilities.formatDate(new Date(), "Europe/Luxembourg", "dd.MM.yyyy HH:mm");
 
-  SCHUELER_LISTE.forEach((s) => {
-    if (ofginn.has(s.name)) return;
-    const eegen = werte.slice(1).filter((z) => z[1] === s.name);
+  getAktivSchuelerMatEmail().forEach((s) => {
+    if (ofginn.has(s.matrikel)) return;
+    const eegen = werte.slice(1).filter((z) => z[1] === s.matrikel);
     const letztPeriode = eegen.length > 0 ? eegen[eegen.length - 1][3] : (s.klasse === "2GSE" ? "Trimester 1" : "Semester 1");
-    const betreuerListe = holBetreuerFuerSchueler(s.name);
+    const betreuerListe = holBetreuerFuerSchueler(s.matrikel);
     const neiId = Utilities.getUuid();
     sheet.appendRow([
-      neiId, s.name, s.klasse, letztPeriode, woche, "",
+      neiId, s.matrikel, s.klasse, letztPeriode, woche, "",
       "(Net ofginn — automatesch op 0 Punkte gesat)", "", "", "Verpasst",
       JSON.stringify({ zusammenfassung: 0, fortschritt: 0, anhaenge: 0, grammatik: 0 }), jetzt,
       betreuerListe[0] || "", betreuerListe[1] || "", "",
@@ -2523,13 +2540,7 @@ function getLoginSheet() {
   let sheet = ss.getSheetByName("Login");
   if (!sheet) {
     sheet = ss.insertSheet("Login");
-    sheet.appendRow(["Numm", "Rolle", "Klasse", "PIN-Hash", "Salt", "Untis-Code"]);
-  } else {
-    // Migratioun fir Sheets, déi virun der Untis-Code-Ëmstellung ugeluecht goufen
-    const header = sheet.getRange(1, 1, 1, Math.max(sheet.getLastColumn(), 1)).getValues()[0];
-    if (header.length < 6 || header[5] !== "Untis-Code") {
-      sheet.getRange(1, 6).setValue("Untis-Code");
-    }
+    sheet.appendRow(["LoginId", "Rolle", "Klasse", "PIN-Hash", "Salt"]);
   }
   return sheet;
 }
@@ -2539,7 +2550,7 @@ function getSessionsSheet() {
   let sheet = ss.getSheetByName("Sessions");
   if (!sheet) {
     sheet = ss.insertSheet("Sessions");
-    sheet.appendRow(["Token", "Numm", "Rolle", "Klasse", "Erstallt"]);
+    sheet.appendRow(["Token", "LoginId", "Rolle", "Klasse", "Erstallt"]);
   }
   return sheet;
 }
@@ -2559,65 +2570,62 @@ const FEST_PINS = {
   "Alex Olinger": "1007",
 };
 
+/**
+ * Initialiséiert Login-Zeilen fir Proffen (déi weiderhin hire Numm als
+ * LoginId benotzen). Schüler ginn NET méi hei ugeluecht — déi lafen iwwer
+ * seedTestSchuelerMatrikel() (Test) oder personSpäicheren()/
+ * personenBulkSpäicheren() (richteg Persounen), well si eng generéiert
+ * Matrikelnummer brauchen.
+ */
 function initialiséierLoginPins() {
   const sheet = getLoginSheet();
   const werte = sheet.getDataRange().getValues();
   const bestehendNimm = new Set(werte.slice(1).map((z) => z[0]));
   const nei = [];
 
-  const alleNimm = [];
-  (typeof SCHUELER_LISTE !== "undefined" ? SCHUELER_LISTE : []).forEach((s) => alleNimm.push({ numm: s.name, rolle: "Schüler", klasse: s.klasse }));
-  Object.keys(typeof LEHRER_EMAILS !== "undefined" ? LEHRER_EMAILS : {}).forEach((n) => alleNimm.push({ numm: n, rolle: "Prof", klasse: "" }));
-
-  alleNimm.forEach((p) => {
-    if (bestehendNimm.has(p.numm)) return;
-    const pin = FEST_PINS[p.numm] || String(Math.floor(1000 + Math.random() * 9000));
+  Object.keys(typeof LEHRER_EMAILS !== "undefined" ? LEHRER_EMAILS : {}).forEach((numm) => {
+    if (bestehendNimm.has(numm)) return;
+    const pin = FEST_PINS[numm] || String(Math.floor(1000 + Math.random() * 9000));
     const salt = Utilities.getUuid();
-    sheet.appendRow([p.numm, p.rolle, p.klasse, hashPin(pin, salt), salt, ""]);
-    nei.push({ numm: p.numm, rolle: p.rolle, pin });
+    sheet.appendRow([numm, "Prof", "", hashPin(pin, salt), salt]);
+    nei.push({ numm, rolle: "Prof", pin });
   });
   Logger.log(JSON.stringify(nei, null, 2));
   return nei;
 }
 
 /**
- * Login akzeptéiert entweder de vollen Numm oder den Untis-Code
- * (empfohlen — méi séchert wéi de Numm, well net direkt ze roden). De
- * Groussbuschtabe-Ënnerscheed bei den Untis-Code gëllt net.
+ * Login iwwer LoginId: fir Schüler ass dat hir Matrikelnummer (z.B.
+ * 26-1GSE-01), fir Proffen weiderhin hire ganze Numm. Groussbuschtawen
+ * spillen keng Roll.
  */
-function login(nummOderCode, pin) {
-  if (!nummOderCode || !pin) return { ok: false, error: "Numm/Code a PIN erfuerderlech." };
-  const eingabe = String(nummOderCode).trim();
+function login(loginIdEingabe, pin) {
+  if (!loginIdEingabe || !pin) return { ok: false, error: "Umeldung a Passwuert erfuerderlech." };
+  const eingabe = String(loginIdEingabe).trim();
   const eingabeLower = eingabe.toLowerCase();
 
   const personenSheet = getPersonenSheet();
   const pWerte = personenSheet.getDataRange().getValues();
-  const persoonZeil = pWerte.slice(1).find(
-    (z) => String(z[0] || "").trim() === eingabe || (z[5] && String(z[5]).toLowerCase() === eingabeLower)
-  );
-  if (persoonZeil && persoonZeil[4] === "Nee") {
+  const persoonZeil = pWerte.slice(1).find((z) => String(z[0] || "").trim().toLowerCase() === eingabeLower);
+  if (persoonZeil && persoonZeil[6] === "Nee") {
     return { ok: false, error: "Dëse Zougang ass deaktivéiert. Frot de Prof." };
   }
 
   const sheet = getLoginSheet();
   const werte = sheet.getDataRange().getValues();
   for (let i = 1; i < werte.length; i++) {
-    const [numm, rolle, klasse, pinHash, salt, untisCode] = werte[i];
-    // BUGFIX: virdru ouni trim verglach — eng verstoppte Leerstell an der
-    // Login-Tab (z.B. duerch eng al Duplikat-Erstellung) huet de Login mam
-    // Numm ni klappe gelooss, och wann alles "richteg" ausgesinn huet.
-    const stëmmtIwwerEng = String(numm || "").trim() === eingabe || (untisCode && String(untisCode).toLowerCase() === eingabeLower);
-    if (stëmmtIwwerEng) {
+    const [loginId, rolle, klasse, pinHash, salt] = werte[i];
+    if (String(loginId || "").trim().toLowerCase() === eingabeLower) {
       if (hashPin(String(pin), salt) !== pinHash) {
-        return { ok: false, error: "Falsche PIN." };
+        return { ok: false, error: "Falscht Passwuert." };
       }
       const token = Utilities.getUuid();
       const jetzt = new Date().toISOString();
-      getSessionsSheet().appendRow([token, numm, rolle, klasse, jetzt]);
-      return { ok: true, token, numm, rolle, klasse };
+      getSessionsSheet().appendRow([token, loginId, rolle, klasse, jetzt]);
+      return { ok: true, token, numm: loginId, rolle, klasse };
     }
   }
-  return { ok: false, error: "Onbekannten Numm/Code. Frot de Prof no Ärem Zougang." };
+  return { ok: false, error: "Onbekannt Umeldung. Frot de Prof no Ärer Matrikelnummer/Ärem Zougang." };
 }
 
 function pruefSession(token) {
