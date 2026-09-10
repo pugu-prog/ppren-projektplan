@@ -30,6 +30,7 @@ const WEB_APP_URL = "https://script.google.com/macros/s/AKfycbwNDO4bJv1lYKvwg57T
 
 function App() {
   const [alle, setAlle] = useState([]);
+  const [personen, setPersonen] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [filterSchueler, setFilterSchueler] = useState("alle");
@@ -38,6 +39,19 @@ function App() {
   const [punkte, setPunkte] = useState({ zusammenfassung: "", fortschritt: "", anhaenge: "", grammatik: "" });
   const [syncing, setSyncing] = useState(false);
   const [toast, setToast] = useState(null);
+
+  useEffect(() => {
+    fetch(WEB_APP_URL + "?namen=1")
+      .then((r) => r.json())
+      .then((d) => setPersonen(d.personen || []))
+      .catch(() => {});
+  }, []);
+  const virnummVun = useMemo(() => {
+    const map = {};
+    personen.forEach((p) => { if (p.virnumm) map[p.numm] = p.virnumm; });
+    return map;
+  }, [personen]);
+  const ufweis = (numm) => (virnummVun[numm] ? `${virnummVun[numm]} — ${numm}` : numm);
 
   const lade = () => {
     setLoading(true);
@@ -126,7 +140,7 @@ function App() {
       <main className="content">
         <div className="controls">
           <select className="select" value={filterSchueler} onChange={(e) => setFilterSchueler(e.target.value)}>
-            {schuelerListe.map((s) => <option key={s} value={s}>{s === "alle" ? "All Schüler" : s}</option>)}
+            {schuelerListe.map((s) => <option key={s} value={s}>{s === "alle" ? "All Schüler" : ufweis(s)}</option>)}
           </select>
           <select className="select" value={filterStatus} onChange={(e) => setFilterStatus(e.target.value)}>
             <option value="Agereecht">Nach ze korrigéieren</option>
@@ -149,7 +163,7 @@ function App() {
             <tbody>
               {gefiltert.map((w) => (
                 <tr key={w.ID}>
-                  <td className="cell-strong">{w.Schüler}</td>
+                  <td className="cell-strong">{ufweis(w.Schüler)}</td>
                   <td>{w.Klasse}</td>
                   <td>{w.Periode}</td>
                   <td>{w.Woche}</td>
@@ -165,7 +179,7 @@ function App() {
       {offen && (
         <div className="modal-overlay" onClick={() => setOffen(null)}>
           <div className="modal" onClick={(e) => e.stopPropagation()}>
-            <h2>{offen.Schüler} — {offen.Woche}</h2>
+            <h2>{ufweis(offen.Schüler)} — {offen.Woche}</h2>
             <div className="modal-feld">
               <span className="modal-label">Zesummefaassung</span>
               <p>{offen.Zusammenfassung}</p>
