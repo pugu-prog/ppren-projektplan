@@ -1409,6 +1409,25 @@ function getSchuljahrOrdner() {
   return hauptordner.createFolder(label);
 }
 
+/**
+ * Fir sichtbaren Text an Dokumenter (Titelblat, Iwwerschrëften): bei
+ * Schüler gëtt "Virnumm (Matrikel)" ugewisen (z.B. "Ben (26-1GSE-01)"),
+ * bei Proffen bleift de ganze Numm onverännert. Sichtbar am Dokument ≠
+ * Ordner-/Dateinumm (déi bleiwen bewosst nëmmen d'Matrikel, fir d'Drive-
+ * URLen/Pad unanonym ze halen).
+ */
+function anzeigeNummFirSchueler(matrikelOderNumm) {
+  const sheet = getPersonenSheet();
+  const werte = sheet.getDataRange().getValues();
+  const gesicht = String(matrikelOderNumm || "").trim();
+  const zeil = werte.slice(1).find((z) => String(z[0] || "").trim() === gesicht);
+  if (!zeil) return matrikelOderNumm || "";
+  if (zeil[3] === "Schüler") {
+    return zeil[1] ? `${zeil[1]} (${zeil[0]})` : zeil[0];
+  }
+  return matrikelOderNumm;
+}
+
 function getStudentFolder(schueler) {
   const jahrOrdner = getSchuljahrOrdner();
   const bestehende = jahrOrdner.getFoldersByName(schueler);
@@ -1583,7 +1602,7 @@ function erstelleDeckblattBildViaSlides(dokumentTyp, data, behalten) {
   const betreierListe = [data.betreuer, data.betreuer2].filter((b) => b && b.trim() !== "");
   const betreierText = betreierListe.length > 0 ? betreierListe.join(", ") : "–";
   const betreierLabel = betreierListe.length > 1 ? "Betreier/-innen" : "Betreuer/-in";
-  textBox(`${data.schueler || ""}  ·  ${betreierLabel}: ${betreierText}`, margin, 353, 430, 24, 13, GRAY, false);
+  textBox(`${anzeigeNummFirSchueler(data.schueler)}  ·  ${betreierLabel}: ${betreierText}`, margin, 353, 430, 24, 13, GRAY, false);
   textBox(`Stand: ${Utilities.formatDate(new Date(), "Europe/Luxembourg", "dd.MM.yyyy HH:mm")}`, margin, 375, 300, 18, 9, LIGHTGRAY, false);
 
   const grossBreite = 260;
@@ -1665,7 +1684,7 @@ function baueDeckblattHtml(dokumentTyp, data) {
   <div class="el txt txt-ppren">PROJET PERSONNEL ENCADRÉ (PPREN)</div>
   <div class="el txt txt-typ">${dokumentTyp}</div>
   <div class="el txt txt-klasse">${klasseZeile}</div>
-  <div class="el txt txt-schueler">${data.schueler || ""}  ·  ${betreierLabel}: ${betreierText}</div>
+  <div class="el txt txt-schueler">${anzeigeNummFirSchueler(data.schueler)}  ·  ${betreierLabel}: ${betreierText}</div>
   <div class="el bar-teal"></div>
   </div>
   </body></html>`;
@@ -1762,7 +1781,7 @@ function fuegeDeckblattEinFallback(body, dokumentTyp, data) {
   const betreierListe = [data.betreuer, data.betreuer2].filter((b) => b && b.trim() !== "");
   const betreierText = betreierListe.length > 0 ? betreierListe.join(", ") : "–";
   const betreierLabel = betreierListe.length > 1 ? "Betreier/-innen" : "Betreuer/-in";
-  body.appendParagraph(`${data.schueler || ""}  ·  ${betreierLabel}: ${betreierText}`)
+  body.appendParagraph(`${anzeigeNummFirSchueler(data.schueler)}  ·  ${betreierLabel}: ${betreierText}`)
     .setFontSize(13).setForegroundColor("#55625a");
   body.appendParagraph(`Stand: ${Utilities.formatDate(new Date(), "Europe/Luxembourg", "dd.MM.yyyy HH:mm")}`)
     .setFontSize(9).setForegroundColor("#93a098");
@@ -1831,7 +1850,7 @@ function fuelleProjektplanDokument(doc, data) {
 
   if (body.getText().trim() === "") {
     fuegeDeckblattEin(body, "Projektplan", data);
-    body.appendParagraph(`Projektplan — ${werte["{{SCHUELER}}"]} (${werte["{{KLASSE}}"]})`).setHeading(DocumentApp.ParagraphHeading.HEADING1);
+    body.appendParagraph(`Projektplan — ${anzeigeNummFirSchueler(werte["{{SCHUELER}}"])} (${werte["{{KLASSE}}"]})`).setHeading(DocumentApp.ParagraphHeading.HEADING1);
     body.appendParagraph(`Status: ${werte["{{STATUS}}"]}  ·  Stand: ${werte["{{DATUM}}"]}`);
     const betreierAnzeige = [werte["{{BETREUER}}"], werte["{{BETREUER2}}"]].filter((b) => b && b.trim() !== "").join(", ");
     body.appendParagraph(`Betreuer/-in: ${betreierAnzeige || "–"}`);
@@ -1854,7 +1873,7 @@ function fuelleProjektplanDokument(doc, data) {
 
 function initialisiereSuiviDoc(body, data) {
   fuegeDeckblattEin(body, "Suivi", data);
-  body.appendParagraph(`Suivi — ${data.schueler} (${data.klasse || ""})`).setHeading(DocumentApp.ParagraphHeading.HEADING1);
+  body.appendParagraph(`Suivi — ${anzeigeNummFirSchueler(data.schueler)} (${data.klasse || ""})`).setHeading(DocumentApp.ParagraphHeading.HEADING1);
   body.appendParagraph("Lehrer-Verlaufs- und Bewertungsdokument. Wird von der Betreuer/-in geführt.");
   body.appendParagraph("Kapitel 1: Projektplan").setHeading(DocumentApp.ParagraphHeading.HEADING1);
   body.appendParagraph("(Noch nicht freigegeben.)");
