@@ -82,7 +82,7 @@ function App() {
       .finally(() => setPersonenGelueden(true));
   }, []);
   const SCHUELER = useMemo(
-    () => personen.filter((p) => p.rolle === "Schüler").map((p) => ({ id: p.numm, name: p.numm, klasse: p.klasse })),
+    () => personen.filter((p) => p.rolle === "Schüler").map((p) => ({ id: p.numm, name: p.numm, virnumm: p.virnumm || "", klasse: p.klasse })),
     [personen]
   );
   const KLASSEN = useMemo(() => ["alle", ...new Set(SCHUELER.map((s) => s.klasse).filter(Boolean))], [SCHUELER]);
@@ -262,7 +262,7 @@ function App() {
           {istSchueler ? (
             <div className="field">
               <span className="field-label">Ugemellt als</span>
-              <div className="identitaet-box">👤 {currentSchueler?.name} ({currentSchueler?.klasse})</div>
+              <div className="identitaet-box">👤 {currentSchueler?.virnumm ? `${currentSchueler.virnumm} — ` : ""}{currentSchueler?.name} ({currentSchueler?.klasse})</div>
             </div>
           ) : (
             <>
@@ -283,7 +283,7 @@ function App() {
                 <span className="field-label">Schüler/-in</span>
                 <select className="select" value={schuelerId} onChange={(e) => setSchuelerId(e.target.value)}>
                   <option value="">– auswählen –</option>
-                  {SCHUELER_GEFILTERT.map((s) => <option key={s.id} value={s.id}>{s.name} ({s.klasse})</option>)}
+                  {SCHUELER_GEFILTERT.map((s) => <option key={s.id} value={s.id}>{s.virnumm ? `${s.virnumm} — ` : ""}{s.name} ({s.klasse})</option>)}
                 </select>
               </label>
             </>
