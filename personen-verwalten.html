@@ -27,18 +27,17 @@ const KLASSEN = ["1GSE", "2GSE"];
 function App() {
   const [personen, setPersonen] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [numm, setNumm] = useState("");
+  const [numm, setNumm] = useState(""); // Proffen: ganze Numm. Schüler: net benotzt.
+  const [virnumm, setVirnumm] = useState(""); // Schüler: Virnumm (eenzegt Numm-Feld)
   const [rolle, setRolle] = useState("Schüler");
   const [klasse, setKlasse] = useState("1GSE");
   const [email, setEmail] = useState("");
-  const [untisCode, setUntisCode] = useState("");
   const [passwuert, setPasswuert] = useState("");
   const [syncing, setSyncing] = useState(false);
   const [error, setError] = useState(null);
-  const [neiPin, setNeiPin] = useState(null);
+  const [neiPersoun, setNeiPersoun] = useState(null); // { matrikel, pin }
   const [sessiounPins, setSessiounPins] = useState([]);
 
-  // Bulk-Import (Lëscht vu Nimm, ee pro Zeil, optional mat Untis-Code)
   const [bulkNimm, setBulkNimm] = useState("");
   const [bulkRolle, setBulkRolle] = useState("Schüler");
   const [bulkKlasse, setBulkKlasse] = useState("1GSE");
@@ -46,7 +45,6 @@ function App() {
   const [bulkError, setBulkError] = useState(null);
   const [bulkResultater, setBulkResultater] = useState(null);
 
-  // Passwuert-Reset pro Persoun (Inline-Formular)
   const [resetNumm, setResetNumm] = useState(null);
   const [resetPasswuert, setResetPasswuert] = useState("");
   const [resetSyncing, setResetSyncing] = useState(false);
@@ -64,27 +62,30 @@ function App() {
   useEffect(() => { lade(); }, []);
 
   const speicheren = async () => {
-    if (!numm.trim()) { setError("Numm erfuerderlech."); return; }
+    if (rolle === "Prof" && !numm.trim()) { setError("Numm erfuerderlech."); return; }
+    if (rolle === "Schüler" && !virnumm.trim()) { setError("Virnumm erfuerderlech."); return; }
     setSyncing(true);
     setError(null);
-    setNeiPin(null);
+    setNeiPersoun(null);
     try {
       const res = await fetch(WEB_APP_URL, {
         method: "POST",
         headers: { "Content-Type": "text/plain;charset=utf-8" },
         body: JSON.stringify({
-          typ: "personSpäicheren", proffToken: token(), numm: numm.trim(), rolle,
-          klasse: rolle === "Schüler" ? klasse : "", email: email.trim(), untisCode: untisCode.trim(),
-          pin: passwuert.trim(),
+          typ: "personSpäicheren", proffToken: token(),
+          numm: rolle === "Prof" ? numm.trim() : "",
+          virnumm: rolle === "Schüler" ? virnumm.trim() : "",
+          rolle, klasse: rolle === "Schüler" ? klasse : "",
+          email: email.trim(), pin: passwuert.trim(),
         }),
       });
       const data = await res.json();
       if (!data.ok) throw new Error(data.error);
       if (data.neiPin) {
-        setNeiPin({ numm: numm.trim(), pin: data.neiPin });
-        setSessiounPins((l) => [...l, { numm: numm.trim(), pin: data.neiPin, zäit: new Date().toLocaleTimeString("de-DE") }]);
+        setNeiPersoun({ matrikel: data.matrikel, pin: data.neiPin });
+        setSessiounPins((l) => [...l, { numm: data.matrikel, pin: data.neiPin, zäit: new Date().toLocaleTimeString("de-DE") }]);
       }
-      setNumm(""); setEmail(""); setUntisCode(""); setPasswuert("");
+      setNumm(""); setVirnumm(""); setEmail(""); setPasswuert("");
       lade();
     } catch (e) {
       setError(e.message);
@@ -95,7 +96,7 @@ function App() {
 
   const bulkSpeicheren = async () => {
     const nimm = bulkNimm.split("\n").map((n) => n.trim()).filter(Boolean);
-    if (nimm.length === 0) { setBulkError("Weg op d'mannst ee Numm aginn (ee pro Zeil)."); return; }
+    if (nimm.length === 0) { setBulkError(bulkRolle === "Schüler" ? "Weg op d'mannst ee Virnumm aginn (ee pro Zeil)." : "Weg op d'mannst ee Numm aginn (ee pro Zeil)."); return; }
     setBulkSyncing(true);
     setBulkError(null);
     setBulkResultater(null);
@@ -216,7 +217,11 @@ function App() {
         <section className="card">
           <h2>Nei Persoun</h2>
           <div className="grid2">
-            <label className="field"><span>Numm</span><input className="input" value={numm} onChange={(e) => setNumm(e.target.value)} placeholder="Virnumm Familljennumm" /></label>
+            {rolle === "Prof" ? (
+              <label className="field"><span>Numm</span><input className="input" value={numm} onChange={(e) => setNumm(e.target.value)} placeholder="Virnumm Familljennumm" /></label>
+            ) : (
+              <label className="field"><span>Virnumm</span><input className="input" value={virnumm} onChange={(e) => setVirnumm(e.target.value)} placeholder="z.B. Ben" /></label>
+            )}
             <label className="field"><span>Roll</span>
               <select className="select" value={rolle} onChange={(e) => setRolle(e.target.value)}>
                 <option value="Schüler">Schüler</option>
@@ -225,16 +230,15 @@ function App() {
             </label>
           </div>
           {rolle === "Schüler" && (
-            <label className="field"><span>Klasse</span>
-              <select className="select" value={klasse} onChange={(e) => setKlasse(e.target.value)}>
-                {KLASSEN.map((k) => <option key={k} value={k}>{k}</option>)}
-              </select>
-            </label>
+            <>
+              <label className="field"><span>Klasse</span>
+                <select className="select" value={klasse} onChange={(e) => setKlasse(e.target.value)}>
+                  {KLASSEN.map((k) => <option key={k} value={k}>{k}</option>)}
+                </select>
+              </label>
+              <p className="hint">ℹ️ D'Matrikelnummer gëtt automatesch generéiert (z.B. 26-1GSE-01) — kee Familljennumm gëtt gespäichert.</p>
+            </>
           )}
-          <label className="field">
-            <span>Untis-Code (optional — 3 Buschtawen Familljennumm + 2 Buschtawen Virnumm + 3 Zuelen)</span>
-            <input className="input" value={untisCode} onChange={(e) => setUntisCode(e.target.value)} placeholder="z.B. putgu255" />
-          </label>
           <label className="field">
             <span>Passwuert (optional — mindestens 6 Zeechen fir e stäerkert Passwuert unzeginn; eidel loossen fir en automateschen 4-Zuel-PIN)</span>
             <input className="input" type="text" value={passwuert} onChange={(e) => setPasswuert(e.target.value)} placeholder="z.B. Waasser2027!" />
@@ -242,10 +246,11 @@ function App() {
           <label className="field"><span>Email (optional)</span><input className="input" value={email} onChange={(e) => setEmail(e.target.value)} /></label>
           {error && <p className="error">{error}</p>}
           <button className="btn" disabled={syncing} onClick={speicheren}>{syncing ? "…" : "➕ Derbäisetzen"}</button>
-          {neiPin && (
+          {neiPersoun && (
             <div className="pin-box">
-              <span>Neie PIN/Passwuert fir <strong>{neiPin.numm}</strong>:</span>
-              <span className="pin-zuel">{neiPin.pin}</span>
+              <span>Nei Matrikel: <strong>{neiPersoun.matrikel}</strong></span>
+              <span>PIN/Passwuert:</span>
+              <span className="pin-zuel">{neiPersoun.pin}</span>
             </div>
           )}
         </section>
@@ -253,8 +258,9 @@ function App() {
         <section className="card">
           <h2>Vill Persoune mat enger Lëscht derbäisetzen</h2>
           <p className="hint">
-            Ee Numm pro Zeil (z.B. aus Excel kopéiert). Optional den Untis-Code mat Semikolon derbäi:
-            <code> Numm;UntisCode</code> (z.B. <code>Guy Putz;putgu255</code>). Persounen, déi et scho gëtt, ginn iwwersprongen.
+            {bulkRolle === "Schüler"
+              ? <>Ee Virnumm pro Zeil (z.B. aus enger Klasslëscht). D'Matrikelnummer gëtt automatesch fir all Persoun generéiert.</>
+              : <>Ee ganze Numm pro Zeil. Persounen, déi et scho gëtt, ginn iwwersprongen.</>}
           </p>
           <div className="grid2">
             <label className="field"><span>Roll</span>
@@ -272,11 +278,11 @@ function App() {
             )}
           </div>
           <label className="field">
-            <span>Nimm (ee pro Zeil, optional ;UntisCode)</span>
+            <span>{bulkRolle === "Schüler" ? "Virnimm (ee pro Zeil)" : "Nimm (ee pro Zeil)"}</span>
             <textarea
               className="textarea"
               rows={6}
-              placeholder={"Léa Muller;mulle123\nBen Weber\nNoah Schmit;schno456"}
+              placeholder={bulkRolle === "Schüler" ? "Léa\nBen\nNoah" : "Guy Putz\nPol Medernach"}
               value={bulkNimm}
               onChange={(e) => setBulkNimm(e.target.value)}
             />
@@ -290,12 +296,12 @@ function App() {
             <div className="bulk-resultat">
               <p className="bulk-summary">✅ {anzuelNei} nei derbäigesat{anzuelSchoDo > 0 ? ` · ${anzuelSchoDo} scho virhannen (iwwersprongen)` : ""}</p>
               <table className="tabelle">
-                <thead><tr><th>Numm</th><th>Untis-Code</th><th>Status</th><th>PIN</th></tr></thead>
+                <thead><tr><th>{bulkRolle === "Schüler" ? "Matrikel" : "Numm"}</th><th>Virnumm</th><th>Status</th><th>PIN</th></tr></thead>
                 <tbody>
                   {bulkResultater.map((r, i) => (
                     <tr key={i}>
                       <td>{r.numm}</td>
-                      <td>{r.untisCode || "–"}</td>
+                      <td>{r.virnumm || "–"}</td>
                       <td>{r.status === "nei" ? "✅ nei" : "⏭️ scho do"}</td>
                       <td className="pin-zell">{r.pin || "–"}</td>
                     </tr>
@@ -312,12 +318,12 @@ function App() {
           {loading && <p>Lädt…</p>}
           {!loading && (
             <table className="tabelle">
-              <thead><tr><th>Numm</th><th>Roll</th><th>Klasse</th><th>Untis-Code</th><th></th></tr></thead>
+              <thead><tr><th>Virnumm</th><th>Matrikel/Numm</th><th>Roll</th><th>Klasse</th><th></th></tr></thead>
               <tbody>
                 {personen.map((p, i) => (
                   <React.Fragment key={i}>
                     <tr>
-                      <td>{p.numm}</td><td>{p.rolle}</td><td>{p.klasse || "–"}</td><td>{p.untisCode || "–"}</td>
+                      <td>{p.virnumm || "–"}</td><td>{p.numm}</td><td>{p.rolle}</td><td>{p.klasse || "–"}</td>
                       <td className="aktioun-zell">
                         <button className="icon-btn icon-btn-blo" onClick={() => passwuertAendernOeffnen(p)}>🔑 Passwuert</button>
                         <button className="icon-btn" onClick={() => toggleAktiv(p)}>Deaktivéieren</button>
@@ -328,7 +334,7 @@ function App() {
                       <tr className="reset-zeil">
                         <td colSpan={5}>
                           <div className="reset-box">
-                            <span className="reset-label">Neit Passwuert fir <strong>{p.numm}</strong> setzen:</span>
+                            <span className="reset-label">Neit Passwuert fir <strong>{p.virnumm ? `${p.virnumm} (${p.numm})` : p.numm}</strong> setzen:</span>
                             <input
                               className="input reset-input"
                               type="text"
@@ -377,7 +383,7 @@ ReactDOM.createRoot(document.getElementById("root")).render(<App />);
 .btn { background: #00A94F; color: #fff; border: none; padding: 10px 18px; border-radius: 8px; font-weight: 700; cursor: pointer; }
 .btn:disabled { background: #b7c6bd; cursor: not-allowed; }
 .error { color: #8a2b1f; background: #fbe4e1; padding: 8px 12px; border-radius: 8px; font-size: 12.5px; margin-bottom: 12px; }
-.pin-box { margin-top: 12px; background: #eef3ef; padding: 12px; border-radius: 8px; text-align: center; }
+.pin-box { margin-top: 12px; background: #eef3ef; padding: 12px; border-radius: 8px; text-align: center; display: flex; flex-direction: column; gap: 4px; }
 .pin-zuel { display: block; font-size: 24px; font-weight: 800; color: #00A94F; letter-spacing: 6px; word-break: break-all; }
 .bulk-resultat { margin-top: 14px; padding-top: 14px; border-top: 1px solid #eef1ef; }
 .bulk-summary { font-size: 13px; font-weight: 700; color: #294f3c; margin: 0 0 10px; }
