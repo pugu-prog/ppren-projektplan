@@ -45,10 +45,10 @@ function sécherZiel(zréckParam, rolle) {
 }
 
 function App() {
-  // M1: Login geschitt elo iwwer den Untis-Code (méi sécher wéi de Numm,
-  // well net direkt ze roden) — oder, falls nach kee Code zougewisen ass,
-  // weiderhin iwwer de vollen Numm. D'Roll gëtt server-säiteg festgestallt,
-  // duerfir brauch et keng Roll-Ëmschalter méi hei.
+  // M1: Login geschitt elo iwwer d'Matrikelnummer (Schüler, méi sécher wéi
+  // de Numm, well net direkt ze roden) oder de ganze Numm (Proffen).
+  // D'Roll gëtt server-säiteg festgestallt, duerfir brauch et keng
+  // Roll-Ëmschalter méi hei.
   const [eingabe, setEingabe] = useState("");
   const [pin, setPin] = useState("");
   const [error, setError] = useState(null);
@@ -66,7 +66,7 @@ function App() {
 
   const umellen = async () => {
     if (!eingabe.trim() || pin.length < 4) {
-      setError("Weg Untis-Code (oder Numm) an PIN/Passwuert (mindestens 4 Zeechen) aginn.");
+      setError("Weg Matrikel (oder Numm) an PIN/Passwuert (mindestens 4 Zeechen) aginn.");
       return;
     }
     setSyncing(true);
@@ -113,10 +113,10 @@ function App() {
       <main className="main">
         <div className="card">
           <label className="field">
-            <span className="field-label">Untis-Code (oder Numm)</span>
+            <span className="field-label">Matrikel (oder Numm)</span>
             <input
               type="text" className="input" autoCapitalize="none" autoCorrect="off" spellCheck="false"
-              placeholder="z.B. mmustermann123"
+              placeholder="z.B. 26-1GSE-01"
               value={eingabe} onChange={(e) => setEingabe(e.target.value)}
               onKeyDown={(e) => e.key === "Enter" && document.getElementById("pin-feld")?.focus()}
             />
@@ -140,7 +140,7 @@ function App() {
             {syncing ? "Mellt un…" : "Umellen"}
           </button>
 
-          <p className="footer-hint">Kee Untis-Code? Numm benotzen. PIN/Passwuert vergiess? Frot Ären Prof, en zréckzesetzen.</p>
+          <p className="footer-hint">Keng Matrikel? Numm benotzen. PIN/Passwuert vergiess? Frot Ären Prof, en zréckzesetzen.</p>
         </div>
       </main>
 
