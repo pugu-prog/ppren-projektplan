@@ -118,7 +118,7 @@ function App() {
       .finally(() => setPersonenGelueden(true));
   }, []);
   const SCHUELER = useMemo(
-    () => personen.filter((p) => p.rolle === "Schüler").map((p) => ({ id: p.numm, name: p.numm, klasse: p.klasse })),
+    () => personen.filter((p) => p.rolle === "Schüler").map((p) => ({ id: p.numm, name: p.numm, virnumm: p.virnumm || "", klasse: p.klasse })),
     [personen]
   );
   const LEHRER = useMemo(
@@ -273,13 +273,13 @@ function App() {
         <aside className="sidebar">
           {istSchueler ? (
             <Field label="Ugemellt als">
-              <div className="identitaet-box">👤 {currentSchueler?.name || window.PPREN_SESSION?.numm} ({currentSchueler?.klasse})</div>
+              <div className="identitaet-box">👤 {currentSchueler?.virnumm ? `${currentSchueler.virnumm} — ` : ""}{currentSchueler?.name || window.PPREN_SESSION?.numm} ({currentSchueler?.klasse})</div>
             </Field>
           ) : (
             <Field label="Schüler/-in (als Prof)" hint="Als Prof kanns du de Projektplang vun engem Schüler nokucken, erklären oder mathëllefen auszefëllen.">
               <select className="select" value={schuelerId} onChange={(e) => setSchuelerId(e.target.value)}>
                 <option value="">– auswielen –</option>
-                {SCHUELER.map((s) => <option key={s.id} value={s.id}>{s.name} ({s.klasse})</option>)}
+                {SCHUELER.map((s) => <option key={s.id} value={s.id}>{s.virnumm ? `${s.virnumm} — ` : ""}{s.name} ({s.klasse})</option>)}
               </select>
             </Field>
           )}
@@ -384,7 +384,7 @@ function App() {
                       <Field label="Partner/-in">
                         <select className="select" value={plan.partner} onChange={(e) => update({ partner: e.target.value })}>
                           <option value="">– auswählen –</option>
-                          {SCHUELER.filter((s) => s.id !== schuelerId).map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
+                          {SCHUELER.filter((s) => s.id !== schuelerId).map((s) => <option key={s.id} value={s.id}>{s.virnumm ? `${s.virnumm} — ` : ""}{s.name}</option>)}
                         </select>
                       </Field>
                       <Field label="Mein individueller Aufgabenbereich">
